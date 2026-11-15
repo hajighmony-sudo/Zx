@@ -1291,8 +1291,8 @@ private fun UiPage(
                     onCheckedChange = { v -> onUpdate { it.copy(speedInNotification = v) } },
                 )
                 SettingsActionRow(
-                    title = stringResource(Res.string.notif_channel_name),
-                    summary = stringResource(Res.string.notif_channel_desc),
+                    title = stringResource(Res.string.notif_sound_settings_title),
+                    summary = stringResource(Res.string.notif_sound_settings_summary),
                     onClick = { platform.openNotificationSettings("zed_events") },
                 )
             }
