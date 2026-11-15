@@ -196,6 +196,40 @@ class AndroidPlatform(
             .onFailure { ZsxSharing.shareText(context, "zedsecure-export.txt", text) }
     }
 
+    override fun openNotificationSettings(channelId: String?) {
+        val modern = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O
+        if (modern && !channelId.isNullOrBlank()) {
+            runCatching {
+                val manager = context.getSystemService(android.app.NotificationManager::class.java)
+                if (manager?.getNotificationChannel(channelId) == null) {
+                    val channel = android.app.NotificationChannel(
+                        channelId,
+                        context.getString(dev.cluvex.zedsecure.R.string.notif_channel_name),
+                        android.app.NotificationManager.IMPORTANCE_DEFAULT,
+                    ).apply {
+                        description = context.getString(dev.cluvex.zedsecure.R.string.notif_channel_desc)
+                        enableVibration(true)
+                    }
+                    manager?.createNotificationChannel(channel)
+                }
+            }
+        }
+        val intent = when {
+            modern && !channelId.isNullOrBlank() -> Intent(AndroidSettings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+                putExtra(AndroidSettings.EXTRA_APP_PACKAGE, context.packageName)
+                putExtra(AndroidSettings.EXTRA_CHANNEL_ID, channelId)
+            }
+            modern -> Intent(AndroidSettings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(AndroidSettings.EXTRA_APP_PACKAGE, context.packageName)
+            }
+            else -> Intent(
+                AndroidSettings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.parse("package:${context.packageName}"),
+            )
+        }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(intent) }
+    }
+
     override fun openUri(url: String) {
         runCatching {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {

@@ -1223,7 +1223,8 @@ private fun UiPage(
         contentPadding = contentPadding,
         modifier = modifier,
     ) {
-        val dynamicActive = s.dynamicColor && LocalPlatform.current.supportsDynamicColor
+        val platform = LocalPlatform.current
+        val dynamicActive = s.dynamicColor && platform.supportsDynamicColor
         val oldHome = s.appDesign == AppDesign.Old
         SettingsGroup {
             AppDesignPicker(
@@ -1288,6 +1289,11 @@ private fun UiPage(
                     summary = stringResource(Res.string.summary_pref_speed_enabled),
                     checked = s.speedInNotification,
                     onCheckedChange = { v -> onUpdate { it.copy(speedInNotification = v) } },
+                )
+                SettingsActionRow(
+                    title = stringResource(Res.string.notif_sound_settings_title),
+                    summary = stringResource(Res.string.notif_sound_settings_summary),
+                    onClick = { platform.openNotificationSettings("zed_events") },
                 )
             }
         }

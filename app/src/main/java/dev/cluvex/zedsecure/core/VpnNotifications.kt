@@ -118,7 +118,35 @@ class VpnNotifications(private val ctx: Context) {
             enableVibration(false)
             setSound(null, null)
         }
-        ctx.getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
+        val manager = ctx.getSystemService(NotificationManager::class.java)
+        manager?.createNotificationChannel(channel)
+
+        // A separate, user-configurable channel keeps one-shot alerts independent from
+        // the permanently silent foreground-service notification.
+        val events = NotificationChannel(
+            EVENT_CHANNEL_ID,
+            ctx.getString(R.string.notif_channel_name),
+            NotificationManager.IMPORTANCE_DEFAULT,
+        ).apply {
+            description = ctx.getString(R.string.notif_channel_desc)
+            setShowBadge(true)
+            enableVibration(true)
+        }
+        manager?.createNotificationChannel(events)
+    }
+
+    fun postEvent(title: String, body: String, notificationId: Int = EVENT_NOTIFICATION_ID) {
+        val notification = NotificationCompat.Builder(ctx, EVENT_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_tile_zed)
+            .setContentTitle(BidiText.auto(title))
+            .setContentText(BidiText.auto(body))
+            .setAutoCancel(true)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setContentIntent(openApp())
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        ctx.getSystemService(NotificationManager::class.java)?.notify(notificationId, notification)
     }
 
     fun build(
@@ -373,6 +401,9 @@ class VpnNotifications(private val ctx: Context) {
 
         const val CHANNEL_ID = "zed_vpn"
         const val NOTIFICATION_ID = 1
+        const val EVENT_CHANNEL_ID = "zed_events"
+        const val EVENT_NOTIFICATION_ID = 2
+        const val EVENT_ERROR_NOTIFICATION_ID = 3
 
         const val ACTION_CONNECT = "dev.cluvex.zedsecure.action.CONNECT"
 
