@@ -196,6 +196,20 @@ class AndroidPlatform(
             .onFailure { ZsxSharing.shareText(context, "zedsecure-export.txt", text) }
     }
 
+    override fun openNotificationSettings(channelId: String?) {
+        val intent = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && !channelId.isNullOrBlank()) {
+            Intent(AndroidSettings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+                putExtra(AndroidSettings.EXTRA_APP_PACKAGE, context.packageName)
+                putExtra(AndroidSettings.EXTRA_CHANNEL_ID, channelId)
+            }
+        } else {
+            Intent(AndroidSettings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(AndroidSettings.EXTRA_APP_PACKAGE, context.packageName)
+            }
+        }.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(intent) }
+    }
+
     override fun openUri(url: String) {
         runCatching {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
