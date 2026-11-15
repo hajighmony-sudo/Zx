@@ -35,6 +35,9 @@ interface Platform {
     fun shareText(text: String)
     fun openUri(url: String)
 
+    /** Opens the operating-system notification settings, optionally for one channel. */
+    fun openNotificationSettings(channelId: String? = null) {}
+
     fun toast(message: String)
 
     fun shareFiles(files: List<Pair<String, ByteArray>>) {}
