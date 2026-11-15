@@ -1223,7 +1223,8 @@ private fun UiPage(
         contentPadding = contentPadding,
         modifier = modifier,
     ) {
-        val dynamicActive = s.dynamicColor && LocalPlatform.current.supportsDynamicColor
+        val platform = LocalPlatform.current
+        val dynamicActive = s.dynamicColor && platform.supportsDynamicColor
         val oldHome = s.appDesign == AppDesign.Old
         SettingsGroup {
             AppDesignPicker(
@@ -1292,7 +1293,7 @@ private fun UiPage(
                 SettingsActionRow(
                     title = stringResource(Res.string.notif_channel_name),
                     summary = stringResource(Res.string.notif_channel_desc),
-                    onClick = { LocalPlatform.current.openNotificationSettings("zed_events") },
+                    onClick = { platform.openNotificationSettings("zed_events") },
                 )
             }
         }
