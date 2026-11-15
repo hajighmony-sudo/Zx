@@ -987,6 +987,11 @@ class ZedVpnService : VpnService() {
         watchNotificationSettings()
         VpnManager.onConnected(remark)
         notify(connectedNotification(0, 0, 0, 0))
+        notifications.postEvent(
+            title = getString(R.string.state_connected),
+            body = remark.ifBlank { getString(R.string.notif_channel_desc) },
+            notificationId = VpnNotifications.EVENT_NOTIFICATION_ID,
+        )
         ZedWidgetProvider.refresh(this, force = true)
         startStatsLoop()
         watchNetworkType()
@@ -1539,7 +1544,14 @@ class ZedVpnService : VpnService() {
         if (killSwitchEnabled && (connected || reconnecting) && ensureKillSwitchTun()) {
             holdTraffic(reason)
         } else {
-            if (reason != null) VpnManager.onError(reason)
+            if (reason != null) {
+                VpnManager.onError(reason)
+                notifications.postEvent(
+                    title = getString(R.string.notif_title_disconnected),
+                    body = reason,
+                    notificationId = VpnNotifications.EVENT_ERROR_NOTIFICATION_ID,
+                )
+            }
             stopEverything()
         }
     }
@@ -1551,6 +1563,11 @@ class ZedVpnService : VpnService() {
         stopEngines()
         ensureKillSwitchTun()
         VpnManager.onError(reason ?: getString(R.string.kill_switch))
+        notifications.postEvent(
+            title = getString(R.string.notif_title_disconnected),
+            body = reason ?: getString(R.string.notif_kill_switch_body),
+            notificationId = VpnNotifications.EVENT_ERROR_NOTIFICATION_ID,
+        )
         runCatching {
             notify(
                 notifications.build(
