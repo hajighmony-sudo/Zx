@@ -31,9 +31,8 @@ fun GhostSettingsPage(
 ) {
     val ghost = settings.ghost
 
-    LaunchedEffect(ghost) {
-        GhostEngine.updateSettings(ghost)
-    }
+    // SettingsScreen owns GhostEngine settings synchronization.
+    // Do not apply the same settings again when the page enters composition.
 
     var status by remember { mutableStateOf(GhostEngine.debugStatus()) }
     LaunchedEffect(Unit) {
