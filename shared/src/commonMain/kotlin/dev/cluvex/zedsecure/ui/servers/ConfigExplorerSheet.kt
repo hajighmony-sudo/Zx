@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 
 package dev.cluvex.zedsecure.ui.servers
 
@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -61,7 +62,9 @@ fun ConfigExplorerSheet(
     val state by repository.configExplorer.state.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf("found") }
     val discovered by repository.configExplorer.discovered.collectAsStateWithLifecycle()
-    var selectedEntry by rememberSaveable { mutableStateOf<ConfigExplorerEntry?>(null) }
+    var detailTarget by remember { mutableStateOf<ExplorerTarget?>(null) }
+    var renameTarget by remember { mutableStateOf<ExplorerTarget?>(null) }
+    var expandedCountry by rememberSaveable { mutableStateOf<String?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
     var protoFilter by rememberSaveable { mutableStateOf<String?>(null) }
     var sort by rememberSaveable { mutableStateOf("latency") }
@@ -123,6 +126,49 @@ fun ConfigExplorerSheet(
             }
         }
 
+    fun nameOf(t: ExplorerTarget): String =
+        state.renames[t.link] ?: t.name.ifBlank { t.protocol + " · " + t.address }
+    val allTargets = ((state.healthyPool + state.liveEntries + state.favorites).map { it.toTarget() } +
+        discovered.filter { it.status == 1 }.map { it.toTarget() })
+        .distinctBy { it.link }
+        .filter {
+            val q = query.trim().lowercase()
+            q.isEmpty() || nameOf(it).lowercase().contains(q) || it.address.lowercase().contains(q) ||
+                countryNameFa(it.countryCode).contains(q) || (it.countryCode?.lowercase() ?: "").contains(q) ||
+                it.protocol.lowercase().contains(q)
+        }
+    val countryGroups = groupByCountry(allTargets)
+    val unknownCountry = allTargets.count { it.countryCode == null }
+
+    fun exportTarget(t: ExplorerTarget) {
+        val link = dev.cluvex.zedsecure.data.config.LinkRename.apply(t.link, nameOf(t))
+        platform.copyToClipboard(link)
+        platform.shareText(link)
+        platform.toast("لینک استخراج و کپی شد · " + nameOf(t))
+    }
+    fun connectTarget(t: ExplorerTarget) {
+        val id = t.profileId ?: run {
+            repository.importText(t.link, repository.configExplorer.state.value.groupId.orEmpty())
+            repository.profiles.value.firstOrNull { it.rawPayload()?.trim() == t.link.trim() }?.id
+        }
+        if (id != null) {
+            state.renames[t.link]?.let { repository.rename(id, it) }
+            repository.setActive(id); onServerActivated(); onDismiss()
+        } else {
+            platform.toast("افزودن این سرور انجام نشد")
+        }
+    }
+    @Composable
+    fun SwipeRow(t: ExplorerTarget, content: @Composable () -> Unit) {
+        SwipeActionRow(
+            startLabel = "✏️ تغییر نام",
+            endLabel = "📤 استخراج",
+            onSwipeRight = { renameTarget = t },
+            onSwipeLeft = { exportTarget(t) },
+            content = content,
+        )
+    }
+
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val startHunt: (String) -> Unit = { input ->
@@ -160,6 +206,11 @@ fun ConfigExplorerSheet(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
+                ExplorerRadar(
+                    running = state.isRunning,
+                    found = maxOf(discovered.count { it.status == 1 }, visibleHealthyCount),
+                    modifier = Modifier.padding(end = 12.dp),
+                )
                 Column(Modifier.weight(1f)) {
                     Text("کاوشگر ZX", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                     Text(
@@ -178,6 +229,19 @@ fun ConfigExplorerSheet(
                 ExplorerMetric("سالم", visibleHealthyCount.toString(), Modifier.weight(1f))
                 ExplorerMetric("برتر", state.healthyPool.take(ConfigExplorerEngine.BEST_LIMIT).size.toString(), Modifier.weight(1f))
             }
+            }
+            item {
+                if (state.isRunning) {
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = { ConfigExplorerEngine.stop(repository) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("⏹ توقف کاوش (یافته‌ها حفظ می‌شود)") }
+                } else {
+                    Button(
+                        onClick = { ConfigExplorerEngine.runNow(repository) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("▶ شروع کاوش") }
+                }
             }
             val best = state.healthyPool.firstOrNull { it.profileId != null }
             if (best != null) {
@@ -276,17 +340,6 @@ fun ConfigExplorerSheet(
                             color = if (state.lastError != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    if (state.isRunning) {
-                        androidx.compose.material3.OutlinedButton(
-                            onClick = { ConfigExplorerEngine.stop(repository) },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text("توقف کاوش (یافته‌ها حفظ می‌شود)") }
-                    } else {
-                        Button(
-                            onClick = { ConfigExplorerEngine.runNow(repository) },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text("شروع کاوش") }
-                    }
                     Text(
                         "چرخه " + state.cycleCount + " · تعداد تست‌ها " + state.testedCount,
                         style = MaterialTheme.typography.labelSmall,
@@ -295,22 +348,25 @@ fun ConfigExplorerSheet(
                 }
             }
             }
-            item {
-            Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
+            stickyHeader {
+                Surface(color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
+                    Column {
+                        Row(
+                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
                 ExplorerTab("کشف‌شده‌ها " + foundAlive + "/" + discovered.size, tab == "found") { tab = "found" }
                 ExplorerTab("یافته‌های زنده " + state.liveEntries.size, tab == "live") { tab = "live" }
                 ExplorerTab("۱۰۰ برتر", tab == "best") { tab = "best" }
                 ExplorerTab("ذخیره جایگزین", tab == "reserve") { tab = "reserve" }
                 ExplorerTab("همه سالم‌ها", tab == "pool") { tab = "pool" }
+                ExplorerTab("🌍 کشورها " + countryGroups.count { it.items.isNotEmpty() }, tab == "countries") { tab = "countries" }
                 ExplorerTab("★ نشان‌دارها " + state.favorites.size, tab == "stars") { tab = "stars" }
                 ExplorerTab("🎯 شکارچی و منابع", tab == "sources") { tab = "sources" }
-            }
-            }
-            item {
-            HorizontalDivider()
+                        }
+                        HorizontalDivider()
+                    }
+                }
             }
             if (tab != "sources") {
             item {
@@ -455,6 +511,51 @@ fun ConfigExplorerSheet(
                 }
                 }
             }
+            } else if (tab == "countries") {
+                item {
+                    Text(
+                        allTargets.size.toString() + " کانفیگ سالم · " + countryGroups.count { it.items.isNotEmpty() } + " کشور" +
+                            (if (unknownCountry > 0) " · کشور " + unknownCountry + " مورد در حال شناسایی" else ""),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                countryGroups.forEach { group ->
+                    item(key = "country-" + group.code) {
+                        val open = expandedCountry == group.code
+                        Surface(
+                            shape = RoundedCornerShape(18.dp),
+                            color = if (open) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.fillMaxWidth().clickable(enabled = group.items.isNotEmpty()) {
+                                expandedCountry = if (open) null else group.code
+                            },
+                        ) {
+                            Row(
+                                Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Text(countryFlag(group.code), fontSize = 28.sp)
+                                Column(Modifier.weight(1f)) {
+                                    Text(countryNameFa(group.code), fontWeight = FontWeight.Bold)
+                                    Text(
+                                        if (group.items.isEmpty()) "هنوز کانفیگی نیست" else
+                                            group.items.size.toString() + " کانفیگ" + (group.best?.let { " · بهترین " + it + " ms" } ?: ""),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Text(if (group.items.isEmpty()) "—" else if (open) "▲" else "▼")
+                            }
+                        }
+                    }
+                    if (expandedCountry == group.code) {
+                        itemsIndexed(group.items.take(40), key = { _, t -> "c-" + group.code + "-" + t.link }) { index, t ->
+                            SwipeRow(t) { ExplorerTargetRow(index + 1, t, nameOf(t)) { detailTarget = t } }
+                            HorizontalDivider()
+                        }
+                    }
+                }
             } else if (tab == "found") {
                 if (foundShown.isEmpty()) {
                     item {
@@ -474,16 +575,17 @@ fun ConfigExplorerSheet(
                         )
                     }
                     itemsIndexed(foundShown, key = { _, d -> d.id }) { index, d ->
+                        SwipeRow(d.toTarget()) {
                         Row(
                             Modifier.fillMaxWidth()
-                                .clickable { platform.copyToClipboard(d.link); platform.toast("لینک کپی شد") }
+                                .clickable { detailTarget = d.toTarget() }
                                 .padding(vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             Text((index + 1).toString().padStart(2, '0'), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Column(Modifier.weight(1f)) {
-                                Text(d.name.ifBlank { d.protocol + " · " + d.address }, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text((d.countryCode?.let { countryFlag(it) + "  " } ?: "") + nameOf(d.toTarget()), fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 Text(
                                     d.protocol + " · " + d.address + ":" + d.port + " · " + d.sourceName,
                                     style = MaterialTheme.typography.labelSmall,
@@ -497,6 +599,7 @@ fun ConfigExplorerSheet(
                                 2 -> Text("✗ ناموفق", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error)
                                 else -> Text("در حال تست…", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
+                        }
                         }
                         HorizontalDivider()
                     }
@@ -512,13 +615,16 @@ fun ConfigExplorerSheet(
             }
             } else {
                 itemsIndexed(shown, key = { _, e -> e.id }) { index, entry ->
-                    ExplorerEntryRow(
-                        index = index + 1,
-                        entry = entry,
-                        isReserve = tab == "reserve",
-                        onClick = { selectedEntry = entry },
-                        onPromote = { ConfigExplorerEngine.promoteReserve(repository, entry.id) },
-                    )
+                    SwipeRow(entry.toTarget()) {
+                        ExplorerEntryRow(
+                            index = index + 1,
+                            entry = entry,
+                            name = nameOf(entry.toTarget()),
+                            isReserve = tab == "reserve",
+                            onClick = { detailTarget = entry.toTarget() },
+                            onPromote = { ConfigExplorerEngine.promoteReserve(repository, entry.id) },
+                        )
+                    }
                     HorizontalDivider()
                 }
             }
@@ -540,54 +646,46 @@ fun ConfigExplorerSheet(
       }
     }
 
-    selectedEntry?.let { entry ->
-        AlertDialog(
-            onDismissRequest = { selectedEntry = null },
-            title = { Text(entry.name.ifBlank { entry.protocol + " · " + entry.address }) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text((entry.countryCode?.let(::countryFlag) ?: "🌐") + "  " + (entry.countryCode ?: "کشور نامشخص"))
-                    Text("IP: " + (entry.ipAddress ?: "در حال شناسایی یا نامشخص"))
-                    Text("سرور: " + entry.address + ":" + entry.port)
-                    Text("پروتکل: " + entry.protocol)
-                    Text("منبع: " + entry.sourceName)
-                    Text("نمونه‌های تأخیر: " + entry.samplesMs.joinToString("، ") + " ms")
-                    Text("میانه: " + entry.medianMs + " ms · میانگین: " + entry.meanMs + " ms")
-                    Text("نوسان: " + entry.jitterMs + " ms")
-                    Text("امتیاز کیفیت: " + explorerQuality(entry) + " / 100")
-                    Text("آخرین بررسی: " + relativeAgo(entry.lastCheckedAt))
-                }
+    detailTarget?.let { target ->
+        ExplorerDetailSheet(
+            target = target,
+            displayName = nameOf(target),
+            isFavorite = state.favorites.any { it.link == target.link },
+            onDismiss = { detailTarget = null },
+            onConnect = { detailTarget = null; connectTarget(target) },
+            onToggleFavorite = {
+                val entry = (state.healthyPool + state.liveEntries + state.favorites).firstOrNull { it.link == target.link }
+                    ?: ConfigExplorerEntry(
+                        id = target.link, name = target.name, protocol = target.protocol, address = target.address, port = target.port,
+                        sourceId = "", sourceName = target.sourceName, link = target.link, samplesMs = target.samplesMs,
+                        medianMs = target.ms, meanMs = target.ms, jitterMs = target.jitterMs ?: 0,
+                        lastCheckedAt = currentTimeMillis(), countryCode = target.countryCode,
+                    )
+                repository.configExplorer.toggleFavorite(entry)
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    // Entries still in the live list are not saved yet: add them to Servers first.
-                    val id = entry.profileId
-                        ?: run {
-                            repository.importText(entry.link, repository.configExplorer.state.value.groupId.orEmpty())
-                            repository.profiles.value.firstOrNull { it.rawPayload()?.trim() == entry.link.trim() }?.id
-                        }
-                    if (id != null) {
-                        repository.setActive(id); onServerActivated(); onDismiss()
-                    } else {
-                        platform.toast("افزودن این سرور انجام نشد")
-                    }
-                    selectedEntry = null
-                }) { Text(if (entry.profileId != null) "اتصال به این سرور" else "افزودن و اتصال") }
+            onRename = { renameTarget = target },
+            onExport = { exportTarget(target) },
+        )
+    }
+    renameTarget?.let { target ->
+        ExplorerRenameDialog(
+            initial = nameOf(target),
+            onSave = { name ->
+                repository.configExplorer.rename(target.link, name)
+                target.profileId?.let { repository.rename(it, name) }
+                platform.toast("نام ذخیره شد")
+                renameTarget = null
             },
-            dismissButton = {
-                Row {
-                    TextButton(onClick = { repository.configExplorer.toggleFavorite(entry) }) {
-                        Text(if (state.favorites.any { it.link == entry.link }) "★ برداشتن نشان" else "☆ نشان‌دار")
-                    }
-                    TextButton(onClick = { platform.copyToClipboard(entry.link); platform.toast("لینک کپی شد") }) { Text("کپی لینک") }
-                    TextButton(onClick = { selectedEntry = null }) { Text("بستن") }
-                }
+            onReset = {
+                repository.configExplorer.rename(target.link, "")
+                renameTarget = null
             },
+            onDismiss = { renameTarget = null },
         )
     }
 }
 
-private fun countryFlag(code: String): String {
+internal fun countryFlag(code: String): String {
     if (code.length != 2) return "🌐"
     val base = 0x1F1E6
     return code.uppercase().map { char ->
@@ -623,6 +721,7 @@ private fun ExplorerTab(label: String, selected: Boolean, onClick: () -> Unit) {
 private fun ExplorerEntryRow(
     index: Int,
     entry: ConfigExplorerEntry,
+    name: String,
     isReserve: Boolean,
     onClick: () -> Unit,
     onPromote: () -> Unit,
@@ -637,7 +736,7 @@ private fun ExplorerEntryRow(
         ) {
             Text(index.toString().padStart(2, '0'), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Column(Modifier.weight(1f)) {
-                Text((entry.countryCode?.let(::countryFlag) ?: "🌐") + "  " + entry.name.ifBlank { entry.protocol + " · " + entry.address }, fontWeight = FontWeight.SemiBold)
+                Text((entry.countryCode?.let(::countryFlag) ?: "🌐") + "  " + name, fontWeight = FontWeight.SemiBold)
                 Text(
                     entry.protocol + " · " + entry.address + ":" + entry.port + " · " + entry.sourceName,
                     style = MaterialTheme.typography.labelSmall,
@@ -675,7 +774,7 @@ private fun explorerPhaseLabel(phase: String): String = when (phase) {
 internal fun explorerQuality(entry: ConfigExplorerEntry): Int =
     (100 - entry.medianMs / 12 - entry.jitterMs / 8).coerceIn(1, 100)
 
-private fun relativeAgo(timestamp: Long): String {
+internal fun relativeAgo(timestamp: Long): String {
     val minutes = ((currentTimeMillis() - timestamp) / 60_000L).coerceAtLeast(0L)
     return when {
         minutes < 1 -> "هم‌اکنون"

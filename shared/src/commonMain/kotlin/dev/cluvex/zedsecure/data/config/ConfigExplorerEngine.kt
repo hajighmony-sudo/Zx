@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -94,6 +95,8 @@ data class ConfigExplorerSnapshot(
     val customSources: List<String> = emptyList(),
     /** Servers the user starred; kept until removed, independent of cycles. */
     val favorites: List<ConfigExplorerEntry> = emptyList(),
+    /** User-chosen names, keyed by the config link; survive cycles and are used when exporting. */
+    val renames: Map<String, String> = emptyMap(),
 )
 
 /** One config found by the current cycle, shown immediately (status 0 = testing, 1 = alive, 2 = failed). */
@@ -107,6 +110,7 @@ data class DiscoveredConfig(
     val link: String,
     val status: Int = 0,
     val ms: Int = 0,
+    val countryCode: String? = null,
 )
 
 class ConfigExplorerRepository(private val store: KeyValueStore) {
@@ -114,6 +118,19 @@ class ConfigExplorerRepository(private val store: KeyValueStore) {
     val discovered: StateFlow<List<DiscoveredConfig>> = _discovered.asStateFlow()
 
     fun setDiscovered(list: List<DiscoveredConfig>) { _discovered.value = list }
+
+    fun setDiscoveredCountry(address: String, countryCode: String) {
+        _discovered.update { list -> list.map { if (it.address == address) it.copy(countryCode = countryCode) else it } }
+    }
+
+    /** Stores (or clears, when [name] is blank) the user's custom name for a config link. */
+    fun rename(link: String, name: String) {
+        val clean = name.trim().take(80)
+        val current = _state.value
+        val next = current.copy(renames = if (clean.isEmpty()) current.renames - link else current.renames + (link to clean))
+        _state.value = next
+        persist(next)
+    }
 
     fun markDiscovered(id: String, ms: Int?) {
         _discovered.update { list ->
@@ -200,6 +217,7 @@ class ConfigExplorerRepository(private val store: KeyValueStore) {
             wifiOnly = current.wifiOnly,
             customSources = current.customSources,
             favorites = current.favorites,
+            renames = current.renames,
         )
         _state.value = next
         persist(next)
@@ -403,6 +421,7 @@ object ConfigExplorerEngine {
         if (!force && !explorer.state.value.enabled) return@withLock
 
         explorer.setDiscovered(emptyList())
+        geoSeen.value = emptySet()
         explorer.updateRuntime {
             it.copy(
                 isRunning = true,
@@ -845,6 +864,22 @@ object ConfigExplorerEngine {
         )
     }
 
+    private val geoGate = kotlinx.coroutines.sync.Semaphore(6)
+    private val geoSeen = MutableStateFlow<Set<String>>(emptySet())
+
+    /** Fills in the country of a discovered config as soon as it proves alive (once per address). */
+    private fun resolveDiscoveredCountry(explorer: ConfigExplorerRepository, id: String) {
+        val item = explorer.discovered.value.firstOrNull { it.id == id } ?: return
+        if (item.countryCode != null) return
+        var fresh = false
+        geoSeen.update { if (item.address in it) it else { fresh = true; it + item.address } }
+        if (!fresh) return
+        scope.launch {
+            val country = geoGate.withPermit { runCatching { GeoLookup.countryOf(item.address) }.getOrNull() }
+            if (country != null) explorer.setDiscoveredCountry(item.address, country)
+        }
+    }
+
     private suspend fun measure(
         profiles: List<VpnProfile>,
         url: String,
@@ -866,6 +901,7 @@ object ConfigExplorerEngine {
             onResult = { id, ms, _ ->
                 results.update { current -> current + (id to (ms ?: PingService.FAILED_PING)) }
                 explorer.markDiscovered(id, ms)
+                if (ms != null && ms > 0) resolveDiscoveredCountry(explorer, id)
                 // Stream every success the moment it is measured, not when the whole pass ends.
                 if (ms != null && ms > 0) onHit?.invoke(id, ms)
             },
