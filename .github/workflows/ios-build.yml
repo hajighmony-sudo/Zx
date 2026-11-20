@@ -1,0 +1,55 @@
+name: ZX iOS build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ZX]
+    paths:
+      - "ios/**"
+      - ".github/workflows/ios-build.yml"
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build (unsigned, device SDK)
+        working-directory: ios
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project ZXVPN.xcodeproj \
+            -scheme ZXVPN \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build | tee xcodebuild.log | tail -n 60
+
+      - name: Package unsigned IPA
+        working-directory: ios
+        run: |
+          APP=$(find build/Build/Products -maxdepth 2 -name "ZXVPN.app" | head -n 1)
+          test -n "$APP"
+          rm -rf Payload && mkdir Payload
+          cp -R "$APP" Payload/
+          zip -qry ZXVPN-unsigned.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ZXVPN-unsigned-ipa
+          path: ios/ZXVPN-unsigned.ipa
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: xcodebuild-log
+          path: ios/xcodebuild.log

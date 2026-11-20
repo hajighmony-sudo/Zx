@@ -20,6 +20,7 @@ struct RootView: View {
                 switch tab {
                 case 0: HomeView()
                 case 1: ServersView()
+                case 2: ExplorerView()
                 default: SettingsView()
                 }
             }
@@ -38,6 +39,7 @@ struct ZXTabBar: View {
     private let items: [(String, LocalizedStringKey)] = [
         ("bolt.shield.fill", "Home"),
         ("server.rack", "Servers"),
+        ("scope", "Explorer"),
         ("slider.horizontal.3", "Settings"),
     ]
 
