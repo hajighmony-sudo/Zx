@@ -261,7 +261,7 @@ private fun ZxVaultHero(lockedCount: Int, sourceCount: Int) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    "ZX / PRIVATE STORAGE",
+                    "ZX / CONFIG VAULT",
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                     color = c.neonA,
                 )
