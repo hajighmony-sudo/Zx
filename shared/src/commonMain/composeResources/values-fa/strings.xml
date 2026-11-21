@@ -1917,4 +1917,17 @@
     <string name="aether_smart_goal_speed">سرعت</string>
     <string name="aether_smart_goal_stealth">مخفی‌کاری</string>
     <string name="aether_smart_rescan">اسکن مجدد</string>
+
+    <string name="link_quality_title">کیفیت اتصال شبکه</string>
+    <string name="link_quality_subtitle">برآورد روی دستگاه · به‌روزرسانی هر ۵ ثانیه</string>
+    <string name="link_quality_network">شبکه</string>
+    <string name="link_quality_signal">قدرت سیگنال</string>
+    <string name="link_quality_down">سرعت تخمینی دریافت</string>
+    <string name="link_quality_up">سرعت تخمینی ارسال</string>
+    <string name="link_quality_internet_ok">دسترسی اینترنت تأیید شده</string>
+    <string name="link_quality_internet_limited">دسترسی اینترنت تأیید نشده</string>
+    <string name="link_quality_metered">شبکه با مصرف محاسبه‌شده</string>
+    <string name="link_quality_unmetered">شبکه بدون محاسبه مصرف</string>
+    <string name="link_quality_unknown">در دسترس نیست</string>
+
 </resources>
