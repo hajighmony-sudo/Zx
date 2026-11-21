@@ -195,6 +195,11 @@ internal fun ZxHome(
         label = "zx-deck-accent",
     )
     val intensity by animateFloatAsState(if (live) 1f else 0.45f, tween(700), label = "zx-intensity")
+    val coreDiameter by animateDpAsState(
+        targetValue = if (live) 150.dp else 142.dp,
+        animationSpec = spring(dampingRatio = 0.72f, stiffness = 260f),
+        label = "zx-core-diameter",
+    )
 
     Box(modifier.fillMaxSize().background(c.ground)) {
         ZxBackdrop(fx = fx, intensity = intensity)
@@ -247,7 +252,7 @@ internal fun ZxHome(
                         fx = fx,
                         onToggle = onToggleConnection,
                         modifier = Modifier.tourTarget(TourTargets.CORE),
-                        diameter = 132.dp,
+                        diameter = coreDiameter,
                     )
                 }
 
