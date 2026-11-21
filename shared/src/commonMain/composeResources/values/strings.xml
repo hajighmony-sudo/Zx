@@ -1924,4 +1924,17 @@
     <string name="aether_smart_goal_speed">Speed</string>
     <string name="aether_smart_goal_stealth">Stealth</string>
     <string name="aether_smart_rescan">Scan again</string>
+
+    <string name="link_quality_title">Network link</string>
+    <string name="link_quality_subtitle">On-device estimate · refreshed every 5 seconds</string>
+    <string name="link_quality_network">Network</string>
+    <string name="link_quality_signal">Signal</string>
+    <string name="link_quality_down">Estimated download</string>
+    <string name="link_quality_up">Estimated upload</string>
+    <string name="link_quality_internet_ok">Internet access verified</string>
+    <string name="link_quality_internet_limited">Internet access not verified</string>
+    <string name="link_quality_metered">Metered network</string>
+    <string name="link_quality_unmetered">Unmetered network</string>
+    <string name="link_quality_unknown">Unavailable</string>
+
 </resources>
