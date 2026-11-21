@@ -6,6 +6,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,21 +46,25 @@ fun ZxNavBar(
     onSelect: (TopDestination) -> Unit,
 ) {
     val c = Zx.colors
-    val shape = CutCornerShape(topStart = 0.dp, topEnd = 18.dp, bottomEnd = 0.dp, bottomStart = 18.dp)
+    val shape = CutCornerShape(topStart = 18.dp, topEnd = 28.dp, bottomEnd = 18.dp, bottomStart = 28.dp)
+    val glass = Brush.linearGradient(
+        listOf(c.surface.copy(alpha = 0.96f), c.surface2.copy(alpha = 0.88f), c.surface.copy(alpha = 0.96f)),
+    )
+    val edge = Brush.horizontalGradient(listOf(c.neonA.copy(alpha = 0.72f), c.neonB.copy(alpha = 0.62f), c.neonC.copy(alpha = 0.52f)))
     Box(
         Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(start = 14.dp, end = 14.dp, bottom = 10.dp),
+            .padding(start = 12.dp, end = 12.dp, bottom = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
         Row(
             Modifier
                 .clip(shape)
-                .background(c.surface.copy(alpha = 0.94f))
-                .border(1.dp, c.line, shape)
+                .background(glass)
+                .border(1.dp, edge, shape)
                 .padding(horizontal = 6.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             tabs.forEach { dest ->
@@ -82,19 +87,27 @@ private fun ZxNavItem(
     modifier: Modifier = Modifier,
 ) {
     val c = Zx.colors
-    val tint by animateColorAsState(if (selected) c.neonA else c.muted, tween(250), label = "zx-nav-tint")
-    val lift by animateFloatAsState(if (selected) 1f else 0f, spring(dampingRatio = 0.55f, stiffness = 420f), label = "zx-nav-lift")
+    val tint by animateColorAsState(if (selected) c.neonA else c.muted, tween(260), label = "zx-nav-tint")
+    val lift by animateFloatAsState(if (selected) 1f else 0f, spring(dampingRatio = 0.58f, stiffness = 430f), label = "zx-nav-lift")
+    val tileShape = CutCornerShape(topStart = 10.dp, topEnd = 16.dp, bottomEnd = 10.dp, bottomStart = 16.dp)
+    val tileColor by animateColorAsState(
+        if (selected) c.neonA.copy(alpha = if (c.dark) 0.14f else 0.10f) else Color.Transparent,
+        tween(260),
+        label = "zx-nav-tile",
+    )
     val glow = c.neonA
     Column(
         modifier
-            .height(52.dp)
-            .clip(CutCornerShape(topStart = 0.dp, topEnd = 10.dp, bottomEnd = 0.dp, bottomStart = 10.dp))
+            .height(56.dp)
+            .clip(tileShape)
+            .background(tileColor)
+            .then(if (selected) Modifier.border(1.dp, glow.copy(alpha = 0.34f), tileShape) else Modifier)
             .clickable(role = Role.Tab, onClick = onClick)
             .drawBehind {
                 if (lift > 0.01f) {
                     val w = size.width * 0.5f * lift
                     val y = size.height - 2.dp.toPx()
-                    drawLine(glow.copy(alpha = 0.25f * lift), Offset(size.width / 2f - w, y), Offset(size.width / 2f + w, y), 7.dp.toPx())
+                    drawLine(glow.copy(alpha = 0.22f * lift), Offset(size.width / 2f - w, y), Offset(size.width / 2f + w, y), 7.dp.toPx())
                     drawLine(glow, Offset(size.width / 2f - w, y), Offset(size.width / 2f + w, y), 2.dp.toPx())
                 }
             },
