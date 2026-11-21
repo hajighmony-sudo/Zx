@@ -91,6 +91,8 @@ fun LiveMonitorPage(contentPadding: PaddingValues, modifier: Modifier) {
         contentPadding = contentPadding,
         modifier = modifier,
     ) {
+        LinkQualityCard(Modifier.fillMaxWidth().padding(horizontal = 16.dp))
+        Spacer(Modifier.height(12.dp))
         Row(
             Modifier
                 .fillMaxWidth()
