@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +62,35 @@ fun DnsAutoSheet(
     val invalid = MasterDnsProfile.invalidResolvers(resolvers)
     val valid = domain.isNotBlank() && key.isNotBlank() &&
         MasterDnsProfile.splitResolvers(resolvers).isNotEmpty() && invalid.isEmpty()
+
+    suspend fun scanResolvers() {
+        scanning = true
+        scanMessage = "Checking the current network and public DNS resolvers…"
+        results = emptyList()
+        try {
+            var found = DnsAutoDiscovery.scan(domain)
+            if (found.isEmpty()) {
+                scanMessage = "No compatible resolver responded; retrying once…"
+                found = DnsAutoDiscovery.scan(domain)
+            }
+            results = found
+            if (found.isNotEmpty()) {
+                resolvers = found.take(4).joinToString("\n") { it.address }
+                scanMessage = "Found ${found.size} responding resolvers. The fastest compatible results are selected."
+            } else {
+                scanMessage = "No resolver passed the test. You can retry or enter a trusted numeric resolver manually."
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            scanMessage = error.message?.take(180) ?: "Resolver scan failed."
+        } finally {
+            scanning = false
+        }
+    }
+
+    // Discovery starts automatically when the DNS AUTO panel opens.
+    LaunchedEffect(Unit) { scanResolvers() }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -132,33 +162,7 @@ fun DnsAutoSheet(
             }
 
             Button(
-                onClick = {
-                    scope.launch {
-                        scanning = true
-                        scanMessage = "Testing resolver sources…"
-                        results = emptyList()
-                        try {
-                            var found = DnsAutoDiscovery.scan(domain)
-                            if (found.isEmpty()) {
-                                scanMessage = "No compatible resolver responded; retrying once…"
-                                found = DnsAutoDiscovery.scan(domain)
-                            }
-                            results = found
-                            if (found.isNotEmpty()) {
-                                resolvers = found.take(4).joinToString("\n") { it.address }
-                                scanMessage = "Found ${found.size} responding resolvers. The fastest compatible results are selected."
-                            } else {
-                                scanMessage = "No resolver passed the test. You can enter a trusted numeric resolver manually."
-                            }
-                        } catch (cancelled: CancellationException) {
-                            throw cancelled
-                        } catch (error: Throwable) {
-                            scanMessage = error.message?.take(180) ?: "Resolver scan failed."
-                        } finally {
-                            scanning = false
-                        }
-                    }
-                },
+                onClick = { scope.launch { scanResolvers() } },
                 enabled = !scanning,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -235,13 +239,14 @@ fun DnsAutoSheet(
                             packetDuplication = 3,
                             compression = 0,
                             autoDisableDeadResolvers = true,
+                            autoManaged = true,
                         ),
                     )
                 },
                 enabled = valid && !scanning,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Save & select profile", fontWeight = FontWeight.SemiBold)
+                Text("Save & connect automatically", fontWeight = FontWeight.SemiBold)
             }
             TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterHorizontally)) {
                 Text("Cancel")
