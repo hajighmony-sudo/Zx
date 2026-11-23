@@ -459,7 +459,11 @@ class ConfigRepository(private val store: KeyValueStore) {
             id = existing?.id ?: newId(),
             addedAt = existing?.addedAt ?: currentTimeMillis(),
             name = name,
-        ).let { carryOver(existing, it) }
+        ).let { built ->
+            carryOver(existing, built).copy(
+                dnsAutoManaged = autoManaged || existing?.dnsAutoManaged == true,
+            )
+        }
         _profiles.value = if (existing != null) {
             _profiles.value.map { if (it.id == profile.id) profile else it }
         } else {
