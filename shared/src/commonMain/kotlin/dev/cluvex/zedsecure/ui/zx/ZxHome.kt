@@ -131,13 +131,16 @@ internal fun ZxDesignPreview() {
             Modifier.fillMaxWidth(),
             horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(5.dp),
         ) {
-            repeat(2) {
-                androidx.compose.material3.Surface(
-                    Modifier.weight(1f).height(16.dp),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(7.dp),
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer,
-                ) {}
-            }
+            androidx.compose.material3.Surface(
+                Modifier.weight(1f).height(16.dp),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(7.dp),
+                color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer,
+            ) {}
+            androidx.compose.material3.Surface(
+                Modifier.weight(1f).height(16.dp),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(7.dp),
+                color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer,
+            ) {}
         }
         androidx.compose.material3.Surface(
             Modifier.fillMaxWidth().height(14.dp),
