@@ -46,7 +46,6 @@ import androidx.compose.ui.unit.dp
 import dev.cluvex.zedsecure.domain.model.AppDesign
 import dev.cluvex.zedsecure.domain.model.NavBarStyle
 import dev.cluvex.zedsecure.ui.theme.LocalAppDesign
-import dev.cluvex.zedsecure.ui.zx.ZxNavBar
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
