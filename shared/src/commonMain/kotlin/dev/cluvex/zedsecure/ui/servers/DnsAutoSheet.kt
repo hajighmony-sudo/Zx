@@ -150,6 +150,8 @@ fun DnsAutoSheet(
                             } else {
                                 scanMessage = "No resolver passed the test. You can enter a trusted numeric resolver manually."
                             }
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
                         } catch (error: Throwable) {
                             scanMessage = error.message?.take(180) ?: "Resolver scan failed."
                         } finally {
@@ -209,7 +211,7 @@ fun DnsAutoSheet(
             )
 
             Text(
-                "Engine: Auto → MasterDNS priority    •    Traffic: Full device tunnel",
+                "Engine: Auto → MasterDNS priority    •    Routing: existing device-wide VPN policy",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
