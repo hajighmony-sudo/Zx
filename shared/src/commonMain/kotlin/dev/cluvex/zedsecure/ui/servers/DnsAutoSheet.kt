@@ -13,7 +13,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,7 +27,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import dev.cluvex.zedsecure.domain.config.MasterDnsProfile
 import dev.cluvex.zedsecure.platform.DnsRecordType
@@ -47,52 +45,66 @@ import kotlin.random.Random
 
 @Composable
 fun DnsAutoSheet(
-    initialProfile: MasterDnsProfile? = null,
+    availableProfiles: List<dev.cluvex.zedsecure.domain.config.VpnProfile>,
     onDismiss: () -> Unit,
     onSave: (name: String, MasterDnsProfile) -> Unit,
 ) {
+    val eligibleProfiles = remember(availableProfiles) {
+        availableProfiles.filterNot { it.isLocked }.mapNotNull { profile ->
+            profile.masterDnsSettings()
+                ?.takeIf { it.domains.isNotBlank() && it.encryptionKey.isNotBlank() }
+                ?.let { profile to it }
+        }
+    }
     val scope = rememberCoroutineScope()
-    var name by remember(initialProfile) { mutableStateOf("DNS AUTO · MasterDNS") }
-    var domain by remember(initialProfile) { mutableStateOf(initialProfile?.domains.orEmpty()) }
-    var key by remember(initialProfile) { mutableStateOf(initialProfile?.encryptionKey.orEmpty()) }
-    var method by remember(initialProfile) { mutableStateOf(initialProfile?.encryptionMethod ?: MasterDnsProfile.ENC_XOR) }
-    var resolvers by remember(initialProfile) { mutableStateOf(initialProfile?.resolvers.orEmpty()) }
+    var selected by remember { mutableStateOf<Pair<dev.cluvex.zedsecure.domain.config.VpnProfile, MasterDnsProfile>?>(null) }
     var results by remember { mutableStateOf<List<DnsAutoResolver>>(emptyList()) }
     var scanning by remember { mutableStateOf(false) }
     var scanMessage by remember { mutableStateOf<String?>(null) }
 
-    val invalid = MasterDnsProfile.invalidResolvers(resolvers)
-    val valid = domain.isNotBlank() && key.isNotBlank() &&
-        MasterDnsProfile.splitResolvers(resolvers).isNotEmpty() && invalid.isEmpty()
-
-    suspend fun scanResolvers() {
+    suspend fun discoverAndSelect() {
+        if (eligibleProfiles.isEmpty()) {
+            selected = null
+            results = emptyList()
+            scanMessage = "No saved MasterDNS tunnel endpoint is available. DNS AUTO needs a valid tunnel domain and encryption key from an existing server profile; public DNS resolvers cannot generate those credentials."
+            return
+        }
         scanning = true
-        scanMessage = "Discovering network DNS and testing the resolver catalogue…"
+        selected = null
         results = emptyList()
+        scanMessage = "Checking saved MasterDNS tunnel profiles and testing network/public resolvers…"
         try {
-            var found = DnsAutoDiscovery.scan(domain)
-            if (found.isEmpty()) {
-                scanMessage = "No DNS resolver responded; retrying once…"
-                found = DnsAutoDiscovery.scan(domain)
-            }
-            results = found
-            if (found.isNotEmpty()) {
-                resolvers = found.take(4).joinToString("\n") { it.address }
-                scanMessage = "Found ${found.size} responding resolvers. The fastest responders are selected."
+            val rankedProfiles = coroutineScope {
+                eligibleProfiles.take(4).map { (profile, settings) ->
+                    async(Dispatchers.Default) {
+                        val found = DnsAutoDiscovery.scan(settings.domains)
+                        if (found.isEmpty()) null else Triple(profile, settings, found)
+                    }
+                }.awaitAll().filterNotNull()
+            }.sortedBy { it.third.first().latencyMs }
+
+            val best = rankedProfiles.firstOrNull()
+            if (best == null) {
+                scanMessage = "No saved MasterDNS endpoint passed resolver discovery. Check the source profile or network and retry."
             } else {
-                scanMessage = "No resolver passed the test. You can retry or enter a trusted numeric resolver manually."
+                val tuned = best.second.copy(
+                    resolvers = best.third.take(4).joinToString("\n") { it.address },
+                    autoDisableDeadResolvers = true,
+                )
+                selected = best.first to tuned
+                results = best.third
+                scanMessage = "Selected ${best.first.name}; ${best.third.size} working resolvers found. The fastest candidates are configured automatically."
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
-            scanMessage = error.message?.take(180) ?: "Resolver scan failed."
+            scanMessage = error.message?.take(180) ?: "DNS AUTO discovery failed."
         } finally {
             scanning = false
         }
     }
 
-    // Discovery starts automatically when the DNS AUTO panel opens.
-    LaunchedEffect(Unit) { scanResolvers() }
+    LaunchedEffect(eligibleProfiles) { discoverAndSelect() }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -111,61 +123,36 @@ fun DnsAutoSheet(
         ) {
             Text("DNS AUTO", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(
-                "Built-in public resolver discovery with automatic MasterDNS-first setup.",
+                "Automatic MasterDNS selection · resolver discovery · device-wide VPN routing",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                "DNS AUTO checks DNS servers advertised by the current physical network and ZX's built-in public-resolver catalogue. It tests UDP first and TCP when needed, then ranks responding numeric resolvers by measured latency. A working resolver is not a tunnel server: MasterDNS still needs the tunnel domain and encryption key issued by your provider.",
+                "ZX checks saved MasterDNS tunnel endpoints, discovers DNS servers from the active network and its resolver catalogue, tests them, and selects the best responding endpoint/resolver combination. It then creates a DNS AUTO profile and starts the existing MasterDNS VPN engine.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("Profile name") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = domain,
-                onValueChange = { domain = it },
-                label = { Text("MasterDNS tunnel domain") },
-                placeholder = { Text("tunnel.example.com") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = key,
-                onValueChange = { key = it },
-                label = { Text("MasterDNS encryption key") },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Text("Encryption", style = MaterialTheme.typography.labelLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf(
-                    MasterDnsProfile.ENC_XOR to "XOR",
-                    MasterDnsProfile.ENC_CHACHA20 to "ChaCha20",
-                    MasterDnsProfile.ENC_AES128 to "AES-128",
-                    MasterDnsProfile.ENC_AES256 to "AES-256",
-                ).forEach { (value, label) ->
-                    TextButton(onClick = { method = value }) {
-                        Text(
-                            if (method == value) "✓ $label" else label,
-                            color = if (method == value) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+            if (eligibleProfiles.isEmpty()) {
+                Text(
+                    "No ready MasterDNS endpoint was found in your saved servers. A DNS tunnel requires a real server domain and its matching encryption key; public DNS IPs alone cannot replace them. Add/import a valid MasterDNS endpoint once, then DNS AUTO can select and tune it automatically.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            } else {
+                Text(
+                    "Tunnel endpoint: ${selected?.first?.name ?: if (scanning) "Searching saved profiles…" else "Not selected"}",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                selected?.second?.domains?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
             Button(
-                onClick = { scope.launch { scanResolvers() } },
-                enabled = !scanning,
+                onClick = { scope.launch { discoverAndSelect() } },
+                enabled = !scanning && eligibleProfiles.isNotEmpty(),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 if (scanning) {
@@ -173,9 +160,9 @@ fun DnsAutoSheet(
                         modifier = Modifier.padding(end = 10.dp),
                         strokeWidth = 2.dp,
                     )
-                    Text("Discovering and testing DNS…")
+                    Text("Discovering and testing…")
                 } else {
-                    Text("Discover & test DNS resolvers")
+                    Text("Run DNS AUTO scan")
                 }
             }
 
@@ -184,8 +171,8 @@ fun DnsAutoSheet(
             }
 
             if (results.isNotEmpty()) {
-                Text("Verified resolver candidates", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                results.forEach { item ->
+                Text("Automatically selected resolvers", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                results.take(4).forEach { item ->
                     Row(
                         Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -200,54 +187,21 @@ fun DnsAutoSheet(
                 }
             }
 
-            OutlinedTextField(
-                value = resolvers,
-                onValueChange = { resolvers = it },
-                label = { Text("Resolver IPs") },
-                placeholder = { Text("1.1.1.1\n8.8.8.8") },
-                minLines = 2,
-                isError = invalid.isNotEmpty(),
-                supportingText = {
-                    Text(
-                        if (invalid.isNotEmpty()) "MasterDNS requires numeric IPv4/IPv6 resolver addresses."
-                        else "You can edit the discovered list or enter numeric IP addresses manually.",
-                    )
-                },
-                modifier = Modifier.fillMaxWidth(),
-            )
-
             Text(
-                "Engine: Auto → MasterDNS priority    •    Routing: all device apps (ZX itself excluded)",
+                "Routing: all device apps through the VPN tunnel (ZX itself excluded) · Dead-resolver handling enabled · Network-change recovery handled by the VPN service",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                "DoH URLs and Cloudflare clean IPs are not inserted as MasterDNS resolvers. DoH belongs to the separate DNSTT/VayDNS profile flow; clean IPs are not DNS resolvers.",
-                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
             Button(
                 onClick = {
-                    onSave(
-                        name.trim().ifBlank { "DNS AUTO · MasterDNS" },
-                        MasterDnsProfile(
-                            domains = domain.trim(),
-                            encryptionKey = key,
-                            encryptionMethod = method,
-                            resolvers = resolvers.trim(),
-                            listenPort = 18000,
-                            balancingStrategy = 3,
-                            packetDuplication = 3,
-                            compression = 0,
-                            autoDisableDeadResolvers = true,
-                        ),
-                    )
+                    val chosen = selected ?: return@Button
+                    onSave("DNS AUTO · ${chosen.first.name}", chosen.second)
                 },
-                enabled = valid && !scanning,
+                enabled = selected != null && !scanning,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Save & connect automatically", fontWeight = FontWeight.SemiBold)
+                Text("Save DNS AUTO & connect", fontWeight = FontWeight.SemiBold)
             }
             TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterHorizontally)) {
                 Text("Cancel")
