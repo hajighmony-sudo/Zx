@@ -17,7 +17,7 @@ class BootReceiver : BroadcastReceiver() {
         SubscriptionUpdateScheduler.sync(context, settings, container.configRepository.subscriptions.value)
 
         val active = container.configRepository.activeProfile() ?: return
-        val dnsAutoProfile = active.masterDnsSettings()?.autoManaged == true
+        val dnsAutoProfile = active.isMasterDns && active.dnsAutoManaged
         if (!settings.autoConnectOnBoot && !dnsAutoProfile) return
 
         if (active.isIkev2) return
