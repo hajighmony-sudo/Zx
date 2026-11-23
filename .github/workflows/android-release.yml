@@ -28,6 +28,8 @@ jobs:
       - uses: actions/setup-java@v6
         with: { distribution: temurin, java-version: "21" }
       - uses: gradle/actions/setup-gradle@v5
+      - uses: actions/setup-go@v6
+        with: { go-version: stable }
 
       - name: Read the version
         id: v
@@ -51,6 +53,7 @@ jobs:
           set -e
           ls -l app/libs/zedcore.aar
           for abi in arm64-v8a armeabi-v7a x86_64; do
+            [ -x "app/src/main/jniLibs/$abi/libpsiphon-tunnel-core.so" ] || { echo "::error::$abi Aether Psiphon executable is missing or not executable"; exit 1; }
             for lib in libtor libobfs4proxy libsnowflake libconjure libsnispoof libhev-socks5-tunnel libopenconnect libzeptun-jni; do
               [ -f "app/src/main/jniLibs/$abi/$lib.so" ] || echo "::warning::$abi/$lib.so is missing; that protocol will not work"
             done
