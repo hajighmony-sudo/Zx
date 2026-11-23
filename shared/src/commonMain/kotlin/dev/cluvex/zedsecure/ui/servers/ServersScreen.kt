@@ -129,6 +129,7 @@ fun ServersScreen(
     repository: ConfigRepository,
     contentPadding: PaddingValues,
     onServerActivated: () -> Unit,
+    onDnsAutoConnect: () -> Unit = {},
     settings: AppSettings,
     onUpdateSettings: ((AppSettings) -> AppSettings) -> Unit,
     modifier: Modifier = Modifier,
@@ -1505,7 +1506,7 @@ fun ServersScreen(
                 showDnsAuto = false
                 val saved = repository.addMasterDns(profile, name)
                 repository.setActive(saved.id)
-                onServerActivated()
+                onDnsAutoConnect()
             },
         )
     }
