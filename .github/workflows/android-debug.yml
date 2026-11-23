@@ -36,6 +36,9 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
 
       - name: Install Rust Android targets and cargo-ndk
         run: |
