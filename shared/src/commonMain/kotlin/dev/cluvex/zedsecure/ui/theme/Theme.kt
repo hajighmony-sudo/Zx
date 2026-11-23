@@ -78,9 +78,9 @@ fun ZedSecureTheme(
     val zxPsColors = remember(zxPs.palette, darkTheme) { ZxPsPalettes.of(zxPs.palette, darkTheme) }
     val scheme = if (design == AppDesign.ZxPs) {
         remember(zxPsColors) { zxPsColorScheme(zxPsColors) }
-    } else if (design == AppDesign.Zx) {
-        remember(zxColors) { zxColorScheme(zxColors) }
-    } else if (design == AppDesign.Bento) {
+    } else if (design == AppDesign.Zx || design == AppDesign.Bento) {
+        // ZX Reimagined shares the calmer Bento palette system; the neon HUD
+        // palette is intentionally retired from the active design path.
         remember(bentoColors) { bentoColorScheme(bentoColors) }
     } else {
         (system ?: rememberZedColorScheme(darkTheme, accentColor, colorStyle, colorContrast))
@@ -104,7 +104,7 @@ fun ZedSecureTheme(
         colorScheme = colorScheme,
         motionScheme = MotionScheme.expressive(),
         shapes = when (design) {
-            AppDesign.Zx -> ZxShapes
+            AppDesign.Zx -> ZedShapes
             AppDesign.ZxPs -> remember(zxPs.tile) { zxPsShapes(zxPs.tile) }
             else -> ZedShapes
         },
