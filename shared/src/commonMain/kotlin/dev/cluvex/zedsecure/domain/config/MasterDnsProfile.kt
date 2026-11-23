@@ -25,8 +25,7 @@ data class MasterDnsProfile(
 
     val logLevel: String = "INFO",
 
-    /** Runtime-only marker; persistence belongs to the owning VpnProfile, not shared/imported configs. */
-    @kotlinx.serialization.Transient
+    /** Set only by StartPlanner from the local VpnProfile DNS AUTO opt-in marker. */
     val autoManaged: Boolean = false,
 ) {
     private fun domainsArray(): String =
