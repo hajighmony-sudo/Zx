@@ -24,6 +24,9 @@ data class MasterDnsProfile(
     val autoDisableDeadResolvers: Boolean = true,
 
     val logLevel: String = "INFO",
+
+    /** DNS AUTO profiles enable automatic reconnect protection and monitoring. */
+    val autoManaged: Boolean = false,
 ) {
     private fun domainsArray(): String =
         domains.split(',', '\n').map { it.trim() }.filter { it.isNotEmpty() }
