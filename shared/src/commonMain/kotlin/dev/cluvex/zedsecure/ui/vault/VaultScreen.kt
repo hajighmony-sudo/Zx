@@ -80,9 +80,15 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import dev.cluvex.zedsecure.ui.platform.rememberAppSheetState
 import dev.cluvex.zedsecure.domain.model.AppDesign
 import dev.cluvex.zedsecure.ui.theme.LocalAppDesign
-import dev.cluvex.zedsecure.ui.zx.Zx
+import dev.cluvex.zedsecure.ui.bento.Bento
+import dev.cluvex.zedsecure.ui.bento.BentoColors
 
 private const val NOTE_MAX_LEN = 500
+
+// ZX currently shares the Bento palette in ZedSecureTheme.
+private val BentoColors.neonA: Color get() = lime
+private val BentoColors.neonB: Color get() = cyan.content
+private val BentoColors.neonC: Color get() = pink.content
 
 @Composable
 fun VaultScreen(
@@ -251,7 +257,7 @@ fun VaultScreen(
 
 @Composable
 private fun ZxVaultHero(lockedCount: Int, sourceCount: Int) {
-    val c = Zx.colors
+    val c = Bento.colors
     val borderTone by animateColorAsState(
         if (lockedCount > 0) c.neonA else c.neonB,
         tween(420),
@@ -317,7 +323,7 @@ private fun ZxVaultPanel(
     accent: Color,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
 ) {
-    val c = Zx.colors
+    val c = Bento.colors
     val shape = CutCornerShape(topStart = 0.dp, topEnd = 24.dp, bottomEnd = 0.dp, bottomStart = 24.dp)
     Column(
         Modifier
@@ -344,14 +350,14 @@ private fun ZxVaultStat(label: String, value: String, accent: Color, modifier: M
             .border(1.dp, accent.copy(alpha = 0.34f), shape)
             .padding(horizontal = 11.dp, vertical = 9.dp),
     ) {
-        Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = Zx.colors.muted, maxLines = 1)
+        Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = Bento.colors.muted, maxLines = 1)
         Text(value, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black), color = accent)
     }
 }
 
 @Composable
 private fun ZxVaultNotice() {
-    val c = Zx.colors
+    val c = Bento.colors
     ZxVaultPanel(accent = c.neonC) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(painterResource(Res.drawable.ic_info), null, tint = c.neonC, modifier = Modifier.size(18.dp))
@@ -379,7 +385,7 @@ private fun ZxLockedCard(
     onUse: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val c = Zx.colors
+    val c = Bento.colors
     val accent by animateColorAsState(if (active) c.neonA else c.line, tween(300), label = "zx-vault-card-accent")
     val shape = CutCornerShape(topStart = 0.dp, topEnd = 20.dp, bottomEnd = 0.dp, bottomStart = 20.dp)
     Surface(
