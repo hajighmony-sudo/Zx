@@ -197,9 +197,10 @@ class StartPlanner(context: Context) {
                 }
             """.trimIndent()
         }
-        profile.masterDnsSettings()?.let {
+        profile.masterDnsSettings()?.let { masterDns ->
             return kotlinx.serialization.json.Json.encodeToString(
-                dev.cluvex.zedsecure.domain.config.MasterDnsProfile.serializer(), it,
+                dev.cluvex.zedsecure.domain.config.MasterDnsProfile.serializer(),
+                masterDns.copy(autoManaged = profile.dnsAutoManaged),
             )
         }
         profile.openConnectSettings()?.let {
