@@ -46,15 +46,16 @@ import kotlin.random.Random
 
 @Composable
 fun DnsAutoSheet(
+    initialProfile: MasterDnsProfile? = null,
     onDismiss: () -> Unit,
     onSave: (name: String, MasterDnsProfile) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    var name by remember { mutableStateOf("DNS AUTO · MasterDNS") }
-    var domain by remember { mutableStateOf("") }
-    var key by remember { mutableStateOf("") }
-    var method by remember { mutableStateOf(MasterDnsProfile.ENC_XOR) }
-    var resolvers by remember { mutableStateOf("") }
+    var name by remember(initialProfile) { mutableStateOf("DNS AUTO · MasterDNS") }
+    var domain by remember(initialProfile) { mutableStateOf(initialProfile?.domains.orEmpty()) }
+    var key by remember(initialProfile) { mutableStateOf(initialProfile?.encryptionKey.orEmpty()) }
+    var method by remember(initialProfile) { mutableStateOf(initialProfile?.encryptionMethod ?: MasterDnsProfile.ENC_XOR) }
+    var resolvers by remember(initialProfile) { mutableStateOf(initialProfile?.resolvers.orEmpty()) }
     var results by remember { mutableStateOf<List<DnsAutoResolver>>(emptyList()) }
     var scanning by remember { mutableStateOf(false) }
     var scanMessage by remember { mutableStateOf<String?>(null) }
