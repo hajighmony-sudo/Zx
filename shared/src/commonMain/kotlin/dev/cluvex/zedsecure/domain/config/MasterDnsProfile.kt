@@ -25,7 +25,8 @@ data class MasterDnsProfile(
 
     val logLevel: String = "INFO",
 
-    /** DNS AUTO profiles enable automatic reconnect protection and monitoring. */
+    /** Runtime-only marker; persistence belongs to the owning VpnProfile, not shared/imported configs. */
+    @kotlinx.serialization.Transient
     val autoManaged: Boolean = false,
 ) {
     private fun domainsArray(): String =
