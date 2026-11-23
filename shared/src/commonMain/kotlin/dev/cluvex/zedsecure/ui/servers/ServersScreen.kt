@@ -1501,7 +1501,7 @@ fun ServersScreen(
 
     if (showDnsAuto) {
         DnsAutoSheet(
-            initialProfile = profiles.firstOrNull { it.isMasterDns }?.masterDnsSettings(),
+            availableProfiles = profiles.filter { it.isMasterDns && !it.isLocked },
             onDismiss = { showDnsAuto = false },
             onSave = { name, profile ->
                 showDnsAuto = false
