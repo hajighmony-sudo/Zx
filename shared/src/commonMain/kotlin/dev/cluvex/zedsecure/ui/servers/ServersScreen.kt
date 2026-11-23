@@ -1501,14 +1501,7 @@ fun ServersScreen(
 
     if (showDnsAuto) {
         DnsAutoSheet(
-            availableProfiles = profiles.filter { it.isMasterDns && !it.isLocked },
             onDismiss = { showDnsAuto = false },
-            onSave = { name, profile ->
-                showDnsAuto = false
-                val saved = repository.addMasterDns(profile, name, autoManaged = true)
-                repository.setActive(saved.id)
-                onDnsAutoConnect()
-            },
         )
     }
 
