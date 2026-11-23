@@ -455,7 +455,7 @@ class ConfigRepository(private val store: KeyValueStore) {
     ): VpnProfile {
         val existing = id?.let { profile(it) }
         val profile = VpnProfile.fromMasterDns(
-            settings = settings,
+            settings = settings.copy(autoManaged = false),
             id = existing?.id ?: newId(),
             addedAt = existing?.addedAt ?: currentTimeMillis(),
             name = name,
