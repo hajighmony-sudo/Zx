@@ -1505,7 +1505,7 @@ fun ServersScreen(
             onDismiss = { showDnsAuto = false },
             onSave = { name, profile ->
                 showDnsAuto = false
-                val saved = repository.addMasterDns(profile, name)
+                val saved = repository.addMasterDns(profile, name, autoManaged = true)
                 repository.setActive(saved.id)
                 onDnsAutoConnect()
             },
