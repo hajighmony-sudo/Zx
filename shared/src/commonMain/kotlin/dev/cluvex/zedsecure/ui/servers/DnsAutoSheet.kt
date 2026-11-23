@@ -33,6 +33,7 @@ import dev.cluvex.zedsecure.platform.DnsRecordType
 import dev.cluvex.zedsecure.platform.DnsResult
 import dev.cluvex.zedsecure.platform.DnsTransport
 import dev.cluvex.zedsecure.platform.dnsQuery
+import dev.cluvex.zedsecure.ui.platform.appVerticalScroll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -76,12 +77,12 @@ fun DnsAutoSheet(
         ) {
             Text("DNS AUTO", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text(
-                "Multi-source resolver discovery with automatic MasterDNS-first setup.",
+                "Built-in public resolver discovery with automatic MasterDNS-first setup.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                "The scanner tests compatible numeric DNS resolvers. A working resolver is not a tunnel server: enter the domain and encryption key supplied by your DNS-tunnel provider.",
+                "The first version scans ZX's bundled public-resolver catalogue. Network Checker and SlipNet are reference projects, not live feeds here. A working resolver is not a tunnel server: enter the domain and encryption key supplied by your DNS-tunnel provider.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
