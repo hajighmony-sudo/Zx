@@ -338,6 +338,7 @@ fun ServersScreen(
     var showDnsTunnel by remember { mutableStateOf(false) }
     var showDnsResolver by remember { mutableStateOf(false) }
     var showMasterDns by remember { mutableStateOf(false) }
+    var showDnsAuto by remember { mutableStateOf(false) }
     var showDnsProfile by remember { mutableStateOf(false) }
     var showOpenConnect by remember { mutableStateOf(false) }
     var showIkev2 by remember { mutableStateOf(false) }
@@ -1360,6 +1361,10 @@ fun ServersScreen(
                 showAddSheet = false
                 showMasterDns = true
             },
+            onDnsAuto = {
+                showAddSheet = false
+                showDnsAuto = true
+            },
             onOpenConnect = {
                 showAddSheet = false
                 showOpenConnect = true
@@ -1488,6 +1493,18 @@ fun ServersScreen(
             onSave = { name, settings ->
                 showDnsTunnel = false
                 repository.addDnsTunnel(settings, name)
+                onServerActivated()
+            },
+        )
+    }
+
+    if (showDnsAuto) {
+        DnsAutoSheet(
+            onDismiss = { showDnsAuto = false },
+            onSave = { name, profile ->
+                showDnsAuto = false
+                val saved = repository.addMasterDns(profile, name)
+                repository.setActive(saved.id)
                 onServerActivated()
             },
         )
@@ -2351,6 +2368,7 @@ private fun AddServerSheet(
     onDnsResolver: () -> Unit,
     onDnsProfile: () -> Unit,
     onMasterDns: () -> Unit,
+    onDnsAuto: () -> Unit,
     onOpenConnect: () -> Unit,
     onIkev2: () -> Unit,
     onTor: () -> Unit,
@@ -2418,6 +2436,7 @@ private fun AddServerSheet(
             Option(Res.drawable.ic_dns, Res.string.dns_changer_add_title, onDnsProfile)
             Option(Res.drawable.ic_public, Res.string.dns_tunnel_add_title, onDnsTunnel)
             Option(Res.drawable.ic_public, Res.string.master_dns_add_title, onMasterDns)
+            OptionText(Res.drawable.ic_dns, "DNS AUTO · Smart discovery", onDnsAuto)
 
             OptionGroup(Res.string.add_group_vpn)
             Option(Res.drawable.ic_lock, Res.string.openconnect_add_title, onOpenConnect)
