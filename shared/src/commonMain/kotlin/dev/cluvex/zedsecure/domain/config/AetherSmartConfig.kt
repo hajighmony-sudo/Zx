@@ -79,6 +79,7 @@ object AetherSmartConfig {
         }
         val h2 = !speedOverride && (cellular || strict || weak || !udpFriendly)
         return AetherProfile(
+            smartFailover = true,
             profileName = nameFor(input.network),
             protocol = "masque",
             scanMode = scan,
