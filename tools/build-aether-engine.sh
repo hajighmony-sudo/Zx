@@ -103,3 +103,30 @@ build_one() {
 build_one arm64-v8a aarch64-linux-android
 build_one armeabi-v7a armv7-linux-androideabi
 build_one x86_64 x86_64-linux-android
+
+# Aether's built-in Psiphon-only fallback launches the Psiphon console client
+# as a child process. Package the Shir o Khorshid-pinned client beside each
+# ABI's Aether executable; Kotlin passes its absolute path through
+# AETHER_PSIPHON_BIN. Tor is built into libaether.so with --features tor.
+build_psiphon() {
+  local abi="$1" goarch="$2" goarm="${3:-}"
+  local out="$CARGO_TARGET_DIR/psiphon-$abi"
+  local licenses="$ROOT/app/src/main/assets/licenses"
+  rm -rf "$out"
+  mkdir -p "$out" "$licenses" "$JNI/$abi"
+  [ -f "$AETHER_ROOT/psiphon-build.sh" ] || {
+    echo "Pinned Aether Psiphon build script is missing: $AETHER_ROOT/psiphon-build.sh" >&2
+    exit 1
+  }
+  bash "$AETHER_ROOT/psiphon-build.sh" android "$goarch" "$out" "$goarm" "$licenses"
+  [ -s "$out/psiphon-tunnel-core" ] || {
+    echo "Psiphon Android executable was not produced for $abi" >&2
+    exit 1
+  }
+  install -m 755 "$out/psiphon-tunnel-core" "$JNI/$abi/libpsiphon-tunnel-core.so"
+  echo "    packaged Aether's built-in Psiphon fallback for $abi"
+}
+
+build_psiphon arm64-v8a arm64
+build_psiphon armeabi-v7a arm 7
+build_psiphon x86_64 amd64
