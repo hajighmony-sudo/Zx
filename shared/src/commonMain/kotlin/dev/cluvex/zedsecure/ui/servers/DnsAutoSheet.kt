@@ -138,7 +138,7 @@ fun DnsAutoSheet(
                             results = found
                             if (found.isNotEmpty()) {
                                 resolvers = found.take(4).joinToString("\n") { it.address }
-                                scanMessage = "Found \${found.size} responding resolvers. The fastest compatible results are selected."
+                                scanMessage = "Found ${found.size} responding resolvers. The fastest compatible results are selected."
                             } else {
                                 scanMessage = "No resolver passed the test. You can enter a trusted numeric resolver manually."
                             }
@@ -179,7 +179,7 @@ fun DnsAutoSheet(
                             Text(item.address, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                             Text(item.source, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Text("\${item.latencyMs} ms", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        Text("${item.latencyMs} ms", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -274,7 +274,7 @@ private object DnsAutoDiscovery {
             coroutineScope {
                 group.map { candidate ->
                     async(Dispatchers.Default) {
-                        val label = "zx-auto-\${Random.nextInt(100000, 999999)}"
+                        val label = "zx-auto-${Random.nextInt(100000, 999999)}"
                         val result = runCatching {
                             dnsQuery(
                                 server = candidate.address,
