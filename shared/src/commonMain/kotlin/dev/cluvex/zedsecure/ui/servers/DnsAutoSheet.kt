@@ -27,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import dev.cluvex.zedsecure.domain.config.MasterDnsProfile
 import dev.cluvex.zedsecure.platform.DnsRecordType
@@ -34,6 +35,7 @@ import dev.cluvex.zedsecure.platform.DnsResult
 import dev.cluvex.zedsecure.platform.DnsTransport
 import dev.cluvex.zedsecure.platform.dnsQuery
 import dev.cluvex.zedsecure.ui.platform.appVerticalScroll
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -96,7 +98,7 @@ fun DnsAutoSheet(
             )
             OutlinedTextField(
                 value = domain,
-                onValueChange = { domain = it.trim() },
+                onValueChange = { domain = it },
                 label = { Text("MasterDNS tunnel domain") },
                 placeholder = { Text("tunnel.example.com") },
                 singleLine = true,
@@ -107,6 +109,7 @@ fun DnsAutoSheet(
                 onValueChange = { key = it },
                 label = { Text("MasterDNS encryption key") },
                 singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -135,7 +138,11 @@ fun DnsAutoSheet(
                         scanMessage = "Testing resolver sources…"
                         results = emptyList()
                         try {
-                            val found = DnsAutoDiscovery.scan(domain)
+                            var found = DnsAutoDiscovery.scan(domain)
+                            if (found.isEmpty()) {
+                                scanMessage = "No compatible resolver responded; retrying once…"
+                                found = DnsAutoDiscovery.scan(domain)
+                            }
                             results = found
                             if (found.isNotEmpty()) {
                                 resolvers = found.take(4).joinToString("\n") { it.address }
@@ -270,22 +277,27 @@ private object DnsAutoDiscovery {
     )
 
     suspend fun scan(tunnelDomain: String): List<DnsAutoResolver> {
-        val suffix = tunnelDomain.trim().trim('.').ifBlank { "example.com" }
+        val suffix = tunnelDomain.split(',', '\n').map { it.trim().trim('.') }
+            .firstOrNull { it.isNotBlank() } ?: "example.com"
         return candidates.chunked(8).flatMap { group ->
             coroutineScope {
                 group.map { candidate ->
                     async(Dispatchers.Default) {
                         val label = "zx-auto-${Random.nextInt(100000, 999999)}"
-                        val result = runCatching {
+                        val result = try {
                             dnsQuery(
                                 server = candidate.address,
                                 port = 53,
-                                name = "\$label.\$suffix",
+                                name = "$label.$suffix",
                                 type = DnsRecordType.A,
                                 transport = DnsTransport.UDP,
                                 timeoutMs = 1800,
                             )
-                        }.getOrNull()
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Throwable) {
+                            null
+                        }
                         val reply = (result as? DnsResult.Ok)?.reply
                         if (reply != null && (reply.rcode == 0 || reply.rcode == 3)) {
                             DnsAutoResolver(candidate.address, candidate.source, reply.elapsedMs)
