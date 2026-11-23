@@ -303,7 +303,7 @@ private object DnsAutoDiscovery {
                                 transport = DnsTransport.UDP,
                                 timeoutMs = 1800,
                             )
-                            if (udp is DnsResult.Failed || (udp as? DnsResult.Ok)?.reply?.truncated == true) {
+                            if ((udp as? DnsResult.Ok)?.reply?.truncated == true) {
                                 dnsQuery(
                                     server = candidate.address,
                                     port = 53,
