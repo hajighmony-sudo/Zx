@@ -1502,6 +1502,27 @@ fun ServersScreen(
     if (showDnsAuto) {
         DnsAutoSheet(
             onDismiss = { showDnsAuto = false },
+            onConnect = { address ->
+                val existingAuto = repository.profiles.value.firstOrNull {
+                    (it.source as? dev.cluvex.zedsecure.domain.config.ProfileSource.DnsResolver)
+                        ?.settings?.id == "dns-auto"
+                }
+                val autoResolver = dev.cluvex.zedsecure.domain.model.DnsResolverProfile(
+                    id = "dns-auto",
+                    name = "DNS AUTO",
+                    protocol = "udp",
+                    remoteEndpoint = "$address:53",
+                    directAddress = address,
+                )
+                val created = repository.addDnsResolver(
+                    settings = autoResolver,
+                    name = "DNS AUTO",
+                    id = existingAuto?.id,
+                )
+                repository.setActive(created.id)
+                showDnsAuto = false
+                onDnsAutoConnect()
+            },
         )
     }
 
