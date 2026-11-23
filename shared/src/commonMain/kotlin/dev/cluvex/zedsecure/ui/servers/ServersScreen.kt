@@ -1502,6 +1502,7 @@ fun ServersScreen(
     if (showDnsAuto) {
         DnsAutoSheet(
             onDismiss = { showDnsAuto = false },
+            ipv6Enabled = settings.enableIpv6,
             onConnect = { address ->
                 val existingAuto = repository.profiles.value.firstOrNull {
                     (it.source as? dev.cluvex.zedsecure.domain.config.ProfileSource.DnsResolver)
