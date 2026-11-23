@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import dev.cluvex.zedsecure.data.net.NetworkInfo
 import dev.cluvex.zedsecure.domain.model.ConnectionState
 import dev.cluvex.zedsecure.ui.bento.BentoActiveServer
