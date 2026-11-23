@@ -70,6 +70,7 @@ fun MainScaffold(
     onToggleConnection: () -> Unit,
 
     onActiveServerChanged: () -> Unit = {},
+    onDnsAutoConnect: () -> Unit = {},
     onImportZsx: () -> Unit,
     onUpdateSettings: ((AppSettings) -> AppSettings) -> Unit,
     onLanguage: (AppLanguage) -> Unit,
@@ -377,6 +378,10 @@ fun MainScaffold(
                         if (settings.homeAfterSelect) current = TopDestination.Home
 
                         onActiveServerChanged()
+                    },
+                    onDnsAutoConnect = {
+                        if (settings.homeAfterSelect) current = TopDestination.Home
+                        onDnsAutoConnect()
                     },
                     detectServerLocation = settings.detectServerLocation,
                 )
