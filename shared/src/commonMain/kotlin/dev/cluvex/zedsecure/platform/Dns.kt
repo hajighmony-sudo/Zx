@@ -21,6 +21,9 @@ enum class DnsRecordType(val value: Int) {
 
 enum class DnsTransport { UDP, TCP, DOT, DOH }
 
+/** DNS servers advertised by the currently active physical network, if available. */
+expect fun currentNetworkDnsServers(): List<String>
+
 enum class DnsFailure {
     Timeout,
 
