@@ -42,7 +42,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun DnsAutoSheet(onDismiss: () -> Unit, onConnect: (String) -> Unit) {
+fun DnsAutoSheet(
+    onDismiss: () -> Unit,
+    onConnect: (String) -> Unit,
+    ipv6Enabled: Boolean = false,
+) {
     val scope = rememberCoroutineScope()
     var networkResolvers by remember { mutableStateOf<List<String>>(emptyList()) }
     var results by remember { mutableStateOf<List<DnsAutoResult>>(emptyList()) }
@@ -61,6 +65,7 @@ fun DnsAutoSheet(onDismiss: () -> Unit, onConnect: (String) -> Unit) {
             if (refreshResolvers || networkResolvers.isEmpty()) {
                 networkResolvers = withContext(Dispatchers.IO) {
                     currentNetworkDnsServers().distinct()
+                        .filter { ipv6Enabled || !it.contains(':') }
                 }
             }
 
@@ -166,7 +171,10 @@ fun DnsAutoSheet(onDismiss: () -> Unit, onConnect: (String) -> Unit) {
                 }
             }
             val bestUdp = results
-                .filter { (it.udp as? DnsResult.Ok)?.reply?.rcode == 0 }
+                .filter {
+                    val reply = (it.udp as? DnsResult.Ok)?.reply
+                    reply?.rcode == 0 && reply.answerCount > 0
+                }
                 .minByOrNull { (it.udp as DnsResult.Ok).reply.elapsedMs }
             if (bestUdp != null) {
                 Button(
@@ -176,7 +184,7 @@ fun DnsAutoSheet(onDismiss: () -> Unit, onConnect: (String) -> Unit) {
                     Text("اتصال با سریع‌ترین DNS · ${bestUdp.address}")
                 }
                 Text(
-                    "این DNS از طریق UDP پاسخ معتبر داده است؛ با انتخاب اتصال، پروفایل DNS AUTO ذخیره و فعال می‌شود.",
+                    "این DNS از طریق UDP پاسخ معتبر داده است؛ پروفایل DNS AUTO ذخیره و فعال می‌شود. این پروفایل فقط درخواست‌های DNS را از تونل عبور می‌دهد، نه کل ترافیک اینترنت.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
