@@ -240,7 +240,6 @@ fun DnsAutoSheet(
                             packetDuplication = 3,
                             compression = 0,
                             autoDisableDeadResolvers = true,
-                            autoManaged = true,
                         ),
                     )
                 },
