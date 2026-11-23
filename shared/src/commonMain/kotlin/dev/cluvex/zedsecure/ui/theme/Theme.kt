@@ -19,6 +19,7 @@ import com.materialkolor.dynamicColorScheme
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.ktx.animateColorScheme
 import dev.cluvex.zedsecure.domain.model.AppDesign
+import dev.cluvex.zedsecure.domain.model.ZxAnim
 import dev.cluvex.zedsecure.domain.model.BentoPrefs
 import dev.cluvex.zedsecure.ui.bento.BentoPalettes
 import dev.cluvex.zedsecure.ui.bento.BentoStyle
