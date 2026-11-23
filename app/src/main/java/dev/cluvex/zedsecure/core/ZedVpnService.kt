@@ -822,11 +822,13 @@ class ZedVpnService : VpnService() {
                         val routeEnvironment = when (route) {
                             "psiphon" -> mapOf(
                                 "AETHER_PSIPHON" to "only",
+                                "AETHER_TOR" to "off",
                                 "AETHER_PSIPHON_BIN" to psiphonBinary.absolutePath,
                                 "AETHER_PSIPHON_DIR" to java.io.File(filesDir, "aether-smart-psiphon").absolutePath,
                                 "AETHER_PSIPHON_READY_SECS" to "180",
                             )
                             "tor" -> mapOf(
+                                "AETHER_PSIPHON" to "off",
                                 "AETHER_TOR" to "only",
                                 "AETHER_TOR_DIR" to java.io.File(filesDir, "aether-smart-tor").absolutePath,
                             )
