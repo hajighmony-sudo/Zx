@@ -74,13 +74,15 @@ fun DnsAutoSheet(
         results = emptyList()
         scanMessage = "Checking saved MasterDNS tunnel profiles and testing network/public resolvers…"
         try {
-            val rankedProfiles = coroutineScope {
-                eligibleProfiles.take(4).map { (profile, settings) ->
-                    async(Dispatchers.Default) {
-                        val found = DnsAutoDiscovery.scan(settings.domains)
-                        if (found.isEmpty()) null else Triple(profile, settings, found)
-                    }
-                }.awaitAll().filterNotNull()
+            val rankedProfiles = eligibleProfiles.chunked(3).flatMap { batch ->
+                coroutineScope {
+                    batch.map { (profile, settings) ->
+                        async(Dispatchers.Default) {
+                            val found = DnsAutoDiscovery.scan(settings.domains)
+                            if (found.isEmpty()) null else Triple(profile, settings, found)
+                        }
+                    }.awaitAll().filterNotNull()
+                }
             }.sortedBy { it.third.first().latencyMs }
 
             val best = rankedProfiles.firstOrNull()
