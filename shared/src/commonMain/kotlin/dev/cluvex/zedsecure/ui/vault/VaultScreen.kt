@@ -78,7 +78,6 @@ import dev.cluvex.zedsecure.ui.platform.appVerticalScroll
 import dev.cluvex.zedsecure.ui.platform.mouseDragScrollVertical
 import androidx.compose.foundation.lazy.rememberLazyListState
 import dev.cluvex.zedsecure.ui.platform.rememberAppSheetState
-import dev.cluvex.zedsecure.domain.model.AppDesign
 import dev.cluvex.zedsecure.ui.theme.LocalAppDesign
 import dev.cluvex.zedsecure.ui.bento.Bento
 import dev.cluvex.zedsecure.ui.bento.BentoColors
@@ -115,7 +114,7 @@ fun VaultScreen(
 
     Column(modifier.fillMaxSize().padding(contentPadding)) {
         Spacer(Modifier.height(8.dp))
-        if (LocalAppDesign.current == AppDesign.Zx) {
+        if (LocalAppDesign.current.name == "Zx") {
             ZxVaultHero(lockedCount = locked.size, sourceCount = sources.size)
             ZxVaultNotice()
         } else {
@@ -169,7 +168,7 @@ fun VaultScreen(
                     items(locked, key = { it.id }) { profile ->
                         val selectedMsg = stringResource(Res.string.vault_selected, profile.name)
                         val active = profile.id == activeId
-                        if (LocalAppDesign.current == AppDesign.Zx) {
+                        if (LocalAppDesign.current.name == "Zx") {
                             ZxLockedCard(
                                 profile = profile,
                                 active = active,
