@@ -94,7 +94,7 @@ fun AppDesignPicker(selected: AppDesign, onSelect: (AppDesign) -> Unit) {
                         selected = selected == AppDesign.Zx,
                         modifier = Modifier.weight(1f),
                         onClick = { onSelect(AppDesign.Zx) },
-                    ) { dev.cluvex.zedsecure.ui.zx.ZxDesignPreview() }
+) { dev.cluvex.zedsecure.ui.zx.ZxDesignPreview() }
                 }
                 if (!LocalPlatform.current.isComputer) {
                     DesignCard(
