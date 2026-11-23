@@ -907,7 +907,6 @@ class ZedVpnService : VpnService() {
                 }
                 bridgeEngine(descriptor, readyPort, tunMtu)
                 LogBus.append("I/Aether: native engine ready on 127.0.0.1:$readyPort")
-            }
             } catch (e: Exception) {
                 if (userStop) return@launch
                 Log.e(TAG, "Aether startup failed", e)
