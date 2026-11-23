@@ -61,10 +61,8 @@ fun ZedNavBar(
         dev.cluvex.zedsecure.ui.zxps.ZxPsNavBar(tabs, current, onSelect)
         return
     }
-    if (LocalAppDesign.current == AppDesign.Zx) {
-        ZxNavBar(tabs, current, onSelect)
-        return
-    }
+    // ZX Reimagined uses the same adaptive Material 3 pill navigation as the
+    // rest of the app, rather than the retired neon HUD navigation.
     when (style) {
         NavBarStyle.FloatingPill, NavBarStyle.Dock -> FloatingPillBar(tabs, current, onSelect, compact = false)
         NavBarStyle.CompactDock -> FloatingPillBar(tabs, current, onSelect, compact = true)
