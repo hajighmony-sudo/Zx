@@ -184,7 +184,7 @@ fun SettingsScreen(
     ) {
     stateHolder.SaveableStateProvider(shown) {
         when (shown) {
-            SettingsPage.Root -> if (settings.appDesign == AppDesign.Bento || settings.appDesign == AppDesign.ZxPs) {
+            SettingsPage.Root -> if (settings.appDesign == AppDesign.Bento || settings.appDesign == AppDesign.Zx || settings.appDesign == AppDesign.ZxPs) {
                 BentoRoot(
                     settings = settings,
                     contentPadding = contentPadding,
@@ -1239,7 +1239,8 @@ private fun UiPage(
         }
 
         if (s.appDesign == AppDesign.Zx) {
-            dev.cluvex.zedsecure.ui.zx.ZxLookSection(s, onUpdate)
+            // Reuse the mature Bento appearance controls for the new hybrid ZX design.
+            dev.cluvex.zedsecure.ui.bento.BentoLookSection(s, onUpdate)
         }
 
         if (s.appDesign == AppDesign.ZxPs) {
