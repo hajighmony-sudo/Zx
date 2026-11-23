@@ -18,6 +18,11 @@ on:
       - "native/aether-qw/**"
   workflow_dispatch:
 
+# Keep only the newest GP debug build running after rapid fix commits.
+concurrency:
+  group: android-debug-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
