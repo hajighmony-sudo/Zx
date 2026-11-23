@@ -71,13 +71,13 @@ fun DnsAutoSheet(
         try {
             var found = DnsAutoDiscovery.scan(domain)
             if (found.isEmpty()) {
-                scanMessage = "No compatible resolver responded; retrying once…"
+                scanMessage = "No DNS resolver responded; retrying once…"
                 found = DnsAutoDiscovery.scan(domain)
             }
             results = found
             if (found.isNotEmpty()) {
                 resolvers = found.take(4).joinToString("\n") { it.address }
-                scanMessage = "Found ${found.size} responding resolvers. The fastest compatible results are selected."
+                scanMessage = "Found ${found.size} responding resolvers. The fastest responders are selected."
             } else {
                 scanMessage = "No resolver passed the test. You can retry or enter a trusted numeric resolver manually."
             }
