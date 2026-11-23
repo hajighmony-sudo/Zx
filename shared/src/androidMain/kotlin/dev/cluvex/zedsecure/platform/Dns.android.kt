@@ -9,7 +9,7 @@ import android.net.NetworkCapabilities
  * VPN-provided DNS is deliberately ignored to avoid feeding a tunnel's own
  * virtual resolver back into DNS AUTO as an upstream.
  */
-internal actual fun currentNetworkDnsServers(): List<String> = runCatching {
+actual fun currentNetworkDnsServers(): List<String> = runCatching {
     val context = AndroidNetworkContext.appContext ?: return@runCatching emptyList()
     val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
         ?: return@runCatching emptyList()
