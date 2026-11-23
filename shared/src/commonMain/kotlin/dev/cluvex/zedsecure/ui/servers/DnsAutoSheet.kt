@@ -216,7 +216,7 @@ fun DnsAutoSheet(
             )
 
             Text(
-                "Engine: Auto → MasterDNS priority    •    Routing: existing device-wide VPN policy",
+                "Engine: Auto → MasterDNS priority    •    Routing: all device apps (ZX itself excluded)",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
