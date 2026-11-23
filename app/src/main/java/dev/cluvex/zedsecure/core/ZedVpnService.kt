@@ -596,6 +596,10 @@ class ZedVpnService : VpnService() {
             stopEverything(); return
         }
 
+        if (profile.autoManaged) {
+            // DNS AUTO promises a device-wide tunnel: keep traffic contained if the tunnel drops.
+            killSwitchEnabled = true
+        }
         val effective = if (appSettings.dnsGlobalResolverEnabled && appSettings.dnsGlobalResolvers.isNotBlank()) {
             profile.copy(resolvers = appSettings.dnsGlobalResolvers)
         } else profile
