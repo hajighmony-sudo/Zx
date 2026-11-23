@@ -99,6 +99,9 @@ data class VpnProfile(
     val bytesUp: Long = 0,
 
     val note: String? = null,
+
+    /** Local-only opt-in for DNS AUTO lifecycle behavior. Not copied into share links. */
+    val dnsAutoManaged: Boolean = false,
 ) {
     val isCustom: Boolean get() = source is ProfileSource.RawJson && !isAether
 
