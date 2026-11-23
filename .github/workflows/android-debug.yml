@@ -2,7 +2,7 @@ name: android-debug
 
 on:
   push:
-    branches: [ZX]
+    branches: [GP]
     paths:
       - ".github/workflows/android-debug.yml"
       - "app/**"
@@ -23,13 +23,13 @@ permissions:
 
 jobs:
   debug-apk:
-    name: Build ZX VPN debug APKs
+    name: Build GP VPN debug APKs
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ZX
+          ref: GP
           submodules: recursive
       - uses: actions/setup-java@v6
         with:
