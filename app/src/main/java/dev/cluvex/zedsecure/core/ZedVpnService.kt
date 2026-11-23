@@ -69,6 +69,7 @@ class ZedVpnService : VpnService() {
     private var openConnect: OpenConnectController? = null
     private var singBox: SingBoxEngine? = null
     @Volatile private var aetherEngine: AetherEngineProcess? = null
+    @Volatile private var aetherRouteLabel: String = "WARP"
     private var aetherWatch: Job? = null
 
     private var singBoxLastUp = 0L
@@ -891,6 +892,7 @@ class ZedVpnService : VpnService() {
                         }
                         if (ready) {
                             readyPort = port
+                            aetherRouteLabel = route
                             LogBus.append("I/Aether Smart: $routeLabel route passed end-to-end traffic verification")
                             break
                         }
@@ -1161,7 +1163,11 @@ class ZedVpnService : VpnService() {
             VpnManager.KIND_SSH -> "SSH"
             VpnManager.KIND_OPENCONNECT -> "OpenConnect"
             VpnManager.KIND_SINGBOX -> "sing-box"
-            VpnManager.KIND_AETHER -> "Aether"
+            VpnManager.KIND_AETHER -> when (aetherRouteLabel) {
+                "psiphon" -> "Aether · Psiphon"
+                "tor" -> "Aether · Tor"
+                else -> "Aether · WARP"
+            }
             VpnManager.KIND_IKEV2 -> "IKEv2"
             VpnManager.KIND_SNISPOOF -> "Xray · SNI"
 
@@ -1672,6 +1678,7 @@ class ZedVpnService : VpnService() {
         singBox?.stop(); singBox = null
         aetherWatch?.cancel(); aetherWatch = null
         aetherEngine?.stop(); aetherEngine = null
+        aetherRouteLabel = "WARP"
         outerPsiphon?.stop(); outerPsiphon = null
         outerTor?.stop(); outerTor = null
         outerSsh?.stop(); outerSsh = null
@@ -1686,6 +1693,7 @@ class ZedVpnService : VpnService() {
         statsJob?.cancel()
         statsJob = null
         connected = false
+        aetherRouteLabel = "WARP"
         dnsAutoManaged = false
         connectWhen = 0L
         crossInnerKind = null
