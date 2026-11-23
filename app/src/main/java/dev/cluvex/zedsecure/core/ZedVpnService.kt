@@ -239,7 +239,12 @@ class ZedVpnService : VpnService() {
 
     private fun startTunnel(configJson: String, socksPort: Int, kind: String) {
         val settings = SettingsRepository(this).settings.value
-        killSwitchEnabled = settings.killSwitch
+        dnsAutoManaged = kind == VpnManager.KIND_MASTERDNS && runCatching {
+            kotlinx.serialization.json.Json.decodeFromString(
+                dev.cluvex.zedsecure.domain.config.MasterDnsProfile.serializer(), configJson,
+            ).autoManaged
+        }.getOrDefault(false)
+        killSwitchEnabled = settings.killSwitch || dnsAutoManaged
         userStop = false
         killSwitchActive = false
         connected = false
@@ -303,7 +308,7 @@ class ZedVpnService : VpnService() {
                 } else {
                     addLanAwareRoutes(bypassLan, settings.enableIpv6, excludeIp = spoofBypassIp)
                 }
-                applyAppRules(settings)
+                applyAppRules(if (dnsAutoManaged) settings.copy(perAppProxyEnabled = false) else settings)
 
                 if (kind == VpnManager.KIND_DNS_RESOLVER) {
                     if (settings.ghost.adultContentProtectionEnabled) {
