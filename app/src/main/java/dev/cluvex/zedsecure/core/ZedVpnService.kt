@@ -59,6 +59,7 @@ class ZedVpnService : VpnService() {
     private var psiphon: PsiphonController? = null
     private var dnsTunnel: DnsTunnelController? = null
     private var masterDns: MasterDnsController? = null
+    @Volatile private var dnsAutoManaged = false
     private var tor: dev.cluvex.zedsecure.core.tor.TorController? = null
     private var ssh: SshController? = null
     private var sniSpoof: SniSpoofController? = null
@@ -600,6 +601,11 @@ class ZedVpnService : VpnService() {
             // DNS AUTO promises a device-wide tunnel: keep traffic contained if the tunnel drops.
             killSwitchEnabled = true
         }
+        dnsAutoManaged = profile.autoManaged
+        if (dnsAutoManaged) {
+            // DNS AUTO promises a device-wide tunnel: keep traffic contained if the tunnel drops.
+            killSwitchEnabled = true
+        }
         val effective = if (appSettings.dnsGlobalResolverEnabled && appSettings.dnsGlobalResolvers.isNotBlank()) {
             profile.copy(resolvers = appSettings.dnsGlobalResolvers)
         } else profile
@@ -1133,8 +1139,9 @@ class ZedVpnService : VpnService() {
     }
 
     private fun watchUnderlyingNetwork() {
-        if (underlyingWatch != null || kind != VpnManager.KIND_XRAY) return
-        if (!SettingsRepository(this).settings.value.reconnectOnNetworkChange) return
+        val dnsAuto = kind == VpnManager.KIND_MASTERDNS && dnsAutoManaged
+        if (underlyingWatch != null || (kind != VpnManager.KIND_XRAY && !dnsAuto)) return
+        if (!dnsAuto && !SettingsRepository(this).settings.value.reconnectOnNetworkChange) return
         val cm = getSystemService(android.net.ConnectivityManager::class.java) ?: return
         underlyingNetwork = null
         val callback = object : android.net.ConnectivityManager.NetworkCallback() {
@@ -1145,7 +1152,12 @@ class ZedVpnService : VpnService() {
                 underlyingJob?.cancel()
                 underlyingJob = scope.launch {
                     delay(NETWORK_SETTLE_MS)
-                    rebuildForNetworkChange()
+                    if (dnsAuto) {
+                        LogBus.append("I/DNS AUTO: network changed; reconnecting through the active resolver set")
+                        onTunnelFailed(null)
+                    } else {
+                        rebuildForNetworkChange()
+                    }
                 }
             }
         }
@@ -1607,6 +1619,7 @@ class ZedVpnService : VpnService() {
         statsJob?.cancel()
         statsJob = null
         connected = false
+        dnsAutoManaged = false
         connectWhen = 0L
         crossInnerKind = null
 
