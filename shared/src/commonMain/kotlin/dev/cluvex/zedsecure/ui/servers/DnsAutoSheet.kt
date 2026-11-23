@@ -42,7 +42,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun DnsAutoSheet(onDismiss: () -> Unit) {
+fun DnsAutoSheet(onDismiss: () -> Unit, onConnect: (String) -> Unit) {
     val scope = rememberCoroutineScope()
     var networkResolvers by remember { mutableStateOf<List<String>>(emptyList()) }
     var results by remember { mutableStateOf<List<DnsAutoResult>>(emptyList()) }
@@ -165,8 +165,30 @@ fun DnsAutoSheet(onDismiss: () -> Unit) {
                     }
                 }
             }
+            val bestUdp = results
+                .filter { (it.udp as? DnsResult.Ok)?.reply?.rcode == 0 }
+                .minByOrNull { (it.udp as DnsResult.Ok).reply.elapsedMs }
+            if (bestUdp != null) {
+                Button(
+                    onClick = { onConnect(bestUdp.address) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("اتصال با سریع‌ترین DNS · ${bestUdp.address}")
+                }
+                Text(
+                    "این DNS از طریق UDP پاسخ معتبر داده است؛ با انتخاب اتصال، پروفایل DNS AUTO ذخیره و فعال می‌شود.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else if (results.isNotEmpty()) {
+                Text(
+                    "هیچ‌یک از DNSهای شناسایی‌شده از طریق UDP پاسخ معتبر ندادند؛ پروفایل جدید ساخته نمی‌شود.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             Text(
-                "DoH و DoT در این صفحه آزمایش نمی‌شوند. این صفحه ابزار تشخیص DNS است و تنظیمات شبکه یا تونل را تغییر نمی‌دهد.",
+                "DoH و DoT در این بررسی آزمایش نمی‌شوند. پروفایل خودکار فعلی از DNS مستقیم UDP استفاده می‌کند.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
