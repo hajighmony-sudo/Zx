@@ -34,6 +34,7 @@ import dev.cluvex.zedsecure.domain.config.MasterDnsProfile
 import dev.cluvex.zedsecure.platform.DnsRecordType
 import dev.cluvex.zedsecure.platform.DnsResult
 import dev.cluvex.zedsecure.platform.DnsTransport
+import dev.cluvex.zedsecure.platform.currentNetworkDnsServers
 import dev.cluvex.zedsecure.platform.dnsQuery
 import dev.cluvex.zedsecure.ui.platform.appVerticalScroll
 import kotlinx.coroutines.CancellationException
@@ -66,7 +67,7 @@ fun DnsAutoSheet(
 
     suspend fun scanResolvers() {
         scanning = true
-        scanMessage = "Checking the current network and public DNS resolvers…"
+        scanMessage = "Discovering network DNS and testing the resolver catalogue…"
         results = emptyList()
         try {
             var found = DnsAutoDiscovery.scan(domain)
@@ -115,7 +116,7 @@ fun DnsAutoSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                "The first version scans ZX's bundled public-resolver catalogue. Network Checker and SlipNet are reference projects, not live feeds here. A working resolver is not a tunnel server: enter the domain and encryption key supplied by your DNS-tunnel provider.",
+                "DNS AUTO checks DNS servers advertised by the current physical network and ZX's built-in public-resolver catalogue. It tests UDP first and TCP when needed, then ranks responding numeric resolvers by measured latency. A working resolver is not a tunnel server: MasterDNS still needs the tunnel domain and encryption key issued by your provider.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -172,7 +173,7 @@ fun DnsAutoSheet(
                         modifier = Modifier.padding(end = 10.dp),
                         strokeWidth = 2.dp,
                     )
-                    Text("Scanning all resolver sources…")
+                    Text("Discovering and testing DNS…")
                 } else {
                     Text("Discover & test DNS resolvers")
                 }
@@ -264,7 +265,7 @@ private data class DnsAutoResolver(
 private object DnsAutoDiscovery {
     private data class Candidate(val address: String, val source: String)
 
-    private val candidates = listOf(
+    private val publicCandidates = listOf(
         Candidate("1.1.1.1", "Cloudflare"),
         Candidate("1.0.0.1", "Cloudflare"),
         Candidate("8.8.8.8", "Google Public DNS"),
@@ -286,13 +287,15 @@ private object DnsAutoDiscovery {
     suspend fun scan(tunnelDomain: String): List<DnsAutoResolver> {
         val suffix = tunnelDomain.split(',', '\n').map { it.trim().trim('.') }
             .firstOrNull { it.isNotBlank() } ?: "example.com"
-        return candidates.chunked(8).flatMap { group ->
+        val candidates = (currentNetworkDnsServers().map { Candidate(it, "Current network") } + publicCandidates)
+            .distinctBy { it.address }
+        return candidates.chunked(16).flatMap { group ->
             coroutineScope {
                 group.map { candidate ->
                     async(Dispatchers.Default) {
                         val label = "zx-auto-${Random.nextInt(100000, 999999)}"
                         val result = try {
-                            dnsQuery(
+                            val udp = dnsQuery(
                                 server = candidate.address,
                                 port = 53,
                                 name = "$label.$suffix",
@@ -300,6 +303,16 @@ private object DnsAutoDiscovery {
                                 transport = DnsTransport.UDP,
                                 timeoutMs = 1800,
                             )
+                            if (udp is DnsResult.Failed || (udp as? DnsResult.Ok)?.reply?.truncated == true) {
+                                dnsQuery(
+                                    server = candidate.address,
+                                    port = 53,
+                                    name = "$label.$suffix",
+                                    type = DnsRecordType.A,
+                                    transport = DnsTransport.TCP,
+                                    timeoutMs = 1800,
+                                )
+                            } else udp
                         } catch (cancelled: CancellationException) {
                             throw cancelled
                         } catch (_: Throwable) {
