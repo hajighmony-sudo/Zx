@@ -451,6 +451,7 @@ class ConfigRepository(private val store: KeyValueStore) {
         settings: dev.cluvex.zedsecure.domain.config.MasterDnsProfile,
         name: String,
         id: String? = null,
+        autoManaged: Boolean = false,
     ): VpnProfile {
         val existing = id?.let { profile(it) }
         val profile = VpnProfile.fromMasterDns(
