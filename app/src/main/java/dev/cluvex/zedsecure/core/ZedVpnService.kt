@@ -597,10 +597,6 @@ class ZedVpnService : VpnService() {
             stopEverything(); return
         }
 
-        if (profile.autoManaged) {
-            // DNS AUTO promises a device-wide tunnel: keep traffic contained if the tunnel drops.
-            killSwitchEnabled = true
-        }
         dnsAutoManaged = profile.autoManaged
         if (dnsAutoManaged) {
             // DNS AUTO promises a device-wide tunnel: keep traffic contained if the tunnel drops.
