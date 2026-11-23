@@ -118,7 +118,17 @@ build_psiphon() {
     echo "Pinned Aether Psiphon build script is missing: $AETHER_ROOT/psiphon-build.sh" >&2
     exit 1
   }
-  bash "$AETHER_ROOT/psiphon-build.sh" android "$goarch" "$out" "$goarm" "$licenses"
+  # Go 1.23+ rejects anet's intentional net.zoneCache linkname unless
+  # the linker check is explicitly disabled for this pinned Android client.
+  # Patch a temporary copy so the upstream submodule stays untouched.
+  local psiphon_build="$out/psiphon-build.sh"
+  if ! grep -Fq 'go build -trimpath -ldflags "-s -w"' "$AETHER_ROOT/psiphon-build.sh"; then
+    echo "Pinned Psiphon build script changed; review its linker flags before patching." >&2
+    exit 1
+  fi
+  sed 's/go build -trimpath -ldflags "-s -w"/go build -trimpath -ldflags "-s -w -checklinkname=0"/' \
+    "$AETHER_ROOT/psiphon-build.sh" > "$psiphon_build"
+  bash "$psiphon_build" android "$goarch" "$out" "$goarm" "$licenses"
   [ -s "$out/psiphon-tunnel-core" ] || {
     echo "Psiphon Android executable was not produced for $abi" >&2
     exit 1
