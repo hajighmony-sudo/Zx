@@ -24,18 +24,12 @@ import dev.cluvex.zedsecure.ui.bento.BentoPalettes
 import dev.cluvex.zedsecure.ui.bento.BentoStyle
 import dev.cluvex.zedsecure.ui.bento.LocalBentoStyle
 import dev.cluvex.zedsecure.ui.bento.bentoColorScheme
-import dev.cluvex.zedsecure.domain.model.ZxAnim
 import dev.cluvex.zedsecure.domain.model.ZxPsPrefs
 import dev.cluvex.zedsecure.ui.zxps.LocalZxPsStyle
 import dev.cluvex.zedsecure.ui.zxps.ZxPsPalettes
 import dev.cluvex.zedsecure.ui.zxps.ZxPsStyle
 import dev.cluvex.zedsecure.ui.zxps.zxPsColorScheme
 import dev.cluvex.zedsecure.ui.zxps.zxPsShapes
-import dev.cluvex.zedsecure.ui.zx.LocalZxStyle
-import dev.cluvex.zedsecure.ui.zx.ZxPalettes
-import dev.cluvex.zedsecure.ui.zx.ZxShapes
-import dev.cluvex.zedsecure.ui.zx.ZxStyle
-import dev.cluvex.zedsecure.ui.zx.zxColorScheme
 import dev.cluvex.zedsecure.domain.model.ColorContrast
 import dev.cluvex.zedsecure.domain.model.ColorStyle
 
@@ -74,7 +68,6 @@ fun ZedSecureTheme(
     val bentoColors = remember(bento.palette, darkTheme, bentoSeed, amoledBlack) {
         BentoPalettes.of(bento.palette, darkTheme, bentoSeed, amoledBlack)
     }
-    val zxColors = remember(darkTheme) { ZxPalettes.of(darkTheme) }
     val zxPsColors = remember(zxPs.palette, darkTheme) { ZxPsPalettes.of(zxPs.palette, darkTheme) }
     val scheme = if (design == AppDesign.ZxPs) {
         remember(zxPsColors) { zxPsColorScheme(zxPsColors) }
@@ -87,7 +80,6 @@ fun ZedSecureTheme(
             .let { if (amoledBlack) it.amoled(darkTheme) else it }
     }
     val zxPsStyle = remember(zxPsColors, zxPs) { ZxPsStyle(zxPsColors, zxPs) }
-    val zxStyle = remember(zxColors, zxAnim) { ZxStyle(zxColors, zxAnim) }
     val bentoStyle = remember(bentoColors, bento, languageTag) { BentoStyle(bentoColors, bento, latin = languageTag != "fa") }
     val colorScheme = if (animateColors) {
         animateColorScheme(scheme, animationSpec = { spring(stiffness = Spring.StiffnessMediumLow) })
@@ -114,7 +106,6 @@ fun ZedSecureTheme(
             LocalDensity provides scaled,
             LocalAppDesign provides design,
             LocalBentoStyle provides bentoStyle,
-            LocalZxStyle provides zxStyle,
             LocalZxPsStyle provides zxPsStyle,
             content = content,
         )
