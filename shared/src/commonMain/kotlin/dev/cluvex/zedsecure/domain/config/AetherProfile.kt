@@ -19,6 +19,8 @@ data class AetherProfile(
     val fragment: Boolean = false,
     /** Optional IP for the WARP registration API, for networks that block its default addresses. */
     val apiAddress: String = "",
+    /** Enables the ordered WARP -> built-in Psiphon -> built-in Tor fallback used only by Smart profiles. */
+    val smartFailover: Boolean = false,
 ) {
     fun toArgs(bindPort: Int, workingDirectory: String): List<String> {
         require(protocol in PROTOCOLS) { "Unsupported Aether protocol" }
@@ -89,7 +91,10 @@ data class AetherProfile(
             val legacy = obj != null && "marker" !in obj && "scanMode" in obj && "noize" in obj &&
                 "ipVersion" in obj && ((obj["protocol"]?.toString()?.trim('"') ?: "") in PROTOCOLS)
             if (marked || legacy) json.decodeFromString<AetherProfile>(raw) else null
-        }.getOrNull()?.takeIf { it.marker == MARKER }
+        }.getOrNull()?.takeIf { it.marker == MARKER }?.let { decoded ->
+            // Smart profiles saved before this field existed keep their intended failover behavior.
+            if (decoded.profileName.startsWith("Aether · Smart")) decoded.copy(smartFailover = true) else decoded
+        }
 
         fun encode(profile: AetherProfile): String =
             Json { encodeDefaults = true }.encodeToString(profile.copy(marker = MARKER))
