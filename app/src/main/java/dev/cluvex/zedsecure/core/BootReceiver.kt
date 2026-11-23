@@ -22,7 +22,7 @@ class BootReceiver : BroadcastReceiver() {
 
         if (active.isIkev2) return
 
-        if (settings.runMode != RunMode.ProxyOnly && VpnService.prepare(context) != null) {
+        if ((settings.runMode != RunMode.ProxyOnly || dnsAutoProfile) && VpnService.prepare(context) != null) {
             Log.i(TAG, "auto-connect skipped: VPN permission not granted")
             return
         }
