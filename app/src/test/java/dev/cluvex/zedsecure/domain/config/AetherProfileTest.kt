@@ -74,4 +74,15 @@ class AetherProfileTest {
         assertTrue(decoded!!.http2)
         assertNull(AetherProfile.decode("""{"outbounds":[],"inbounds":[],"log":{}}"""))
     }
+    @Test
+    fun smartProfilesOptIntoFailoverWhileManualProfilesStayIsolated() {
+        assertFalse(AetherProfile().smartFailover)
+        assertTrue(AetherSmartConfig.build(AetherSmartInput()).smartFailover)
+    }
+
+    @Test
+    fun smartFailoverFlagSurvivesProfileEncoding() {
+        val profile = AetherSmartConfig.build(AetherSmartInput())
+        assertEquals(profile, AetherProfile.decode(AetherProfile.encode(profile)))
+    }
 }
