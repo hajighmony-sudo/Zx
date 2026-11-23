@@ -39,64 +39,67 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun DnsAutoSheet(onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
-    val networkResolvers = remember { currentNetworkDnsServers().distinct() }
+    var networkResolvers by remember { mutableStateOf<List<String>>(emptyList()) }
     var results by remember { mutableStateOf<List<DnsAutoResult>>(emptyList()) }
     var scanning by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var completed by remember { mutableStateOf(false) }
 
-    suspend fun diagnose() {
+    suspend fun diagnose(refreshResolvers: Boolean = false) {
         if (scanning) return
-        if (networkResolvers.isEmpty()) {
-            results = emptyList()
-            completed = true
-            message = "سیستم‌عامل DNS فعالی برای شبکهٔ فعلی اعلام نکرده است."
-            return
-        }
         scanning = true
         completed = false
         results = emptyList()
-        message = "در حال بررسی پاسخ‌گویی DNS شبکهٔ فعلی…"
+        message = "در حال شناسایی DNS شبکه و بررسی پاسخ‌گویی…"
+
         try {
+            if (refreshResolvers || networkResolvers.isEmpty()) {
+                networkResolvers = withContext(Dispatchers.IO) {
+                    currentNetworkDnsServers().distinct()
+                }
+            }
+
+            if (networkResolvers.isEmpty()) {
+                message = "DNS شبکهٔ فیزیکی پیدا نشد. اتصال Wi-Fi یا دادهٔ همراه را بررسی و دوباره تلاش کن."
+                completed = true
+                return
+            }
+
             results = coroutineScope {
                 networkResolvers.take(6).map { resolver ->
                     async(Dispatchers.IO) {
-                        val udp = runCatching {
-                            dnsQuery(
-                                server = resolver,
-                                port = 53,
-                                name = "example.com",
-                                type = DnsRecordType.A,
-                                transport = DnsTransport.UDP,
-                                timeoutMs = 2200,
-                            )
-                        }.getOrElse { DnsResult.Failed(dev.cluvex.zedsecure.platform.DnsFailure.Unreachable) }
+                        val udp = try {
+                            dnsQuery(resolver, 53, "example.com", DnsRecordType.A, DnsTransport.UDP, 2200)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            DnsResult.Failed(dev.cluvex.zedsecure.platform.DnsFailure.Unreachable)
+                        }
 
-                        val tcp = runCatching {
-                            dnsQuery(
-                                server = resolver,
-                                port = 53,
-                                name = "example.com",
-                                type = DnsRecordType.A,
-                                transport = DnsTransport.TCP,
-                                timeoutMs = 2200,
-                            )
-                        }.getOrElse { DnsResult.Failed(dev.cluvex.zedsecure.platform.DnsFailure.Unreachable) }
+                        val tcp = try {
+                            dnsQuery(resolver, 53, "example.com", DnsRecordType.A, DnsTransport.TCP, 2200)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            DnsResult.Failed(dev.cluvex.zedsecure.platform.DnsFailure.Unreachable)
+                        }
 
-                        DnsAutoResult(address = resolver, udp = udp, tcp = tcp)
+                        DnsAutoResult(resolver, udp, tcp)
                     }
                 }.awaitAll()
             }
+
             val working = results.count { it.udp.responded || it.tcp.responded }
             message = "بررسی تمام شد؛ $working از ${results.size} سرور DNS حداقل از یک روش پاسخ دادند."
             completed = true
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (error: Throwable) {
+        } catch (error: Exception) {
             message = error.message?.take(160) ?: "بررسی DNS کامل نشد."
             completed = true
         } finally {
@@ -104,12 +107,9 @@ fun DnsAutoSheet(onDismiss: () -> Unit) {
         }
     }
 
-    LaunchedEffect(networkResolvers) { diagnose() }
+    LaunchedEffect(Unit) { diagnose(refreshResolvers = true) }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberAppSheetState(),
-    ) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberAppSheetState()) {
         Column(
             Modifier.fillMaxWidth().appVerticalScroll(rememberScrollState()).imePadding()
                 .padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
@@ -118,31 +118,35 @@ fun DnsAutoSheet(onDismiss: () -> Unit) {
             Text("DNS AUTO", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text("تشخیص خودکار DNS شبکه", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(
-                "این بخش DNSهای اعلام‌شده از سوی شبکهٔ فعلی را شناسایی می‌کند و پاسخ‌گویی UDP و TCP آن‌ها را می‌سنجد. هیچ پروفایل VPN یا تونلی ایجاد یا فعال نمی‌شود.",
+                "این بخش DNS شبکه‌های فیزیکی Wi-Fi و دادهٔ همراه را شناسایی می‌کند و پاسخ‌گویی UDP و TCP آن‌ها را می‌سنجد. DNS مجازی VPN به‌عنوان DNS بالادستی انتخاب نمی‌شود.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text("DNSهای شناسایی‌شده: ${networkResolvers.size}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
             if (networkResolvers.isEmpty()) {
-                Text("فهرست DNS شبکه خالی است؛ وضعیت اتصال شبکه را بررسی و دوباره تلاش کن.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                Text(
+                    "فهرست DNS شبکه خالی است؛ دکمهٔ بررسی دوباره، فهرست شبکه را مجدداً دریافت می‌کند.",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
             } else {
                 networkResolvers.take(6).forEach { resolver -> Text(resolver, style = MaterialTheme.typography.bodyMedium) }
             }
             Button(
-                onClick = { scope.launch { diagnose() } },
-                enabled = !scanning && networkResolvers.isNotEmpty(),
+                onClick = { scope.launch { diagnose(refreshResolvers = true) } },
+                enabled = !scanning,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 if (scanning) {
                     CircularProgressIndicator(modifier = Modifier.padding(end = 10.dp), strokeWidth = 2.dp)
                     Text("در حال بررسی…")
-                } else Text("بررسی دوباره")
+                } else Text("به‌روزرسانی و بررسی دوباره")
             }
             message?.let {
                 Text(
                     it,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (completed && results.isEmpty() && networkResolvers.isNotEmpty()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    color = if (completed && results.isEmpty()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
                 )
             }
             if (results.isNotEmpty()) {
@@ -162,12 +166,7 @@ fun DnsAutoSheet(onDismiss: () -> Unit) {
                 }
             }
             Text(
-                "DoH و DoT در این صفحه فعلاً آزمایش نمی‌شوند؛ برای آزمایش معتبر آن‌ها باید نشانی سرویس و نام میزبان TLS به‌صورت جداگانه تعریف شود.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                "تغییر DNS فقط روی درخواست‌های DNS اثر دارد و به‌تنهایی تمام ترافیک دستگاه را وارد VPN یا تونل نمی‌کند.",
+                "DoH و DoT در این صفحه آزمایش نمی‌شوند. این صفحه ابزار تشخیص DNS است و تنظیمات شبکه یا تونل را تغییر نمی‌دهد.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
