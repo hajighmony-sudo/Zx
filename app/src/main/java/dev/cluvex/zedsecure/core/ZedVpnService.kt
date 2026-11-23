@@ -779,70 +779,135 @@ class ZedVpnService : VpnService() {
         scope.launch(Dispatchers.IO) {
             var lastDetail = ""
             try {
-                val variants = profile.attempts()
+                // Manual Aether profiles keep their original behavior. Only Smart-generated
+                // profiles enter the isolated fallback sequence.
+                val routes = if (profile.smartFailover) {
+                    listOf("warp", "psiphon", "tor")
+                } else {
+                    listOf("warp")
+                }
                 var readyPort = -1
-                for ((index, variant) in variants.withIndex()) {
+                for (route in routes) {
                     if (userStop) return@launch
-                    val port = LocalPortPicker.pick(LocalPorts.AETHER_SOCKS)
-                    val process = AetherEngineProcess(java.io.File(applicationInfo.nativeLibraryDir), workDir)
-                    aetherEngine = process
-                    LogBus.append("I/Aether: attempt ${index + 1}/${variants.size} (${variant.protocol}, h2=${variant.http2}, noize=${variant.noize})")
-                    process.start(variant.toArgs(port, workDir.absolutePath))
-                    aetherWatch?.cancel()
-                    aetherWatch = scope.launch(Dispatchers.IO) {
-                        val exitCode = runCatching { process.awaitExit() }.getOrNull()
-                        if (!userStop && process === aetherEngine && readyPort > 0 &&
-                            (connected || VpnManager.status.value.state.isTransitioning)
-                        ) {
-                            onTunnelFailed("Aether engine stopped unexpectedly (exit ${exitCode ?: "unknown"})")
-                        }
+
+                    val psiphonBinary = java.io.File(
+                        applicationInfo.nativeLibraryDir,
+                        "libpsiphon-tunnel-core.so",
+                    )
+                    if (route == "psiphon" && (!psiphonBinary.isFile ||
+                            (!psiphonBinary.canExecute() && !psiphonBinary.setExecutable(true, false)) ||
+                            !psiphonBinary.canExecute())
+                    ) {
+                        lastDetail = "Aether's Psiphon executable is not packaged for this device ABI"
+                        LogBus.append("W/Aether Smart: $lastDetail; skipping to Tor")
+                        continue
                     }
-                    val budget = variant.startupBudgetMs()
-                    LogBus.append("I/Aether: startup window ${budget / 1000}s for scan=${variant.scanMode}")
-                    val attemptStartedAt = System.currentTimeMillis()
-                    val deadline = attemptStartedAt + budget
-                    var ready = false
-                    while (System.currentTimeMillis() < deadline) {
+
+                    val variants = if (route == "warp") profile.attempts() else listOf(profile)
+                    if (route != "warp") {
+                        LogBus.append(
+                            if (route == "psiphon") {
+                                "I/Aether Smart: WARP attempts exhausted; starting built-in Psiphon-only fallback"
+                            } else {
+                                "I/Aether Smart: Psiphon fallback failed; starting built-in Tor-only fallback"
+                            },
+                        )
+                    }
+
+                    for ((index, variant) in variants.withIndex()) {
                         if (userStop) return@launch
-                        if (!process.isAlive()) break
-                        // A scan that has not reached a single gateway after this long will not
-                        // succeed on this network with these settings: move on to the next variant
-                        // instead of making the user wait the full window.
-                        if (!process.candidateSeen &&
-                            System.currentTimeMillis() - attemptStartedAt > NO_CANDIDATE_GRACE_MS &&
-                            index < variants.lastIndex
-                        ) {
-                            LogBus.append("W/Aether: no gateway candidate reachable after ${NO_CANDIDATE_GRACE_MS / 1000}s; trying the next variant")
+                        val port = LocalPortPicker.pick(LocalPorts.AETHER_SOCKS)
+                        val process = AetherEngineProcess(java.io.File(applicationInfo.nativeLibraryDir), workDir)
+                        aetherEngine = process
+                        val routeEnvironment = when (route) {
+                            "psiphon" -> mapOf(
+                                "AETHER_PSIPHON" to "only",
+                                "AETHER_PSIPHON_BIN" to psiphonBinary.absolutePath,
+                                "AETHER_PSIPHON_DIR" to java.io.File(filesDir, "aether-smart-psiphon").absolutePath,
+                                "AETHER_PSIPHON_READY_SECS" to "180",
+                            )
+                            "tor" -> mapOf(
+                                "AETHER_TOR" to "only",
+                                "AETHER_TOR_DIR" to java.io.File(filesDir, "aether-smart-tor").absolutePath,
+                            )
+                            else -> emptyMap()
+                        }
+                        val routeLabel = when (route) {
+                            "psiphon" -> "Psiphon-only"
+                            "tor" -> "Tor-only"
+                            else -> "WARP"
+                        }
+                        LogBus.append(
+                            "I/Aether: $routeLabel attempt ${index + 1}/${variants.size} " +
+                                "(${variant.protocol}, h2=${variant.http2}, noize=${variant.noize})",
+                        )
+                        process.start(variant.toArgs(port, workDir.absolutePath), routeEnvironment)
+                        aetherWatch?.cancel()
+                        aetherWatch = scope.launch(Dispatchers.IO) {
+                            val exitCode = runCatching { process.awaitExit() }.getOrNull()
+                            if (!userStop && process === aetherEngine && readyPort > 0 &&
+                                (connected || VpnManager.status.value.state.isTransitioning)
+                            ) {
+                                onTunnelFailed("Aether engine stopped unexpectedly (exit ${exitCode ?: "unknown"})")
+                            }
+                        }
+
+                        val budget = when (route) {
+                            "psiphon" -> AETHER_PSIPHON_STARTUP_BUDGET_MS
+                            "tor" -> AETHER_TOR_STARTUP_BUDGET_MS
+                            else -> variant.startupBudgetMs()
+                        }
+                        LogBus.append("I/Aether: $routeLabel startup window ${budget / 1000}s")
+                        val attemptStartedAt = System.currentTimeMillis()
+                        val deadline = attemptStartedAt + budget
+                        var ready = false
+                        while (System.currentTimeMillis() < deadline) {
+                            if (userStop) return@launch
+                            if (!process.isAlive()) break
+                            // Only WARP scans expose gateway candidates. If none appears within
+                            // the grace period, move to the next WARP variant or fallback route.
+                            if (route == "warp" && !process.candidateSeen &&
+                                System.currentTimeMillis() - attemptStartedAt > NO_CANDIDATE_GRACE_MS &&
+                                index < variants.lastIndex
+                            ) {
+                                LogBus.append("W/Aether: no gateway candidate reachable after ${NO_CANDIDATE_GRACE_MS / 1000}s; trying the next variant")
+                                break
+                            }
+                            val ok = runCatching {
+                                TunnelReadiness.verifyAny(
+                                    port,
+                                    timeoutMs = if (process.candidateSeen) 12_000 else 2_500,
+                                    hosts = listOf("cp.cloudflare.com", "www.cloudflare.com", "example.com"),
+                                    connectTimeoutMs = 1_200,
+                                )
+                            }.getOrDefault(false)
+                            if (ok) {
+                                ready = true
+                                break
+                            }
+                            kotlinx.coroutines.delay(500)
+                        }
+                        if (ready) {
+                            readyPort = port
+                            LogBus.append("I/Aether Smart: $routeLabel route passed end-to-end traffic verification")
                             break
                         }
-                        val ok = runCatching {
-                            TunnelReadiness.verifyAny(
-                                port,
-                                // Once a gateway answered, the tunnel is real but slow (the scan saw RTTs
-                                // above 1.5s): SOCKS connect + HTTP needs several round trips, so a 1.8s
-                                // read timeout can never pass. Give it a realistic window.
-                                timeoutMs = if (process.candidateSeen) 12_000 else 2_500,
-                                hosts = listOf("cp.cloudflare.com", "www.cloudflare.com", "example.com"),
-                                connectTimeoutMs = 1_200,
-                            )
-                        }.getOrDefault(false)
-                        if (ok) { ready = true; break }
-                        kotlinx.coroutines.delay(500)
+                        lastDetail = process.lastLines()
+                        LogBus.append("W/Aether: $routeLabel attempt ${index + 1} did not connect; $lastDetail")
+                        aetherWatch?.cancel()
+                        process.stop()
                     }
-                    if (ready) { readyPort = port; break }
-                    lastDetail = process.lastLines()
-                    LogBus.append("W/Aether: attempt ${index + 1} did not connect; $lastDetail")
-                    aetherWatch?.cancel()
-                    process.stop()
+                    if (readyPort > 0) break
                 }
                 if (readyPort <= 0) {
                     throw IllegalStateException(
-                        "Aether could not establish a tunnel on this network" +
+                        "Aether Smart could not establish WARP, Psiphon, or Tor" +
                             if (lastDetail.isNotBlank()) " ($lastDetail)" else "",
                     )
                 }
                 bridgeEngine(descriptor, readyPort, tunMtu)
                 LogBus.append("I/Aether: native engine ready on 127.0.0.1:$readyPort")
+            }
             } catch (e: Exception) {
                 if (userStop) return@launch
                 Log.e(TAG, "Aether startup failed", e)
@@ -2110,6 +2175,8 @@ class ZedVpnService : VpnService() {
     companion object {
         private const val TAG = "ZedVpnService"
         private const val NO_CANDIDATE_GRACE_MS = 120_000L
+        private const val AETHER_PSIPHON_STARTUP_BUDGET_MS = 195_000L
+        private const val AETHER_TOR_STARTUP_BUDGET_MS = 420_000L
 
         private const val ZEPTUN_PROOF_MS = 6_000L
         private const val PORT_WAIT_MS = 4_000L
