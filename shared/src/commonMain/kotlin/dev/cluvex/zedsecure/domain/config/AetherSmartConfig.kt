@@ -6,78 +6,94 @@ import dev.cluvex.zedsecure.platform.NetworkKind
 /** What the user wants the Smart config to favor. */
 enum class AetherSmartGoal { Auto, Speed, Stealth }
 
-/** What the app learned about the user's connection before building an Aether profile. */
+/** Privacy-preserving measurements collected from the active physical network. */
 data class AetherSmartInput(
     val network: NetworkKind = NetworkKind.Unknown,
     val hasIpv6: Boolean = false,
     val pingMs: Int? = null,
-    /** Two-letter country code of the user's current network, when known. */
+    /** Kept for profile compatibility/diagnostics; geography alone never implies DPI filtering. */
     val countryCode: String? = null,
-    /** Result of the live reachability probe: null = not measured. */
     val edgeReachable: Boolean? = null,
     val edgeMs: Int? = null,
     val apiReachable: Boolean? = null,
-    /** Spread between two edge samples; a high value marks an unstable link. */
     val edgeJitterMs: Int? = null,
     val goal: AetherSmartGoal = AetherSmartGoal.Auto,
-    /** Local link estimates (bandwidth, signal, generation); null when unavailable. */
+    /** Local link estimates; they are hints, not proof that a tunnel transport works. */
     val link: LinkQuality? = null,
+    /** Packet-like loss estimate from repeated HTTPS reachability samples (0..100). */
+    val edgeLossPercent: Int? = null,
+    val apiLossPercent: Int? = null,
 )
 
 /**
- * Smart config: fills every Aether field from the user's own network instead of asking for them.
+ * Generates a complete Aether profile from live measurements of the user's current link.
  *
- * - Mobile data usually throttles UDP and inspects traffic harder, so it gets the strongest
- *   anti-DPI profile, a thorough scan and the HTTP/2 (TCP) transport as a fallback path.
- * - Wi-Fi and Ethernet keep the faster UDP transport with a balanced profile.
- * - A slow or lossy link (high ping) uses the quicker scan so the connection comes up sooner.
- * - IPv6 is enabled only when the network really has it.
- * - Networks known for heavy filtering stay on the strict anti-DPI profile whatever the transport.
+ * The decision is deliberately evidence-led: country is not used as a DPI verdict. Repeated
+ * endpoint loss and latency variance are stronger signals than geography or the advertised
+ * bandwidth alone. Smart remains an Aether-only profile; the service owns its separate
+ * WARP -> built-in Psiphon -> built-in Tor failover policy.
  */
 object AetherSmartConfig {
-    private val heavilyFiltered = setOf("IR", "CN", "RU", "TM", "BY", "MM")
-
     fun build(input: AetherSmartInput): AetherProfile {
         val cellular = input.network == NetworkKind.Cellular
-        val filtered = input.countryCode?.uppercase() in heavilyFiltered
+        val link = input.link
         val slow = (input.pingMs ?: 0) >= SLOW_PING_MS
         val edgeBlocked = input.edgeReachable == false
         val apiBlocked = input.apiReachable == false
-        val fastEdge = input.edgeReachable == true && (input.edgeMs ?: Int.MAX_VALUE) < FAST_EDGE_MS
-
-        // Link-quality rules (idea from the V-RZEX "AI Config" advisor): signal strength and
-        // advertised bandwidth never prove UDP/QUIC works, so HTTP/3 is chosen only on a strong,
-        // unmetered Wi-Fi link; weak links keep the robust TCP/HTTP/2 path. When the platform cannot
-        // report link estimates, the previous network-kind rule applies unchanged.
-        val link = input.link
-        val strongWifi = link != null && input.network == NetworkKind.Wifi && !link.metered &&
-            link.validated && link.downKbps >= STRONG_DOWN_KBPS && link.upKbps >= STRONG_UP_KBPS &&
-            (link.signalDbm == null || link.signalDbm >= STRONG_SIGNAL_DBM)
+        val fastEdge = input.edgeReachable == true && (input.edgeMs ?: Int.MAX_VALUE) <= FAST_EDGE_MS
+        val edgeLoss = input.edgeLossPercent?.coerceIn(0, 100) ?: if (edgeBlocked) 100 else 0
+        val apiLoss = input.apiLossPercent?.coerceIn(0, 100) ?: if (apiBlocked) 100 else 0
+        val unstable = edgeLoss >= UNSTABLE_LOSS_PERCENT ||
+            (input.edgeJitterMs ?: 0) >= UNSTABLE_JITTER_MS
+        val apiDegraded = apiLoss >= DEGRADED_API_LOSS_PERCENT
         val weak = link != null && (
             link.generation == "2G" || link.generation == "3G" ||
-                link.downKbps in 1 until WEAK_DOWN_KBPS || link.upKbps in 1..WEAK_UP_KBPS ||
+                link.downKbps in 1 until WEAK_DOWN_KBPS ||
+                link.upKbps in 1..WEAK_UP_KBPS ||
                 (link.signalDbm != null && link.signalDbm < WEAK_SIGNAL_DBM)
             )
-        val udpFriendly = if (link == null) !cellular else strongWifi || (input.network == NetworkKind.Ethernet && !weak)
-        val speedOverride = input.goal == AetherSmartGoal.Speed && !edgeBlocked && !filtered
-        val unstable = (input.edgeJitterMs ?: 0) >= UNSTABLE_JITTER_MS
-        val strict = filtered || edgeBlocked || input.goal == AetherSmartGoal.Stealth
+        val strongWifi = link != null &&
+            input.network == NetworkKind.Wifi &&
+            !link.metered &&
+            link.validated &&
+            link.downKbps >= STRONG_DOWN_KBPS &&
+            link.upKbps >= STRONG_UP_KBPS &&
+            (link.signalDbm == null || link.signalDbm >= STRONG_SIGNAL_DBM)
+
+        // Network type is only a fallback hint when Android cannot provide link estimates.
+        // Advertised speed/signal never overrides measured reachability or loss.
+        val udpFriendlyHint = when {
+            link != null -> strongWifi || (
+                input.network == NetworkKind.Ethernet && link.validated && !weak
+                )
+            else -> input.network == NetworkKind.Wifi || input.network == NetworkKind.Ethernet
+        }
+        val networkUnvalidated = link?.validated == false
+        val speedOverride = input.goal == AetherSmartGoal.Speed &&
+            !edgeBlocked && !unstable && !networkUnvalidated
+        val strict = edgeBlocked || unstable || networkUnvalidated ||
+            input.goal == AetherSmartGoal.Stealth
+
         val noize = when {
             strict -> "gfw"
-            cellular || weak -> "firewall"
+            cellular || weak || apiDegraded -> "firewall"
             else -> "balanced"
         }
         val scan = when {
             input.goal == AetherSmartGoal.Stealth -> "verified"
-            input.goal == AetherSmartGoal.Speed && !edgeBlocked -> "turbo"
-            edgeBlocked || unstable -> "thorough"
-            fastEdge && !filtered -> "turbo"
-            slow -> "turbo"
-            weak -> "turbo"
-            cellular || filtered -> "thorough"
+            edgeBlocked || unstable || networkUnvalidated -> "thorough"
+            input.goal == AetherSmartGoal.Speed -> "turbo"
+            fastEdge && !apiDegraded -> "turbo"
+            slow || weak -> "turbo"
+            cellular -> "thorough"
             else -> "balanced"
         }
-        val h2 = !speedOverride && (cellular || strict || weak || !udpFriendly)
+        // Prefer TCP-carried MASQUE where the physical link is metered, cellular,
+        // weak, unstable, or not demonstrably friendly to the faster UDP path.
+        val h2 = !speedOverride && (
+            cellular || strict || weak || !udpFriendlyHint || apiDegraded
+            )
+
         return AetherProfile(
             smartFailover = true,
             profileName = nameFor(input.network),
@@ -87,7 +103,7 @@ object AetherSmartConfig {
             noize = noize,
             http2 = h2,
             fragment = h2 && strict,
-            apiAddress = if (apiBlocked) "162.159.137.105" else "",
+            apiAddress = if (apiBlocked || apiDegraded) CLOUDFLARE_API_FALLBACK else "",
         )
     }
 
@@ -100,11 +116,14 @@ object AetherSmartConfig {
 
     private const val SLOW_PING_MS = 350
     private const val FAST_EDGE_MS = 220
-    private const val UNSTABLE_JITTER_MS = 150
+    private const val UNSTABLE_JITTER_MS = 180
+    private const val UNSTABLE_LOSS_PERCENT = 34
+    private const val DEGRADED_API_LOSS_PERCENT = 34
     private const val STRONG_DOWN_KBPS = 15_000
     private const val STRONG_UP_KBPS = 3_000
     private const val STRONG_SIGNAL_DBM = -85
     private const val WEAK_DOWN_KBPS = 5_000
     private const val WEAK_UP_KBPS = 1_000
     private const val WEAK_SIGNAL_DBM = -105
+    private const val CLOUDFLARE_API_FALLBACK = "162.159.137.105"
 }
