@@ -2,6 +2,7 @@ package dev.cluvex.zedsecure.domain.config
 
 import dev.cluvex.zedsecure.platform.currentTimeMillis
 import dev.cluvex.zedsecure.platform.httpGetResponse
+import dev.cluvex.zedsecure.platform.probeAetherTransportFingerprint
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
@@ -21,6 +22,8 @@ object AetherSmartProbe {
         val edgeJitterMs: Int? = null,
         val edgeLossPercent: Int = 100,
         val apiLossPercent: Int = 100,
+        val udpReachable: Boolean? = null,
+        val tlsSniReachable: Boolean? = null,
     )
 
     suspend fun run(): Result = coroutineScope {
@@ -36,14 +39,18 @@ object AetherSmartProbe {
                 fallback = API_FALLBACK_URL,
             )
         }
+        val transport = async { probeAetherTransportFingerprint() }
         val edgeResult = edge.await()
         val apiResult = api.await()
+        val transportResult = transport.await()
         Result(
             edgeMs = edgeResult.medianMs,
             apiMs = apiResult.medianMs,
             edgeJitterMs = edgeResult.jitterMs,
             edgeLossPercent = edgeResult.lossPercent,
             apiLossPercent = apiResult.lossPercent,
+            udpReachable = transportResult.udpReachable,
+            tlsSniReachable = transportResult.tlsSniReachable,
         )
     }
 
