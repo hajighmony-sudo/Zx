@@ -17,11 +17,11 @@ import javax.net.ssl.SSLSocketFactory
 internal actual suspend fun probeAetherTransportFingerprint(): AetherTransportFingerprint =
     withContext(Dispatchers.IO) {
         coroutineScope {
-            val udp = async {
-                udpDnsProbe("1.1.1.1") || udpDnsProbe("8.8.8.8")
-            }
+            val udp = async { udpDnsProbe("1.1.1.1") || udpDnsProbe("8.8.8.8") }
+            val tcp = async { tcpProbe() }
             val tls = async { tlsSniProbe() }
-            AetherTransportFingerprint(udp.await(), tls.await())
+            val dns = async { systemDnsProbe() }
+            AetherTransportFingerprint(udp.await(), tcp.await(), tls.await(), dns.await())
         }
     }
 
@@ -44,6 +44,10 @@ private fun udpDnsProbe(server: String): Boolean = runCatching {
     }
 }.getOrDefault(false)
 
+private fun tcpProbe(): Boolean = runCatching {
+    Socket().use { it.connect(InetSocketAddress("1.1.1.1", 443), TLS_TIMEOUT_MS); true }
+}.getOrDefault(false)
+
 private fun tlsSniProbe(): Boolean = runCatching {
     Socket().use { raw ->
         raw.connect(InetSocketAddress("1.1.1.1", 443), TLS_TIMEOUT_MS)
@@ -52,11 +56,15 @@ private fun tlsSniProbe(): Boolean = runCatching {
         (factory.createSocket(raw, "www.cloudflare.com", 443, true) as SSLSocket).use { ssl ->
             ssl.soTimeout = TLS_TIMEOUT_MS
             ssl.startHandshake()
-            HttpsURLConnection.getDefaultHostnameVerifier()
-                .verify("www.cloudflare.com", ssl.session)
+            HttpsURLConnection.getDefaultHostnameVerifier().verify("www.cloudflare.com", ssl.session)
         }
     }
 }.getOrDefault(false)
+
+private fun systemDnsProbe(): List<String>? = runCatching {
+    InetAddress.getAllByName("example.com").map { it.hostAddress.substringBefore('%') }
+        .filter { !it.contains(':') }.distinct().sorted().takeIf { it.isNotEmpty() }
+}.getOrNull()
 
 private const val PROBE_TIMEOUT_MS = 2_500
 private const val TLS_TIMEOUT_MS = 3_500
