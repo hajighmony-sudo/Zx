@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -301,12 +303,12 @@ private fun QuickConnectContent(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("ZX VPN", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.quick_connect_title), color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.SemiBold)
                     Text(
                         text = when {
-                            connectionState.isActive -> serverName ?: "Connected"
-                            connectionState.isTransitioning -> "Connecting…"
-                            else -> "Quick Connect",
+                            connectionState.isActive -> serverName ?: stringResource(R.string.quick_connect_connected)
+                            connectionState.isTransitioning -> stringResource(R.string.quick_connect_connecting)
+                            else -> stringResource(R.string.quick_connect_subtitle),
                         },
                         color = Color(0xFFB8BBC4),
                         fontSize = 13.sp,
@@ -331,7 +333,7 @@ private fun QuickConnectContent(
 
             if (profiles.isEmpty()) {
                 Text(
-                    text = "No saved configurations",
+                    text = stringResource(R.string.quick_connect_empty),
                     color = Color(0xFFB8BBC4),
                     modifier = Modifier.padding(vertical = 28.dp),
                 )
@@ -365,7 +367,7 @@ private fun QuickConnectContent(
                                 )
                                 Text(
                                     text = when {
-                                        connecting -> "Connecting…"
+                                        connecting -> stringResource(R.string.quick_connect_connecting)
                                         selected && connectionState.isActive -> "Connected"
                                         else -> profile.protocol,
                                     },
@@ -380,7 +382,7 @@ private fun QuickConnectContent(
                                 text = when {
                                     pingingProfiles[profile.id] == true -> "…"
                                     (profile.lastPingMs ?: -1) > 0 -> "${profile.lastPingMs} ms"
-                                    profile.lastPingMs == PingService.FAILED_PING -> "Timeout"
+                                    profile.lastPingMs == PingService.FAILED_PING -> stringResource(R.string.quick_connect_timeout)
                                     else -> "—"
                                 },
                                 color = if ((profile.lastPingMs ?: -1) > 0) Color(0xFF8BE0B0) else Color(0xFFB8BBC4),
