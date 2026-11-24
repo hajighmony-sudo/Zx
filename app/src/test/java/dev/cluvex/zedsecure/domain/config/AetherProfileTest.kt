@@ -242,6 +242,29 @@ class AetherProfileTest {
         assertEquals("thorough", profile.scanMode)
     }
 
+
+    @Test
+    fun smartSpeedGoalCannotOverrideDnsOrCommunityFilteringEvidence() {
+        val profile = AetherSmartConfig.build(
+            AetherSmartInput(
+                network = dev.cluvex.zedsecure.platform.NetworkKind.Wifi,
+                goal = AetherSmartGoal.Speed,
+                edgeReachable = true,
+                apiReachable = true,
+                udpReachable = true,
+                tcp443Reachable = true,
+                tlsSniReachable = true,
+                dnsSystemMatchesDoh = false,
+                ooniAnomalyPercent = 80,
+            ),
+        )
+
+        assertTrue(profile.http2)
+        assertTrue(profile.fragment)
+        assertEquals("gfw", profile.noize)
+        assertEquals("thorough", profile.scanMode)
+    }
+
     @Test
     fun smartUsesApiFallbackWhenRepeatedApiSamplesAreDegraded() {
         val profile = AetherSmartConfig.build(
