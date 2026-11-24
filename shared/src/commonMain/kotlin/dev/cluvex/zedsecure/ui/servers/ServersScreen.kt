@@ -2990,6 +2990,21 @@ private fun AetherSmartDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                val filteringSignals = buildList {
+                    if (dnsSystemMatchesDoh == false) add("Potential DNS manipulation")
+                    if (tcp443Reachable == false) add("TCP/443 unreachable")
+                    if (tcp443Reachable == true && tlsSniReachable == false) add("Possible TLS/SNI interference")
+                    if (udpReachable == false) add("UDP/53 unavailable (not a QUIC test)")
+                    if ((ooniAnomalyPercent ?: 0) >= 60) add("OONI ASN anomalies: $ooniAnomalyPercent%")
+                }
+                Text(
+                    if (!probed) "Filtering diagnosis pending"
+                    else if (filteringSignals.isEmpty()) "Filtering diagnosis: no strong signal / inconclusive"
+                    else "Potential filtering: " + filteringSignals.joinToString(" · "),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (filteringSignals.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
+                    else MaterialTheme.colorScheme.tertiary,
+                )
                 SmartStepRow(
                     stringResource(Res.string.aether_smart_step_ip), probed, ipv6 == true,
                     if (ipv6 == true) okText else naText,
