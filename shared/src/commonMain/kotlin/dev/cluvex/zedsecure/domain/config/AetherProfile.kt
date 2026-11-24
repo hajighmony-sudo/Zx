@@ -53,6 +53,24 @@ data class AetherProfile(
      * budget. The Android service must not kill the process before that scan
      * can finish and select a gateway.
      */
+    /**
+     * Human-readable preview of the exact native arguments generated for this profile.
+     * The SOCKS port and working directory are runtime values selected by the service.
+     * The preview is informational; the app launches the process with an argument list,
+     * never by passing this string through a shell.
+     */
+    fun commandPreview(): String {
+        val args = toArgs(PREVIEW_SOCKS_PORT, PREVIEW_HOME)
+            .map { arg ->
+                when (arg) {
+                    "127.0.0.1:$PREVIEW_SOCKS_PORT" -> "127.0.0.1:<SOCKS_PORT>"
+                    "$PREVIEW_HOME/aether.toml" -> "<AETHER_HOME>/aether.toml"
+                    else -> arg
+                }
+            }
+        return (listOf("libaether.so") + args).joinToString(" ")
+    }
+
     fun startupBudgetMs(): Long = when (scanMode) {
         "turbo" -> 60_000L
         "balanced" -> 120_000L
@@ -75,6 +93,8 @@ data class AetherProfile(
     }.distinct()
 
     companion object {
+        private const val PREVIEW_SOCKS_PORT = 10991
+        private const val PREVIEW_HOME = "<AETHER_HOME>"
         const val MARKER = "ZX_AETHER"
         private val PROTOCOLS = setOf("masque", "wg", "gool", "mim")
         private val SCAN_MODES = setOf("turbo", "balanced", "thorough", "verified", "ironclad")
