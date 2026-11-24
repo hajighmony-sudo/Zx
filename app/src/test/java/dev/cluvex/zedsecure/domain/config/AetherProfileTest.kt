@@ -47,6 +47,60 @@ class AetherProfileTest {
         assertFalse(args.contains("--fragment"))
     }
 
+
+    @Test
+    fun smartProfileProducesCompleteNativeCommandFromDetectedSettings() {
+        val profile = AetherSmartConfig.build(
+            AetherSmartInput(
+                network = dev.cluvex.zedsecure.platform.NetworkKind.Cellular,
+                hasIpv6 = true,
+                edgeReachable = true,
+                apiReachable = false,
+                udpReachable = false,
+                tcp443Reachable = true,
+                tlsSniReachable = false,
+                dnsSystemMatchesDoh = false,
+                edgeLossPercent = 0,
+                apiLossPercent = 100,
+            ),
+        )
+
+        val command = profile.commandPreview()
+
+        assertTrue(command.contains("--protocol masque"))
+        assertTrue(command.contains("--scan thorough"))
+        assertTrue(command.contains("--ip both"))
+        assertTrue(command.contains("--noize gfw"))
+        assertTrue(command.contains("--h2"))
+        assertTrue(command.contains("--fragment"))
+        assertTrue(command.contains("--api-address 162.159.137.105"))
+        assertTrue(command.contains("127.0.0.1:<SOCKS_PORT>"))
+        assertTrue(command.contains("<AETHER_HOME>/aether.toml"))
+        assertTrue(profile.smartFailover)
+    }
+
+    @Test
+    fun generatedNativeCommandMatchesManualArgumentBuilder() {
+        val profile = AetherProfile(
+            protocol = "masque",
+            scanMode = "verified",
+            ipVersion = "v4",
+            noize = "firewall",
+            http2 = true,
+            fragment = true,
+            apiAddress = "162.159.137.105",
+        )
+
+        val preview = profile.commandPreview()
+        val args = profile.toArgs(10991, "<AETHER_HOME>")
+
+        assertTrue(preview.startsWith("libaether.so "))
+        assertTrue(preview.contains("--quick-reconnect"))
+        assertTrue(preview.contains("--stats --stats-secs 15"))
+        assertTrue(preview.contains("--config <AETHER_HOME>/aether.toml"))
+        assertTrue(args.containsAll(listOf("--h2", "--fragment", "--api-address", "162.159.137.105")))
+    }
+
     @Test
     fun startupBudgetAllowsNativeScanToFinish() {
         assertEquals(60_000L, AetherProfile(scanMode = "turbo").startupBudgetMs())
