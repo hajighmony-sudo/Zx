@@ -2973,15 +2973,15 @@ private fun AetherSmartDialog(
                     stringResource(Res.string.aether_smart_step_api), probed, apiMs != null,
                     if (apiMs != null) okText else blockedText,
                 )
-                SmartStepRow("UDP / DNS", udpReachable != null, udpReachable == true,
-                    if (udpReachable == true) okText else blockedText)
-                SmartStepRow("TCP / 443", tcp443Reachable != null, tcp443Reachable == true,
-                    if (tcp443Reachable == true) okText else blockedText)
-                SmartStepRow("TLS / SNI", tlsSniReachable != null, tlsSniReachable == true,
-                    if (tlsSniReachable == true) okText else blockedText)
-                SmartStepRow("DNS integrity", dnsSystemMatchesDoh != null, dnsSystemMatchesDoh == true,
+                SmartStepRow("UDP / DNS", probed, udpReachable == true,
+                    when (udpReachable) { true -> okText; false -> blockedText; null -> naText })
+                SmartStepRow("TCP / 443", probed, tcp443Reachable == true,
+                    when (tcp443Reachable) { true -> okText; false -> blockedText; null -> naText })
+                SmartStepRow("TLS / SNI", probed, tlsSniReachable == true,
+                    when (tlsSniReachable) { true -> okText; false -> blockedText; null -> naText })
+                SmartStepRow("DNS comparison", probed, dnsSystemMatchesDoh == true,
                     when (dnsSystemMatchesDoh) { true -> "Matches DoH"; false -> "Mismatch"; null -> naText })
-                SmartStepRow("OONI · ASN", ooniAnomalyPercent != null, (ooniAnomalyPercent ?: 0) < 60,
+                SmartStepRow("OONI · ASN", probed, (ooniAnomalyPercent ?: 0) < 60,
                     if (ooniAnomalyPercent != null) "$ooniAnomalyPercent% anomalies · $ooniSamples samples" else "No recent public sample")
                 if (publicIp != null || isp != null || asn != null) {
                     Text(
@@ -2991,7 +2991,7 @@ private fun AetherSmartDialog(
                     )
                 }
                 SmartStepRow(
-                    stringResource(Res.string.aether_smart_step_ip), ipv6 != null, ipv6 == true,
+                    stringResource(Res.string.aether_smart_step_ip), probed, ipv6 == true,
                     if (ipv6 == true) okText else naText,
                 )
                 val p = profile
