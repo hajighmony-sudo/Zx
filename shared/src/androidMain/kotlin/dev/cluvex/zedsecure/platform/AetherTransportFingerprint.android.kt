@@ -17,14 +17,15 @@ import javax.net.ssl.SSLSocketFactory
 internal actual suspend fun probeAetherTransportFingerprint(): AetherTransportFingerprint =
     withContext(Dispatchers.IO) {
         coroutineScope {
-            val udp = async {
-                val first = udpDnsProbe("1.1.1.1")
-                first || udpDnsProbe("8.8.8.8")
-            }
+            val udp = async { udpDnsProbe("1.1.1.1") || udpDnsProbe("8.8.8.8") }
+            val tcp = async { tcpProbe() }
             val tls = async { tlsSniProbe() }
+            val dns = async { systemDnsProbe() }
             AetherTransportFingerprint(
                 udpReachable = udp.await(),
+                tcp443Reachable = tcp.await(),
                 tlsSniReachable = tls.await(),
+                systemDnsAnswers = dns.await(),
             )
         }
     }
@@ -50,6 +51,10 @@ private fun udpDnsProbe(server: String): Boolean = runCatching {
     }
 }.getOrDefault(false)
 
+private fun tcpProbe(): Boolean = runCatching {
+    Socket().use { it.connect(InetSocketAddress("1.1.1.1", 443), TLS_TIMEOUT_MS); true }
+}.getOrDefault(false)
+
 private fun tlsSniProbe(): Boolean = runCatching {
     Socket().use { raw ->
         raw.connect(InetSocketAddress("1.1.1.1", 443), TLS_TIMEOUT_MS)
@@ -63,6 +68,15 @@ private fun tlsSniProbe(): Boolean = runCatching {
         }
     }
 }.getOrDefault(false)
+
+private fun systemDnsProbe(): List<String>? = runCatching {
+    InetAddress.getAllByName("example.com")
+        .map { it.hostAddress.substringBefore('%') }
+        .filter { !it.contains(':') }
+        .distinct()
+        .sorted()
+        .takeIf { it.isNotEmpty() }
+}.getOrNull()
 
 private const val PROBE_TIMEOUT_MS = 2_500
 private const val TLS_TIMEOUT_MS = 3_500
