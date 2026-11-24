@@ -104,19 +104,29 @@ object AetherSmartProbe {
     }
 
     private suspend fun fetchIpIdentity(): IpIdentity = withContext(Dispatchers.IO) {
-        runCatching {
-            val response = httpGetResponse(IPINFO_URL, USER_AGENT, null, TIMEOUT_MS, TIMEOUT_MS)
-            require(response.code in 200..299)
-            val root = json.parseToJsonElement(response.body).jsonObject
-            val org = root["org"]?.jsonPrimitive?.contentOrNull.orEmpty()
-            val asn = Regex("(?i)AS\\d+").find(org)?.value?.uppercase()
-            IpIdentity(
-                ip = root["ip"]?.jsonPrimitive?.contentOrNull,
-                isp = org.substringAfter(asn ?: "\u0000").trim().takeIf { it.isNotBlank() } ?: org.takeIf { it.isNotBlank() },
-                asn = asn,
-                countryCode = root["country"]?.jsonPrimitive?.contentOrNull?.uppercase(),
-            )
-        }.getOrDefault(IpIdentity())
+        for (endpoint in IP_IDENTITY_ENDPOINTS) {
+            val identity = runCatching {
+                val response = httpGetResponse(endpoint, USER_AGENT, null, TIMEOUT_MS, TIMEOUT_MS)
+                require(response.code in 200..299)
+                val root = json.parseToJsonElement(response.body).jsonObject
+                val org = sequenceOf("org", "as", "isp", "organization")
+                    .mapNotNull { key -> root[key]?.jsonPrimitive?.contentOrNull }
+                    .firstOrNull { it.isNotBlank() }.orEmpty()
+                val asn = Regex("(?i)AS\\d+").find(org)?.value?.uppercase()
+                IpIdentity(
+                    ip = sequenceOf("ip", "query").mapNotNull { root[it]?.jsonPrimitive?.contentOrNull }.firstOrNull(),
+                    isp = org.substringAfter(asn ?: "\u0000").trim().takeIf { it.isNotBlank() } ?: org.takeIf { it.isNotBlank() },
+                    asn = asn,
+                    countryCode = sequenceOf("country", "countryCode", "country_code")
+                        .mapNotNull { root[it]?.jsonPrimitive?.contentOrNull }
+                        .firstOrNull()?.uppercase(),
+                )
+            }.getOrNull()
+            if (identity != null && (identity.ip != null || identity.asn != null || identity.countryCode != null)) {
+                return@withContext identity
+            }
+        }
+        IpIdentity()
     }
 
     private suspend fun fetchDohAnswers(): List<String>? = withContext(Dispatchers.IO) {
@@ -161,6 +171,8 @@ object AetherSmartProbe {
     private const val API_URL = "https://api.devices.cloudflare.com/"
     private const val API_FALLBACK_URL = "https://api.cloudflareclient.com/"
     private const val IPINFO_URL = "https://ipinfo.io/json"
+    private const val IPMYP_URL = "https://api.ipmyp.ir/json"
+    private val IP_IDENTITY_ENDPOINTS = listOf(IPINFO_URL, IPMYP_URL)
     private const val DOH_URL = "https://cloudflare-dns.com/dns-query?name=example.com&type=A"
     private const val OONI_URL = "https://api.ooni.org/api/v1/measurements"
 }
