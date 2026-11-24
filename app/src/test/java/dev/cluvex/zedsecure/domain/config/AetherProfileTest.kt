@@ -126,6 +126,45 @@ class AetherProfileTest {
     }
 
     @Test
+    fun smartUsesHttp2WhenUdpIsThrottledButTlsSniWorks() {
+        val profile = AetherSmartConfig.build(
+            AetherSmartInput(
+                network = dev.cluvex.zedsecure.platform.NetworkKind.Wifi,
+                edgeReachable = true,
+                apiReachable = true,
+                udpReachable = false,
+                tlsSniReachable = true,
+                edgeLossPercent = 0,
+                apiLossPercent = 0,
+            ),
+        )
+
+        assertTrue(profile.http2)
+        assertTrue(profile.fragment)
+        assertEquals("firewall", profile.noize)
+    }
+
+    @Test
+    fun smartUsesStrongObfuscationWhenUdpAndSniBothFail() {
+        val profile = AetherSmartConfig.build(
+            AetherSmartInput(
+                network = dev.cluvex.zedsecure.platform.NetworkKind.Wifi,
+                edgeReachable = true,
+                apiReachable = true,
+                udpReachable = false,
+                tlsSniReachable = false,
+                edgeLossPercent = 0,
+                apiLossPercent = 0,
+            ),
+        )
+
+        assertTrue(profile.http2)
+        assertTrue(profile.fragment)
+        assertEquals("gfw", profile.noize)
+        assertEquals("thorough", profile.scanMode)
+    }
+
+    @Test
     fun smartUsesApiFallbackWhenRepeatedApiSamplesAreDegraded() {
         val profile = AetherSmartConfig.build(
             AetherSmartInput(
