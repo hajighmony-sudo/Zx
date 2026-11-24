@@ -131,16 +131,25 @@ build_psiphon() {
     -e 's/CGO_ENABLED=0 GOFLAGS=/CGO_ENABLED="${CGO_ENABLED:-0}" GOFLAGS=/' \
     "$AETHER_ROOT/psiphon-build.sh" > "$psiphon_build"
 
-  if [ "$abi" = "armeabi-v7a" ]; then
-    # Go's android/arm port requires cgo and external linking. Use the NDK's
-    # API-matched ARMv7 clang wrapper; arm64 and x86_64 remain pure-Go builds.
-    local clang="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi${API}-clang"
+  local clang=""
+  case "$abi" in
+    armeabi-v7a)
+      # Go's android/arm port requires cgo and external linking.
+      clang="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi${API}-clang"
+      ;;
+    x86_64)
+      # Go's android/amd64 port also requires cgo and external linking.
+      clang="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android${API}-clang"
+      ;;
+  esac
+  if [ -n "$clang" ]; then
     [ -x "$clang" ] || {
-      echo "Android NDK ARMv7 clang wrapper not found: $clang" >&2
+      echo "Android NDK C compiler not found for $abi: $clang" >&2
       exit 1
     }
     CGO_ENABLED=1 CC="$clang" bash "$psiphon_build" android "$goarch" "$out" "$goarm" "$licenses"
   else
+    # arm64 uses Go's supported pure-Go Android build path here.
     bash "$psiphon_build" android "$goarch" "$out" "$goarm" "$licenses"
   fi
   [ -s "$out/psiphon-tunnel-core" ] || {
