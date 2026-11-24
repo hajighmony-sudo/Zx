@@ -3044,6 +3044,33 @@ private fun AetherSmartDialog(
                                 SmartChip("noize ${p.noize}")
                                 if (p.fragment) SmartChip("fragment")
                             }
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                SmartChip(if (p.http2) "HTTP/2 enabled" else "HTTP/2 disabled")
+                                SmartChip(if (p.smartFailover) "Smart fallback enabled" else "manual route")
+                                SmartChip(if (p.apiAddress.isBlank()) "API auto" else "API ${p.apiAddress}")
+                            }
+                        }
+                    }
+                    Surface(
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Text("Aether command · generated automatically", fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.labelMedium)
+                            Text(
+                                p.commandPreview(),
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                "SOCKS port and Aether home path are assigned automatically when the tunnel starts.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                     if (edgeMs == null || apiMs == null) {
