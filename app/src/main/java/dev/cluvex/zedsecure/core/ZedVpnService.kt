@@ -59,6 +59,7 @@ class ZedVpnService : VpnService() {
     private var psiphon: PsiphonController? = null
     private var dnsTunnel: DnsTunnelController? = null
     private var masterDns: MasterDnsController? = null
+    @Volatile private var dnsAutoManaged = false
     private var tor: dev.cluvex.zedsecure.core.tor.TorController? = null
     private var ssh: SshController? = null
     private var sniSpoof: SniSpoofController? = null
@@ -67,6 +68,9 @@ class ZedVpnService : VpnService() {
     private var sniSpoofEdge: String? = null
     private var openConnect: OpenConnectController? = null
     private var singBox: SingBoxEngine? = null
+    @Volatile private var aetherEngine: AetherEngineProcess? = null
+    @Volatile private var aetherRouteLabel: String = "WARP"
+    private var aetherWatch: Job? = null
 
     private var singBoxLastUp = 0L
     private var singBoxLastDown = 0L
@@ -236,14 +240,19 @@ class ZedVpnService : VpnService() {
 
     private fun startTunnel(configJson: String, socksPort: Int, kind: String) {
         val settings = SettingsRepository(this).settings.value
-        killSwitchEnabled = settings.killSwitch
+        dnsAutoManaged = kind == VpnManager.KIND_MASTERDNS && runCatching {
+            kotlinx.serialization.json.Json.decodeFromString(
+                dev.cluvex.zedsecure.domain.config.MasterDnsProfile.serializer(), configJson,
+            ).autoManaged
+        }.getOrDefault(false)
+        killSwitchEnabled = settings.killSwitch || dnsAutoManaged
         userStop = false
         killSwitchActive = false
         connected = false
         showSpeed = settings.speedInNotification
         livePromotion = settings.liveNotification
         notifChip = settings.notifChip
-        bentoCard = !settings.liveNotification && settings.notifStyle == dev.cluvex.zedsecure.domain.model.NotifStyle.Bento
+        bentoCard = !settings.liveNotification && settings.notifStyle != dev.cluvex.zedsecure.domain.model.NotifStyle.System
         val iface = settings.vpnInterfaceAddress
         hevIpv4 = iface.ipv4Client
         hevIpv6 = if (settings.enableIpv6) iface.ipv6Client else null
@@ -286,10 +295,34 @@ class ZedVpnService : VpnService() {
 
                 addAddress(iface.ipv4Router, 30)
                 if (settings.enableIpv6) addAddress(iface.ipv6Router, 126)
-                addLanAwareRoutes(bypassLan, settings.enableIpv6, excludeIp = spoofBypassIp)
-                applyAppRules(settings)
+                if (kind == VpnManager.KIND_DNS_RESOLVER) {
+                    val resolver = dnsResolverAddress(configJson)
+                        ?: throw IllegalArgumentException("DNS profile has no valid numeric resolver address")
+                    if (resolver.contains(':') && !settings.enableIpv6) {
+                        throw IllegalArgumentException("Enable IPv6 in settings to use this IPv6 DNS resolver")
+                    }
+                    addRoute(resolver, if (resolver.contains(':')) 128 else 32)
+                    if (settings.ghost.adultContentProtectionEnabled) {
+                        addRoute("185.228.168.10", 32)
+                        addRoute("185.228.169.11", 32)
+                    }
+                } else {
+                    addLanAwareRoutes(bypassLan, settings.enableIpv6, excludeIp = spoofBypassIp)
+                }
+                applyAppRules(if (dnsAutoManaged) settings.copy(perAppProxyEnabled = false) else settings)
 
-                if (kind == VpnManager.KIND_XRAY) {
+                if (kind == VpnManager.KIND_DNS_RESOLVER) {
+                    if (settings.ghost.adultContentProtectionEnabled) {
+                        addDnsServer("185.228.168.10")
+                        addDnsServer("185.228.169.11")
+                    } else {
+                        addDnsServer(dnsResolverAddress(configJson)!!)
+                    }
+                } else if (settings.ghost.adultContentProtectionEnabled) {
+                    // CleanBrowsing Adult Filter blocks adult domains and enforces SafeSearch.
+                    runCatching { addDnsServer("185.228.168.10") }
+                    runCatching { addDnsServer("185.228.169.11") }
+                } else if (kind == VpnManager.KIND_XRAY) {
                     val vpnDns = if (settings.localDnsEnabled) emptyList()
                     else vpnDnsServers(settings.vpnDns, settings.enableIpv6)
                     if (vpnDns.isNotEmpty()) vpnDns.forEach { runCatching { addDnsServer(it) } }
@@ -322,6 +355,8 @@ class ZedVpnService : VpnService() {
 
         VpnManager.setActiveKind(kind)
 
+        if (kind == VpnManager.KIND_AETHER) { startAether(configJson, descriptor, tunMtu); return }
+
         when (kind) {
             VpnManager.KIND_PSIPHON -> startPsiphon(configJson, descriptor, tunMtu)
             VpnManager.KIND_DNS_TUNNEL -> startDnsTunnel(configJson, descriptor, tunMtu, settings)
@@ -334,6 +369,16 @@ class ZedVpnService : VpnService() {
         }
     }
 
+    private fun dnsResolverAddress(configJson: String): String? = runCatching {
+        val servers = JSONObject(configJson).optJSONObject("dns")?.optJSONArray("servers") ?: return null
+        val raw = servers.optString(0).removePrefix("tcp://").trim()
+        val address = when {
+            raw.startsWith("[") -> raw.substringAfter('[').substringBefore(']')
+            dev.cluvex.zedsecure.domain.config.XrayJsonBuilder.isIpLiteral(raw) -> raw
+            else -> raw.substringBefore(':')
+        }
+        address.takeIf { dev.cluvex.zedsecure.domain.config.XrayJsonBuilder.isIpLiteral(it) }
+    }.getOrNull()
     private fun startSniSpoof(configJson: String, socksPort: Int, descriptor: ParcelFileDescriptor, tunMtu: Int) {
         scope.launch {
             try {
@@ -558,6 +603,11 @@ class ZedVpnService : VpnService() {
             stopEverything(); return
         }
 
+        dnsAutoManaged = profile.autoManaged
+        if (dnsAutoManaged) {
+            // DNS AUTO promises a device-wide tunnel: keep traffic contained if the tunnel drops.
+            killSwitchEnabled = true
+        }
         val effective = if (appSettings.dnsGlobalResolverEnabled && appSettings.dnsGlobalResolvers.isNotBlank()) {
             profile.copy(resolvers = appSettings.dnsGlobalResolvers)
         } else profile
@@ -710,6 +760,165 @@ class ZedVpnService : VpnService() {
             .filter { it.isNotEmpty() && XrayJsonBuilder.isIpLiteral(it) }
             .filter { ipv6 || !it.contains(':') }
             .distinct()
+
+    private fun startAether(configJson: String, descriptor: ParcelFileDescriptor, tunMtu: Int) {
+        val profile = runCatching {
+            kotlinx.serialization.json.Json.decodeFromString(
+                dev.cluvex.zedsecure.domain.config.AetherProfile.serializer(),
+                configJson,
+            )
+        }.getOrElse {
+            Log.e(TAG, "bad Aether profile", it)
+            VpnManager.onError(getString(R.string.config_invalid))
+            stopEverything()
+            return
+        }
+        val workDir = java.io.File(filesDir, "aether").apply { mkdirs() }
+        LogBus.append("I/ZX: core = Aether (${profile.protocol.uppercase()}, h2=${profile.http2}, noize=${profile.noize}); Xray only serves as the local routing front, all traffic leaves through Aether")
+        VpnManager.setActiveKind(kind)
+        advance(VpnNotifications.Stage.Engine)
+        scope.launch(Dispatchers.IO) {
+            var lastDetail = ""
+            try {
+                // Manual Aether profiles keep their original behavior. Only Smart-generated
+                // profiles enter the isolated fallback sequence.
+                val routes = if (profile.smartFailover) {
+                    listOf("warp", "psiphon", "tor")
+                } else {
+                    listOf("warp")
+                }
+                var readyPort = -1
+                for (route in routes) {
+                    if (userStop) return@launch
+
+                    val psiphonBinary = java.io.File(
+                        applicationInfo.nativeLibraryDir,
+                        "libpsiphon-tunnel-core.so",
+                    )
+                    if (route == "psiphon" && (!psiphonBinary.isFile ||
+                            (!psiphonBinary.canExecute() && !psiphonBinary.setExecutable(true, false)) ||
+                            !psiphonBinary.canExecute())
+                    ) {
+                        lastDetail = "Aether's Psiphon executable is not packaged for this device ABI"
+                        LogBus.append("W/Aether Smart: $lastDetail; skipping to Tor")
+                        continue
+                    }
+
+                    val variants = if (route == "warp") profile.attempts() else listOf(profile)
+                    if (route != "warp") {
+                        LogBus.append(
+                            if (route == "psiphon") {
+                                "I/Aether Smart: WARP attempts exhausted; starting built-in Psiphon-only fallback"
+                            } else {
+                                "I/Aether Smart: Psiphon fallback failed; starting built-in Tor-only fallback"
+                            },
+                        )
+                    }
+
+                    for ((index, variant) in variants.withIndex()) {
+                        if (userStop) return@launch
+                        val port = LocalPortPicker.pick(LocalPorts.AETHER_SOCKS)
+                        val process = AetherEngineProcess(java.io.File(applicationInfo.nativeLibraryDir), workDir)
+                        aetherEngine = process
+                        val routeEnvironment = when (route) {
+                            "psiphon" -> mapOf(
+                                "AETHER_PSIPHON" to "only",
+                                "AETHER_TOR" to "off",
+                                "AETHER_PSIPHON_BIN" to psiphonBinary.absolutePath,
+                                "AETHER_PSIPHON_DIR" to java.io.File(filesDir, "aether-smart-psiphon").absolutePath,
+                                "AETHER_PSIPHON_READY_SECS" to "180",
+                            )
+                            "tor" -> mapOf(
+                                "AETHER_PSIPHON" to "off",
+                                "AETHER_TOR" to "only",
+                                "AETHER_TOR_DIR" to java.io.File(filesDir, "aether-smart-tor").absolutePath,
+                            )
+                            else -> emptyMap()
+                        }
+                        val routeLabel = when (route) {
+                            "psiphon" -> "Psiphon-only"
+                            "tor" -> "Tor-only"
+                            else -> "WARP"
+                        }
+                        LogBus.append(
+                            "I/Aether: $routeLabel attempt ${index + 1}/${variants.size} " +
+                                "(${variant.protocol}, h2=${variant.http2}, noize=${variant.noize})",
+                        )
+                        process.start(variant.toArgs(port, workDir.absolutePath), routeEnvironment)
+                        aetherWatch?.cancel()
+                        aetherWatch = scope.launch(Dispatchers.IO) {
+                            val exitCode = runCatching { process.awaitExit() }.getOrNull()
+                            if (!userStop && process === aetherEngine && readyPort > 0 &&
+                                (connected || VpnManager.status.value.state.isTransitioning)
+                            ) {
+                                onTunnelFailed("Aether engine stopped unexpectedly (exit ${exitCode ?: "unknown"})")
+                            }
+                        }
+
+                        val budget = when (route) {
+                            "psiphon" -> AETHER_PSIPHON_STARTUP_BUDGET_MS
+                            "tor" -> AETHER_TOR_STARTUP_BUDGET_MS
+                            else -> variant.startupBudgetMs()
+                        }
+                        LogBus.append("I/Aether: $routeLabel startup window ${budget / 1000}s")
+                        val attemptStartedAt = System.currentTimeMillis()
+                        val deadline = attemptStartedAt + budget
+                        var ready = false
+                        while (System.currentTimeMillis() < deadline) {
+                            if (userStop) return@launch
+                            if (!process.isAlive()) break
+                            // Only WARP scans expose gateway candidates. If none appears within
+                            // the grace period, move to the next WARP variant or fallback route.
+                            if (route == "warp" && !process.candidateSeen &&
+                                System.currentTimeMillis() - attemptStartedAt > NO_CANDIDATE_GRACE_MS &&
+                                index < variants.lastIndex
+                            ) {
+                                LogBus.append("W/Aether: no gateway candidate reachable after ${NO_CANDIDATE_GRACE_MS / 1000}s; trying the next variant")
+                                break
+                            }
+                            val ok = runCatching {
+                                TunnelReadiness.verifyAny(
+                                    port,
+                                    timeoutMs = if (process.candidateSeen) 12_000 else 2_500,
+                                    hosts = listOf("cp.cloudflare.com", "www.cloudflare.com", "example.com"),
+                                    connectTimeoutMs = 1_200,
+                                )
+                            }.getOrDefault(false)
+                            if (ok) {
+                                ready = true
+                                break
+                            }
+                            kotlinx.coroutines.delay(500)
+                        }
+                        if (ready) {
+                            readyPort = port
+                            aetherRouteLabel = route
+                            LogBus.append("I/Aether Smart: $routeLabel route passed end-to-end traffic verification")
+                            break
+                        }
+                        lastDetail = process.lastLines()
+                        LogBus.append("W/Aether: $routeLabel attempt ${index + 1} did not connect; $lastDetail")
+                        aetherWatch?.cancel()
+                        process.stop()
+                    }
+                    if (readyPort > 0) break
+                }
+                if (readyPort <= 0) {
+                    throw IllegalStateException(
+                        "Aether Smart could not establish WARP, Psiphon, or Tor" +
+                            if (lastDetail.isNotBlank()) " ($lastDetail)" else "",
+                    )
+                }
+                bridgeEngine(descriptor, readyPort, tunMtu)
+                LogBus.append("I/Aether: native engine ready on 127.0.0.1:$readyPort")
+            } catch (e: Exception) {
+                if (userStop) return@launch
+                Log.e(TAG, "Aether startup failed", e)
+                VpnManager.onError(e.message ?: getString(R.string.engine_failed_tunnel))
+                stopEverything()
+            }
+        }
+    }
 
     private fun startXray(configJson: String, preferredPort: Int, descriptor: ParcelFileDescriptor, tunMtu: Int) {
         val socksPort = freePairFor(preferredPort)
@@ -949,10 +1158,16 @@ class ZedVpnService : VpnService() {
             VpnManager.KIND_PSIPHON -> "Psiphon"
             VpnManager.KIND_DNS_TUNNEL -> "DNS"
             VpnManager.KIND_MASTERDNS -> "MasterDNS"
+            VpnManager.KIND_DNS_RESOLVER -> "DNS"
             VpnManager.KIND_TOR -> "Tor"
             VpnManager.KIND_SSH -> "SSH"
             VpnManager.KIND_OPENCONNECT -> "OpenConnect"
             VpnManager.KIND_SINGBOX -> "sing-box"
+            VpnManager.KIND_AETHER -> when (aetherRouteLabel) {
+                "psiphon" -> "Aether · Psiphon"
+                "tor" -> "Aether · Tor"
+                else -> "Aether · WARP"
+            }
             VpnManager.KIND_IKEV2 -> "IKEv2"
             VpnManager.KIND_SNISPOOF -> "Xray · SNI"
 
@@ -967,8 +1182,10 @@ class ZedVpnService : VpnService() {
         VpnManager.KIND_PSIPHON -> "Psiphon"
         VpnManager.KIND_DNS_TUNNEL -> "DNS"
         VpnManager.KIND_MASTERDNS -> "MasterDNS"
+        VpnManager.KIND_DNS_RESOLVER -> "DNS"
         VpnManager.KIND_TOR -> "Tor"
         VpnManager.KIND_SSH -> "SSH"
+        VpnManager.KIND_AETHER -> "Aether"
         else -> "Xray"
     }
 
@@ -986,6 +1203,7 @@ class ZedVpnService : VpnService() {
         connectWhen = System.currentTimeMillis()
         watchNotificationSettings()
         VpnManager.onConnected(remark)
+        GhostTunnelBridge.onTunnelConnected(SettingsRepository(this).settings.value.ghost)
         notify(connectedNotification(0, 0, 0, 0))
         ZedWidgetProvider.refresh(this, force = true)
         startStatsLoop()
@@ -994,8 +1212,9 @@ class ZedVpnService : VpnService() {
     }
 
     private fun watchUnderlyingNetwork() {
-        if (underlyingWatch != null || kind != VpnManager.KIND_XRAY) return
-        if (!SettingsRepository(this).settings.value.reconnectOnNetworkChange) return
+        val dnsAuto = kind == VpnManager.KIND_MASTERDNS && dnsAutoManaged
+        if (underlyingWatch != null || (kind != VpnManager.KIND_XRAY && !dnsAuto)) return
+        if (!dnsAuto && !SettingsRepository(this).settings.value.reconnectOnNetworkChange) return
         val cm = getSystemService(android.net.ConnectivityManager::class.java) ?: return
         underlyingNetwork = null
         val callback = object : android.net.ConnectivityManager.NetworkCallback() {
@@ -1006,7 +1225,12 @@ class ZedVpnService : VpnService() {
                 underlyingJob?.cancel()
                 underlyingJob = scope.launch {
                     delay(NETWORK_SETTLE_MS)
-                    rebuildForNetworkChange()
+                    if (dnsAuto) {
+                        LogBus.append("I/DNS AUTO: network changed; reconnecting through the active resolver set")
+                        onTunnelFailed(null)
+                    } else {
+                        rebuildForNetworkChange()
+                    }
                 }
             }
         }
@@ -1200,6 +1424,7 @@ class ZedVpnService : VpnService() {
                 val waited = waitMs
                 delay(waited)
                 val running = when (kind) {
+                    VpnManager.KIND_AETHER -> aetherEngine?.isAlive() == true && FrontCore.isRunning
                     VpnManager.KIND_PSIPHON -> psiphon?.isRunning == true
                     VpnManager.KIND_DNS_TUNNEL -> dnsTunnel?.isRunning == true
                     VpnManager.KIND_MASTERDNS -> masterDns?.isRunning == true
@@ -1418,7 +1643,7 @@ class ZedVpnService : VpnService() {
         notifSettingsJob = scope.launch {
             repository.settings
                 .map { s ->
-                    listOf(s.speedInNotification, s.liveNotification, s.notifChip, s.notifStyle, s.appDesign, s.bento.palette, s.accentColor, s.dynamicColor)
+                    listOf(s.speedInNotification, s.liveNotification, s.notifChip, s.notifStyle, s.notifAccent, s.notifGraph, s.zxPs.palette, s.appDesign, s.bento.palette, s.accentColor, s.dynamicColor)
                 }
                 .distinctUntilChanged()
                 .drop(1)
@@ -1427,13 +1652,14 @@ class ZedVpnService : VpnService() {
                     showSpeed = s.speedInNotification
                     livePromotion = s.liveNotification
                     notifChip = s.notifChip
-                    bentoCard = !s.liveNotification && s.notifStyle == dev.cluvex.zedsecure.domain.model.NotifStyle.Bento
+                    bentoCard = !s.liveNotification && s.notifStyle != dev.cluvex.zedsecure.domain.model.NotifStyle.System
                     if (connected) notify(connectedNotification(lastDownBps, lastUpBps, lastTotalDown, lastTotalUp))
                 }
         }
     }
 
     private fun stopEngines() {
+        GhostTunnelBridge.onTunnelStopped()
         geoReloadJob?.cancel()
         geoReloadJob = null
         notifSettingsJob?.cancel()
@@ -1450,6 +1676,9 @@ class ZedVpnService : VpnService() {
         sniSpoof?.stop(); sniSpoof = null
         openConnect?.stop(); openConnect = null
         singBox?.stop(); singBox = null
+        aetherWatch?.cancel(); aetherWatch = null
+        aetherEngine?.stop(); aetherEngine = null
+        aetherRouteLabel = "WARP"
         outerPsiphon?.stop(); outerPsiphon = null
         outerTor?.stop(); outerTor = null
         outerSsh?.stop(); outerSsh = null
@@ -1464,6 +1693,8 @@ class ZedVpnService : VpnService() {
         statsJob?.cancel()
         statsJob = null
         connected = false
+        aetherRouteLabel = "WARP"
+        dnsAutoManaged = false
         connectWhen = 0L
         crossInnerKind = null
 
@@ -1672,12 +1903,16 @@ class ZedVpnService : VpnService() {
 
     override fun onDestroy() {
         XrayController.onCoreShutdown = null
+        FrontCore.onLost = null
+        aetherWatch?.cancel()
+        aetherEngine?.stop()
+        aetherEngine = null
         scope.cancel()
         super.onDestroy()
     }
 
     override fun dump(fd: java.io.FileDescriptor, writer: java.io.PrintWriter, args: Array<out String>?) {
-        writer.println("engine=$kind tun=${tun != null} core=${XrayController.isRunning}")
+        writer.println("engine=$kind tun=${tun != null} core=${XrayController.isRunning} front=${FrontCore.isRunning} aether=${aetherEngine?.isAlive() == true}")
         writer.println("crypto=" + XrayController.cryptoAcceleration())
         writer.println(ZepTunCore.stats())
         writer.println()
@@ -1705,6 +1940,7 @@ class ZedVpnService : VpnService() {
         VpnManager.KIND_MASTERDNS -> masterDns?.isRunning == true
         VpnManager.KIND_TOR -> (if (outer) outerTor else tor)?.isRunning == true
         VpnManager.KIND_SSH -> (if (outer) outerSsh else ssh)?.isRunning == true
+        VpnManager.KIND_AETHER -> !outer && aetherEngine?.isAlive() == true
         else -> XrayController.isRunning
     }
 
@@ -1947,6 +2183,9 @@ class ZedVpnService : VpnService() {
 
     companion object {
         private const val TAG = "ZedVpnService"
+        private const val NO_CANDIDATE_GRACE_MS = 120_000L
+        private const val AETHER_PSIPHON_STARTUP_BUDGET_MS = 195_000L
+        private const val AETHER_TOR_STARTUP_BUDGET_MS = 420_000L
 
         private const val ZEPTUN_PROOF_MS = 6_000L
         private const val PORT_WAIT_MS = 4_000L

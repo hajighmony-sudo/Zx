@@ -3,6 +3,7 @@
 package dev.cluvex.zedsecure.domain.config
 
 import dev.cluvex.zedsecure.crypto.ZsxCrypto
+import dev.cluvex.zedsecure.domain.model.DnsResolverProfile
 import kotlin.io.encoding.Base64
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -44,6 +45,10 @@ sealed interface ProfileSource {
     @Serializable
     @SerialName("master_dns")
     data class MasterDns(val settings: MasterDnsProfile) : ProfileSource
+
+    @Serializable
+    @SerialName("dns_resolver")
+    data class DnsResolver(val settings: DnsResolverProfile) : ProfileSource
 
     @Serializable
     @SerialName("openconnect")
@@ -94,8 +99,11 @@ data class VpnProfile(
     val bytesUp: Long = 0,
 
     val note: String? = null,
+
+    /** Local-only opt-in for DNS AUTO lifecycle behavior. Not copied into share links. */
+    val dnsAutoManaged: Boolean = false,
 ) {
-    val isCustom: Boolean get() = source is ProfileSource.RawJson
+    val isCustom: Boolean get() = source is ProfileSource.RawJson && !isAether
 
     val isServerless: Boolean by lazy { (source as? ProfileSource.RawJson)?.json?.let(CustomConfig::isServerless) == true }
 
@@ -104,6 +112,7 @@ data class VpnProfile(
     val isDnsTunnel: Boolean get() = source is ProfileSource.DnsTunnel
 
     val isMasterDns: Boolean get() = source is ProfileSource.MasterDns
+    val isDnsResolver: Boolean get() = source is ProfileSource.DnsResolver
 
     val isTor: Boolean get() = source is ProfileSource.Tor
 
@@ -122,6 +131,8 @@ data class VpnProfile(
     val isSingBox: Boolean get() = source is ProfileSource.SingBox
 
     val isSingBoxConfig: Boolean get() = source is ProfileSource.SingBoxConfig
+
+    val isAether: Boolean get() = aetherSettings() != null
 
     val engineLabel: String
         get() = engineLabelOf(source)
@@ -152,27 +163,30 @@ data class VpnProfile(
     fun sniSpoofSettings(): SniSpoofProfile? = (source as? ProfileSource.SniSpoof)?.settings
 
     val isManagedTunnel: Boolean
-        get() = isPsiphon || isDnsTunnel || isMasterDns || isTor || isSsh || isSniSpoof ||
-            isOpenConnect || isIkev2 || isCrossChain || isSingBoxConfig
+        get() = isPsiphon || isDnsTunnel || isMasterDns || isDnsResolver || isTor || isSsh || isSniSpoof ||
+            isOpenConnect || isIkev2 || isCrossChain || isSingBoxConfig || isAether
 
-    val isDnsBasedTunnel: Boolean get() = isDnsTunnel || isMasterDns
+    val isDnsBasedTunnel: Boolean get() = isDnsTunnel || isMasterDns || isDnsResolver
 
     fun psiphonSettings(): PsiphonProfile? = (source as? ProfileSource.Psiphon)?.settings
 
     fun dnsTunnelSettings(): DnsTunnelProfile? = (source as? ProfileSource.DnsTunnel)?.settings
 
     fun masterDnsSettings(): MasterDnsProfile? = (source as? ProfileSource.MasterDns)?.settings
+    fun dnsResolverSettings(): DnsResolverProfile? = (source as? ProfileSource.DnsResolver)?.settings
 
     fun openConnectSettings(): OpenConnectProfile? = (source as? ProfileSource.OpenConnect)?.settings
 
     fun ikev2Settings(): Ikev2Profile? = (source as? ProfileSource.Ikev2)?.settings
+
+    fun aetherSettings(): AetherProfile? = (source as? ProfileSource.RawJson)?.json?.let(AetherProfile::decode)
 
     fun proxyChainSettings(): List<String>? = (source as? ProfileSource.ProxyChain)?.memberIds
 
     val isCrossChain: Boolean get() = source is ProfileSource.CrossChain
 
     val canCarryChain: Boolean
-        get() = when (source) {
+        get() = !isAether && when (source) {
             is ProfileSource.Link, is ProfileSource.RawJson, is ProfileSource.Sealed,
             is ProfileSource.ProxyChain, is ProfileSource.SingBox,
             is ProfileSource.Psiphon, is ProfileSource.Tor -> true
@@ -180,7 +194,7 @@ data class VpnProfile(
         }
 
     val canDialThroughProxy: Boolean
-        get() = when (source) {
+        get() = !isAether && when (source) {
             is ProfileSource.Tor, is ProfileSource.Psiphon -> true
             is ProfileSource.Link, is ProfileSource.RawJson, is ProfileSource.Sealed,
             is ProfileSource.ProxyChain, is ProfileSource.SingBox -> true
@@ -188,7 +202,7 @@ data class VpnProfile(
         }
 
     val carrierRelaysUdp: Boolean
-        get() = when (source) {
+        get() = !isAether && when (source) {
             is ProfileSource.Link, is ProfileSource.RawJson, is ProfileSource.Sealed,
             is ProfileSource.ProxyChain, is ProfileSource.SingBox, is ProfileSource.Psiphon -> true
             else -> false
@@ -208,7 +222,7 @@ data class VpnProfile(
 
     fun rawPayload(): String? = when (val src = source) {
         is ProfileSource.Link -> src.link
-        is ProfileSource.RawJson -> src.json
+        is ProfileSource.RawJson -> AetherProfile.decode(src.json)?.let { AetherProfile.encode(it.copy(profileName = name)) } ?: src.json
 
         is ProfileSource.Sealed -> null
 
@@ -219,6 +233,7 @@ data class VpnProfile(
 
         is ProfileSource.SniSpoof -> SniSpoofLink.build(src.settings, name)
         is ProfileSource.MasterDns -> ZedLink.build(name, src)
+        is ProfileSource.DnsResolver -> null
         is ProfileSource.OpenConnect -> ZedLink.build(name, src)
         is ProfileSource.Ikev2 -> ZedLink.build(name, src)
 
@@ -245,11 +260,14 @@ data class VpnProfile(
                 forSpeedtest = forSpeedtest,
             )
         }
-        is ProfileSource.RawJson -> XrayJsonBuilder.normalizeRawJson(
+        is ProfileSource.RawJson -> {
+            check(AetherProfile.decode(src.json) == null) { "Aether profiles do not build Xray config" }
+            XrayJsonBuilder.normalizeRawJson(
             src.json,
             forSpeedtest = forSpeedtest,
             geoAssetsAvailable = options.geoAssetsAvailable,
         )
+        }
         is ProfileSource.Sealed ->
             configJsonFromPayload(
                 ZsxCrypto.open(Base64.decode(src.zsxBase64), password = null),
@@ -260,6 +278,7 @@ data class VpnProfile(
         is ProfileSource.Psiphon -> throw IllegalStateException("Psiphon profiles do not build Xray config")
         is ProfileSource.DnsTunnel -> throw IllegalStateException("DNS-tunnel profiles do not build Xray config")
         is ProfileSource.MasterDns -> throw IllegalStateException("MasterDNS profiles do not build Xray config")
+        is ProfileSource.DnsResolver -> throw IllegalStateException("DNS resolver profiles use the DNS-only planner")
         is ProfileSource.OpenConnect -> throw IllegalStateException("OpenConnect profiles do not build Xray config")
         is ProfileSource.Ikev2 -> throw IllegalStateException("IKEv2 profiles do not build Xray config")
         is ProfileSource.Tor -> throw IllegalStateException("Tor profiles do not build Xray config")
@@ -305,6 +324,7 @@ data class VpnProfile(
     companion object {
         const val ENGINE_XRAY = "Xray"
         const val ENGINE_SINGBOX = "sing-box"
+        const val ENGINE_AETHER = "Aether"
         const val ENGINE_CHAIN = "Chain"
         const val ENGINE_AUTO = "Auto"
 
@@ -357,6 +377,16 @@ data class VpnProfile(
             addedAt = addedAt,
         )
 
+        fun fromDnsResolver(settings: DnsResolverProfile, id: String, addedAt: Long, name: String): VpnProfile = VpnProfile(
+            id = id,
+            name = name.ifBlank { settings.name.ifBlank { "DNS" } },
+            protocol = "DNS-${settings.protocol.uppercase()}",
+            address = settings.directAddress,
+            port = 53,
+            transportLabel = "DNS · ${settings.protocol.uppercase()}",
+            source = ProfileSource.DnsResolver(settings),
+            addedAt = addedAt,
+        )
         fun fromOpenConnect(
             settings: OpenConnectProfile,
             id: String,
@@ -442,6 +472,13 @@ data class VpnProfile(
                 subscriptionId = subscriptionId,
             )
         }
+
+        fun fromAether(settings: AetherProfile, id: String, addedAt: Long, name: String): VpnProfile = VpnProfile(
+            id = id, name = name.ifBlank { "Aether" }, protocol = "AETHER",
+            address = "Cloudflare WARP", port = 0,
+            transportLabel = "Aether · ${settings.protocol.uppercase()}",
+            source = ProfileSource.RawJson(AetherProfile.encode(settings.copy(profileName = name.ifBlank { "Aether" }))), addedAt = addedAt,
+        )
 
         fun fromTor(id: String, addedAt: Long, name: String): VpnProfile = VpnProfile(
             id = id,
@@ -533,6 +570,7 @@ data class VpnProfile(
             is ProfileSource.Psiphon -> "Psiphon"
             is ProfileSource.DnsTunnel -> if (src.settings.isVaydns) "VayDNS" else "DNSTT"
             is ProfileSource.MasterDns -> "MasterDNS"
+            is ProfileSource.DnsResolver -> "DNS"
             is ProfileSource.Ssh -> "SSH"
             is ProfileSource.OpenConnect -> "OpenConnect"
             is ProfileSource.Ikev2 -> "IKEv2"
@@ -540,7 +578,8 @@ data class VpnProfile(
             is ProfileSource.CrossChain -> ENGINE_CHAIN
             is ProfileSource.AutoSelect -> ENGINE_AUTO
             is ProfileSource.Sealed -> sealedEngineLabel(src.zsxBase64)
-            is ProfileSource.RawJson, is ProfileSource.ProxyChain -> ENGINE_XRAY
+            is ProfileSource.RawJson -> if (AetherProfile.decode(src.json) != null) ENGINE_AETHER else ENGINE_XRAY
+            is ProfileSource.ProxyChain -> ENGINE_XRAY
         }
 
         private val sealedLabels = java.util.concurrent.ConcurrentHashMap<String, String>()
@@ -559,6 +598,7 @@ data class VpnProfile(
             if (SniSpoofLink.isSniSpoofLink(text)) {
                 return SniSpoofLink.parse(text)?.second?.let { ProfileSource.SniSpoof(it) }
             }
+            if (AetherProfile.decode(text) != null) return ProfileSource.RawJson(text)
             when (SingBoxJson.shapeOf(text)) {
                 SingBoxJson.Shape.FullConfig -> return ProfileSource.SingBoxConfig(text)
                 SingBoxJson.Shape.None -> Unit

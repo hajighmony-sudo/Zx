@@ -48,11 +48,6 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
 
-            <intent-filter>
-                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-
             <intent-filter android:label="@string/vault_import">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -61,6 +56,9 @@
                 <data android:scheme="file" />
                 <data android:host="*" />
                 <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\\.ZX" />
+                <data android:pathPattern=".*\\..*\\.ZX" />
+                <data android:pathPattern=".*\\..*\\..*\\.ZX" />
                 <data android:pathPattern=".*\\.zsx" />
                 <data android:pathPattern=".*\\..*\\.zsx" />
                 <data android:pathPattern=".*\\..*\\..*\\.zsx" />
@@ -97,6 +95,18 @@
                 <data android:scheme="socks" />
                 <data android:scheme="socks5" />
                 <data android:scheme="snispoof" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".QuickConnectActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:label="ZX Quick Connect"
+            android:theme="@style/Theme.ZedQuickConnect">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
 

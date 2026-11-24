@@ -39,15 +39,25 @@ object DnsProbe {
                         val (host, port) = splitHostPort(entry)
                         val times = ArrayList<Long>(samples)
                         repeat(samples) {
-                            val result = dnsQuery(
+                            val name = "${randomLabel(8)}.$domain"
+                            val udp = dnsQuery(
                                 server = host,
                                 port = port,
-
-                                name = "${randomLabel(8)}.$domain",
+                                name = name,
                                 type = DnsRecordType.A,
                                 transport = DnsTransport.UDP,
                                 timeoutMs = timeoutMs,
                             )
+                            val result = if ((udp as? DnsResult.Ok)?.reply?.truncated == true) {
+                                dnsQuery(
+                                    server = host,
+                                    port = port,
+                                    name = name,
+                                    type = DnsRecordType.A,
+                                    transport = DnsTransport.TCP,
+                                    timeoutMs = timeoutMs,
+                                )
+                            } else udp
 
                             when (result) {
                                 is DnsResult.Ok -> times += result.reply.elapsedMs

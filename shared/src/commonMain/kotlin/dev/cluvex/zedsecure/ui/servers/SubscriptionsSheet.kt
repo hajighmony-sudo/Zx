@@ -61,6 +61,7 @@ import dev.cluvex.zedsecure.ui.platform.LocalPlatform
 import org.jetbrains.compose.resources.getString
 import dev.cluvex.zedsecure.ui.components.SectionTitle
 import dev.cluvex.zedsecure.ui.format.formatBytes
+import dev.cluvex.zedsecure.ui.format.JalaliDate
 import dev.cluvex.zedsecure.ui.format.ltrIsolate
 import androidx.compose.ui.graphics.luminance
 import kotlinx.coroutines.launch
@@ -539,8 +540,9 @@ private fun SubscriptionUsage(
                 else -> stringResource(Res.string.subs_days_left, daysLeft)
             }
             if (expiryText != null) {
+                val jalaliExpiry = expireAt?.let(JalaliDate::format)
                 Text(
-                    expiryText,
+                    if (jalaliExpiry == null) expiryText else expiryText + " • " + jalaliExpiry,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = if (expired || exhausted || warning) stateColor else MaterialTheme.colorScheme.onSurfaceVariant,

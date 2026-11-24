@@ -121,9 +121,11 @@ class StartPlanner(context: Context) {
 
     fun engineKindOf(profile: VpnProfile): String = when {
         profile.isCrossChain -> VpnManager.KIND_CROSS_CHAIN
+        profile.isAether -> VpnManager.KIND_AETHER
         profile.psiphonSettings() != null -> VpnManager.KIND_PSIPHON
         profile.dnsTunnelSettings() != null -> VpnManager.KIND_DNS_TUNNEL
         profile.masterDnsSettings() != null -> VpnManager.KIND_MASTERDNS
+        profile.dnsResolverSettings() != null -> VpnManager.KIND_DNS_RESOLVER
         profile.openConnectSettings() != null -> VpnManager.KIND_OPENCONNECT
         profile.ikev2Settings() != null -> VpnManager.KIND_IKEV2
         profile.isTor -> VpnManager.KIND_TOR
@@ -138,6 +140,7 @@ class StartPlanner(context: Context) {
         carrier: Boolean = false,
         resolveServers: Boolean = false,
     ): String {
+        profile.aetherSettings()?.let { return dev.cluvex.zedsecure.domain.config.AetherProfile.encode(it) }
         profile.sniSpoofSettings()?.let { sniSpoof ->
             val geoReady = GeoAssetsRepository(appContext).allPresent()
             val xray = profile.toXrayConfigJson(
@@ -175,9 +178,29 @@ class StartPlanner(context: Context) {
                 httpPort = freePort(LocalPorts.PSIPHON_HTTP),
             )
         }
-        profile.masterDnsSettings()?.let {
+        profile.dnsResolverSettings()?.let { dns ->
+            val ip = dns.directAddress.trim()
+            require(XrayJsonBuilder.isIpLiteral(ip)) { "DNS resolver must be an IPv4 or IPv6 address" }
+            val server = ip
+            return """
+                {
+                  "log": {"loglevel": "warning"},
+                  "dns": {"servers": ["$server"]},
+                  "inbounds": [{
+                    "tag": "socks-in",
+                    "listen": "127.0.0.1",
+                    "port": ${LocalPorts.XRAY_SOCKS},
+                    "protocol": "socks",
+                    "settings": {"auth": "noauth", "udp": true}
+                  }],
+                  "outbounds": [{"tag": "direct", "protocol": "freedom", "settings": {}}]
+                }
+            """.trimIndent()
+        }
+        profile.masterDnsSettings()?.let { masterDns ->
             return kotlinx.serialization.json.Json.encodeToString(
-                dev.cluvex.zedsecure.domain.config.MasterDnsProfile.serializer(), it,
+                dev.cluvex.zedsecure.domain.config.MasterDnsProfile.serializer(),
+                masterDns.copy(autoManaged = profile.dnsAutoManaged),
             )
         }
         profile.openConnectSettings()?.let {

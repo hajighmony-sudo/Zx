@@ -16,12 +16,13 @@ class BootReceiver : BroadcastReceiver() {
         val settings = container.settingsRepository.settings.value
         SubscriptionUpdateScheduler.sync(context, settings, container.configRepository.subscriptions.value)
 
-        if (!settings.autoConnectOnBoot) return
         val active = container.configRepository.activeProfile() ?: return
+        val dnsAutoProfile = active.isMasterDns && active.dnsAutoManaged
+        if (!settings.autoConnectOnBoot && !dnsAutoProfile) return
 
         if (active.isIkev2) return
 
-        if (settings.runMode != RunMode.ProxyOnly && VpnService.prepare(context) != null) {
+        if ((settings.runMode != RunMode.ProxyOnly || dnsAutoProfile) && VpnService.prepare(context) != null) {
             Log.i(TAG, "auto-connect skipped: VPN permission not granted")
             return
         }

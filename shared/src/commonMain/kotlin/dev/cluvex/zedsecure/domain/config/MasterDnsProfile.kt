@@ -24,6 +24,9 @@ data class MasterDnsProfile(
     val autoDisableDeadResolvers: Boolean = true,
 
     val logLevel: String = "INFO",
+
+    /** Set only by StartPlanner from the local VpnProfile DNS AUTO opt-in marker. */
+    val autoManaged: Boolean = false,
 ) {
     private fun domainsArray(): String =
         domains.split(',', '\n').map { it.trim() }.filter { it.isNotEmpty() }

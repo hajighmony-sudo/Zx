@@ -27,7 +27,11 @@ class ZedSecureApp : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
+        dev.cluvex.zedsecure.platform.AndroidNetworkContext.appContext = applicationContext
         dev.cluvex.zedsecure.core.PlatformHttpGuard.install()
+        runCatching {
+            dev.cluvex.zedsecure.core.AetherIdentityVault.sealAndShred(java.io.File(filesDir, "aether"))
+        }
 
         container = AppContainer(this)
 

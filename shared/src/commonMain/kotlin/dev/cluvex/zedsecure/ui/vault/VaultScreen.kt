@@ -5,6 +5,10 @@
 
 package dev.cluvex.zedsecure.ui.vault
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +27,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -73,8 +78,16 @@ import dev.cluvex.zedsecure.ui.platform.appVerticalScroll
 import dev.cluvex.zedsecure.ui.platform.mouseDragScrollVertical
 import androidx.compose.foundation.lazy.rememberLazyListState
 import dev.cluvex.zedsecure.ui.platform.rememberAppSheetState
+import dev.cluvex.zedsecure.ui.theme.LocalAppDesign
+import dev.cluvex.zedsecure.ui.bento.Bento
+import dev.cluvex.zedsecure.ui.bento.BentoColors
 
 private const val NOTE_MAX_LEN = 500
+
+// ZX currently shares the Bento palette in ZedSecureTheme.
+private val BentoColors.neonA: Color get() = lime
+private val BentoColors.neonB: Color get() = cyan.content
+private val BentoColors.neonC: Color get() = pink.content
 
 @Composable
 fun VaultScreen(
@@ -101,39 +114,43 @@ fun VaultScreen(
 
     Column(modifier.fillMaxSize().padding(contentPadding)) {
         Spacer(Modifier.height(8.dp))
-        PageHeader(
-            title = stringResource(Res.string.vault_title),
-            subtitle = stringResource(Res.string.vault_intro_body),
-        )
-
-        Surface(
-            shape = RoundedCornerShape(14.dp),
-            color = MaterialTheme.colorScheme.tertiaryContainer,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
-        ) {
-            Row(
-                Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
+        if (LocalAppDesign.current.name == "Zx") {
+            ZxVaultHero(lockedCount = locked.size, sourceCount = sources.size)
+            ZxVaultNotice()
+        } else {
+            PageHeader(
+                title = stringResource(Res.string.vault_title),
+                subtitle = stringResource(Res.string.vault_intro_body),
+            )
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.tertiaryContainer,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
             ) {
-                Icon(
-                    painterResource(Res.drawable.ic_info),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onTertiaryContainer,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(10.dp))
-                Column {
-                    Text(
-                        stringResource(Res.string.vault_experimental_badge),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                Row(
+                    Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        painterResource(Res.drawable.ic_info),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                        modifier = Modifier.size(18.dp),
                     )
-                    Text(
-                        stringResource(Res.string.vault_experimental_note),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.85f),
-                    )
+                    Spacer(Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            stringResource(Res.string.vault_experimental_badge),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        )
+                        Text(
+                            stringResource(Res.string.vault_experimental_note),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.85f),
+                        )
+                    }
                 }
             }
         }
@@ -150,17 +167,32 @@ fun VaultScreen(
                 ) {
                     items(locked, key = { it.id }) { profile ->
                         val selectedMsg = stringResource(Res.string.vault_selected, profile.name)
-                        LockedCard(
-                            profile = profile,
-                            active = profile.id == activeId,
-                            onUse = {
-                                val changed = profile.id != activeId
-                                repository.setActive(profile.id)
-                                if (changed) onActiveChanged()
-                                platform.toast(selectedMsg)
-                            },
-                            onDelete = { repository.remove(profile.id) },
-                        )
+                        val active = profile.id == activeId
+                        if (LocalAppDesign.current.name == "Zx") {
+                            ZxLockedCard(
+                                profile = profile,
+                                active = active,
+                                onUse = {
+                                    val changed = profile.id != activeId
+                                    repository.setActive(profile.id)
+                                    if (changed) onActiveChanged()
+                                    platform.toast(selectedMsg)
+                                },
+                                onDelete = { repository.remove(profile.id) },
+                            )
+                        } else {
+                            LockedCard(
+                                profile = profile,
+                                active = active,
+                                onUse = {
+                                    val changed = profile.id != activeId
+                                    repository.setActive(profile.id)
+                                    if (changed) onActiveChanged()
+                                    platform.toast(selectedMsg)
+                                },
+                                onDelete = { repository.remove(profile.id) },
+                            )
+                        }
                     }
                 }
             }
@@ -219,6 +251,196 @@ fun VaultScreen(
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun ZxVaultHero(lockedCount: Int, sourceCount: Int) {
+    val c = Bento.colors
+    val borderTone by animateColorAsState(
+        if (lockedCount > 0) c.neonA else c.neonB,
+        tween(420),
+        label = "zx-vault-hero-border",
+    )
+    ZxVaultPanel(accent = borderTone) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "ZX / CONFIG VAULT",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = c.neonA,
+                )
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    stringResource(Res.string.vault_title),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Black,
+                    color = c.ink,
+                )
+            }
+            Box(
+                Modifier
+                    .size(58.dp)
+                    .background(c.neonA.copy(alpha = 0.10f), CutCornerShape(8.dp))
+                    .border(1.dp, c.neonA.copy(alpha = 0.55f), CutCornerShape(8.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painterResource(Res.drawable.ic_encrypted),
+                    contentDescription = null,
+                    tint = c.neonA,
+                    modifier = Modifier.size(30.dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            stringResource(Res.string.vault_intro_body),
+            style = MaterialTheme.typography.bodySmall,
+            color = c.muted,
+        )
+        Spacer(Modifier.height(14.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ZxVaultStat(
+                label = stringResource(Res.string.vault_locked_configs),
+                value = lockedCount.toString(),
+                accent = c.neonA,
+                modifier = Modifier.weight(1f),
+            )
+            ZxVaultStat(
+                label = stringResource(Res.string.vault_form_source),
+                value = sourceCount.toString(),
+                accent = c.neonB,
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ZxVaultPanel(
+    accent: Color,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    val c = Bento.colors
+    val shape = CutCornerShape(topStart = 0.dp, topEnd = 24.dp, bottomEnd = 0.dp, bottomStart = 24.dp)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 5.dp)
+            .background(
+                androidx.compose.ui.graphics.Brush.linearGradient(
+                    listOf(c.surface2.copy(alpha = 0.96f), c.surface.copy(alpha = 0.92f), c.ground.copy(alpha = 0.94f)),
+                ),
+                shape,
+            )
+            .border(1.dp, accent.copy(alpha = 0.78f), shape)
+            .padding(16.dp),
+        content = content,
+    )
+}
+
+@Composable
+private fun ZxVaultStat(label: String, value: String, accent: Color, modifier: Modifier = Modifier) {
+    val shape = CutCornerShape(topStart = 0.dp, topEnd = 12.dp, bottomEnd = 0.dp, bottomStart = 12.dp)
+    Column(
+        modifier
+            .background(accent.copy(alpha = 0.08f), shape)
+            .border(1.dp, accent.copy(alpha = 0.34f), shape)
+            .padding(horizontal = 11.dp, vertical = 9.dp),
+    ) {
+        Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = Bento.colors.muted, maxLines = 1)
+        Text(value, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black), color = accent)
+    }
+}
+
+@Composable
+private fun ZxVaultNotice() {
+    val c = Bento.colors
+    ZxVaultPanel(accent = c.neonC) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(painterResource(Res.drawable.ic_info), null, tint = c.neonC, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(9.dp))
+            Column {
+                Text(
+                    stringResource(Res.string.vault_experimental_badge).uppercase(),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    color = c.neonC,
+                )
+                Text(
+                    stringResource(Res.string.vault_experimental_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = c.muted,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ZxLockedCard(
+    profile: VpnProfile,
+    active: Boolean,
+    onUse: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    val c = Bento.colors
+    val accent by animateColorAsState(if (active) c.neonA else c.line, tween(300), label = "zx-vault-card-accent")
+    val shape = CutCornerShape(topStart = 0.dp, topEnd = 20.dp, bottomEnd = 0.dp, bottomStart = 20.dp)
+    Surface(
+        onClick = onUse,
+        shape = shape,
+        color = Color.Transparent,
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, accent.copy(alpha = if (active) 0.9f else 0.62f), shape),
+    ) {
+        Row(
+            Modifier
+                .background(
+                    androidx.compose.ui.graphics.Brush.horizontalGradient(
+                        listOf(
+                            if (active) c.neonA.copy(alpha = 0.14f) else c.surface2.copy(alpha = 0.88f),
+                            c.surface.copy(alpha = 0.94f),
+                        ),
+                    ),
+                )
+                .padding(start = 14.dp, end = 4.dp, top = 13.dp, bottom = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painterResource(Res.drawable.ic_encrypted),
+                null,
+                tint = accent,
+                modifier = Modifier.size(25.dp),
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    profile.name,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = c.ink,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    stringResource(if (active) Res.string.config_active else Res.string.locked_badge).uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = accent,
+                )
+                profile.note?.takeIf { it.isNotBlank() }?.let { note ->
+                    Spacer(Modifier.height(4.dp))
+                    Text(note, style = MaterialTheme.typography.bodySmall, color = c.muted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            if (active) {
+                Icon(painterResource(Res.drawable.ic_check_circle), null, tint = c.good, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(4.dp))
+            }
+            IconButton(onClick = onDelete) {
+                Icon(painterResource(Res.drawable.ic_delete), stringResource(Res.string.action_delete), tint = c.muted)
+            }
+        }
     }
 }
 

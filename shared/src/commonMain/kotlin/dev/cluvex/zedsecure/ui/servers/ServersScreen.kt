@@ -88,6 +88,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.cluvex.zedsecure.shared.resources.Res
 import dev.cluvex.zedsecure.shared.resources.*
 import dev.cluvex.zedsecure.data.config.ConfigRepository
+import dev.cluvex.zedsecure.data.config.ConfigExplorerEngine
 import dev.cluvex.zedsecure.data.net.GeoLookup
 import dev.cluvex.zedsecure.data.net.PingCoordinator
 import dev.cluvex.zedsecure.data.net.PingService
@@ -95,6 +96,7 @@ import dev.cluvex.zedsecure.core.AutoSelect
 import dev.cluvex.zedsecure.domain.config.AutoSelectIds
 import dev.cluvex.zedsecure.domain.config.ConfigParseException
 import dev.cluvex.zedsecure.domain.config.VpnProfile
+import dev.cluvex.zedsecure.domain.model.AppSettings
 import dev.cluvex.zedsecure.ui.onboarding.TourTargets
 import dev.cluvex.zedsecure.ui.onboarding.tourTarget
 import dev.cluvex.zedsecure.ui.platform.LocalPlatform
@@ -108,6 +110,8 @@ import dev.cluvex.zedsecure.ui.theme.pingColor
 import dev.cluvex.zedsecure.ui.theme.ZedLime
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
+import kotlinx.coroutines.withTimeoutOrNull
 import dev.cluvex.zedsecure.ui.platform.mouseDragScroll
 import dev.cluvex.zedsecure.ui.platform.mouseWheelScroll
 import dev.cluvex.zedsecure.ui.platform.onSecondaryClick
@@ -125,6 +129,9 @@ fun ServersScreen(
     repository: ConfigRepository,
     contentPadding: PaddingValues,
     onServerActivated: () -> Unit,
+    onDnsAutoConnect: () -> Unit = {},
+    settings: AppSettings,
+    onUpdateSettings: ((AppSettings) -> AppSettings) -> Unit,
     modifier: Modifier = Modifier,
     twoColumns: Boolean = false,
     showAllGroup: Boolean = true,
@@ -145,7 +152,7 @@ fun ServersScreen(
     val entranceStart = remember { System.currentTimeMillis() }
     val design = dev.cluvex.zedsecure.ui.theme.LocalAppDesign.current
     val bento = design == dev.cluvex.zedsecure.domain.model.AppDesign.Bento
-    val springIn = !reduceMotion && (design == dev.cluvex.zedsecure.domain.model.AppDesign.Pixel || bento)
+    val springIn = !reduceMotion && (design == dev.cluvex.zedsecure.domain.model.AppDesign.Pixel || design == dev.cluvex.zedsecure.domain.model.AppDesign.ZxPs || bento)
     var query by rememberSaveable { mutableStateOf("") }
     val lockedCannotShare = stringResource(Res.string.locked_cannot_share)
 
@@ -301,7 +308,10 @@ fun ServersScreen(
     val activeId by repository.activeId.collectAsStateWithLifecycle()
 
     var showAddSheet by remember { mutableStateOf(false) }
+    var showExplorer by remember { mutableStateOf(false) }
     var showManual by remember { mutableStateOf(false) }
+
+    LaunchedEffect(repository) { ConfigExplorerEngine.start(repository) }
 
     var fanOpen by remember { mutableStateOf(false) }
     var showSubs by remember { mutableStateOf(false) }
@@ -327,7 +337,10 @@ fun ServersScreen(
     var showCustomJson by remember { mutableStateOf(false) }
     var showPsiphon by remember { mutableStateOf(false) }
     var showDnsTunnel by remember { mutableStateOf(false) }
+    var showDnsResolver by remember { mutableStateOf(false) }
     var showMasterDns by remember { mutableStateOf(false) }
+    var showDnsAuto by remember { mutableStateOf(false) }
+    var showDnsProfile by remember { mutableStateOf(false) }
     var showOpenConnect by remember { mutableStateOf(false) }
     var showIkev2 by remember { mutableStateOf(false) }
     var showSsh by remember { mutableStateOf(false) }
@@ -335,6 +348,8 @@ fun ServersScreen(
     var showProxyChain by remember { mutableStateOf(false) }
     var showCrossChain by remember { mutableStateOf(false) }
     var showWarp by remember { mutableStateOf(false) }
+    var showAether by remember { mutableStateOf(false) }
+    var showAetherSmart by remember { mutableStateOf(false) }
 
     val servers = profiles.filterNot { it.isLocked }
 
@@ -1335,9 +1350,21 @@ fun ServersScreen(
                 showAddSheet = false
                 showDnsTunnel = true
             },
+            onDnsResolver = {
+                showAddSheet = false
+                showDnsResolver = true
+            },
+            onDnsProfile = {
+                showAddSheet = false
+                showDnsProfile = true
+            },
             onMasterDns = {
                 showAddSheet = false
                 showMasterDns = true
+            },
+            onDnsAuto = {
+                showAddSheet = false
+                showDnsAuto = true
             },
             onOpenConnect = {
                 showAddSheet = false
@@ -1361,6 +1388,14 @@ fun ServersScreen(
                 showAddSheet = false
                 showWarp = true
             },
+            onAether = {
+                showAddSheet = false
+                showAether = true
+            },
+            onAetherSmart = {
+                showAddSheet = false
+                showAetherSmart = true
+            },
             onSniSpoof = {
                 showAddSheet = false
                 showSniSpoof = true
@@ -1376,6 +1411,47 @@ fun ServersScreen(
             onSubscription = {
                 showAddSheet = false
                 showSubs = true
+            },
+            onExplorer = {
+                showAddSheet = false
+                showExplorer = true
+            },
+        )
+    }
+
+    if (showExplorer) {
+        ConfigExplorerSheet(
+            repository = repository,
+            onDismiss = { showExplorer = false },
+            onServerActivated = onServerActivated,
+        )
+    }
+
+    if (showAetherSmart) {
+        AetherSmartDialog(
+            onDismiss = { showAetherSmart = false },
+            onCreate = { profile ->
+                showAetherSmart = false
+                val created = repository.addAether(profile, profile.profileName)
+                check(created.isAether) { "Smart config must create an Aether profile" }
+                repository.setActive(created.id)
+                toastRes(Res.string.aether_smart_done)
+                onServerActivated()
+            },
+            onCustomize = {
+                showAetherSmart = false
+                showAether = true
+            },
+        )
+    }
+
+    if (showAether) {
+        AetherProfileSheet(
+            onDismiss = { showAether = false },
+            onSave = { name, profile ->
+                showAether = false
+                repository.addAether(profile, name)
+                scope.launch { platform.toast("Aether profile added") }
             },
         )
     }
@@ -1404,6 +1480,14 @@ fun ServersScreen(
         )
     }
 
+    if (showDnsResolver) {
+        DnsResolverSheet(
+            settings = settings,
+            onDismiss = { showDnsResolver = false },
+            onUpdate = onUpdateSettings,
+        )
+    }
+
     if (showDnsTunnel) {
         DnsTunnelSheet(
             onDismiss = { showDnsTunnel = false },
@@ -1415,12 +1499,51 @@ fun ServersScreen(
         )
     }
 
+    if (showDnsAuto) {
+        DnsAutoSheet(
+            onDismiss = { showDnsAuto = false },
+            ipv6Enabled = settings.enableIpv6,
+            onConnect = { address ->
+                val existingAuto = repository.profiles.value.firstOrNull {
+                    (it.source as? dev.cluvex.zedsecure.domain.config.ProfileSource.DnsResolver)
+                        ?.settings?.id == "dns-auto"
+                }
+                val autoResolver = dev.cluvex.zedsecure.domain.model.DnsResolverProfile(
+                    id = "dns-auto",
+                    name = "DNS AUTO",
+                    protocol = "udp",
+                    remoteEndpoint = "$address:53",
+                    directAddress = address,
+                )
+                val created = repository.addDnsResolver(
+                    settings = autoResolver,
+                    name = "DNS AUTO",
+                    id = existingAuto?.id,
+                )
+                repository.setActive(created.id)
+                showDnsAuto = false
+                onDnsAutoConnect()
+            },
+        )
+    }
+
     if (showMasterDns) {
         MasterDnsSheet(
             onDismiss = { showMasterDns = false },
             onSave = { name, settings ->
                 showMasterDns = false
                 repository.addMasterDns(settings, name)
+                onServerActivated()
+            },
+        )
+    }
+
+    if (showDnsProfile) {
+        DnsProfileSheet(
+            onDismiss = { showDnsProfile = false },
+            onSave = { name, settings ->
+                showDnsProfile = false
+                repository.addDnsResolver(settings, name)
                 onServerActivated()
             },
         )
@@ -1576,6 +1699,18 @@ fun ServersScreen(
     editTarget?.let { target ->
         val singBoxFormLink = remember(target.id, editAsJson) { if (editAsJson) null else singBoxFormLinkOf(target) }
         when {
+            target.isAether -> {
+                AetherProfileSheet(
+                    initial = target.aetherSettings() ?: dev.cluvex.zedsecure.domain.config.AetherProfile(),
+                    initialName = target.name,
+                    onDismiss = { editTarget = null },
+                    onSave = { name, profile ->
+                        repository.addAether(profile, name, id = target.id)
+                        toastRes(Res.string.saved)
+                        editTarget = null
+                    },
+                )
+            }
             singBoxFormLink != null -> {
                 ManualConfigSheet(
                     initialSingBoxLink = singBoxFormLink,
@@ -1673,6 +1808,18 @@ fun ServersScreen(
                     onDismiss = { editTarget = null },
                     onSave = { name, settings ->
                         repository.addMasterDns(settings, name, id = target.id)
+                        toastRes(Res.string.saved)
+                        editTarget = null
+                    },
+                )
+            }
+            target.isDnsResolver -> {
+                DnsProfileSheet(
+                    initial = target.dnsResolverSettings(),
+                    initialName = target.name,
+                    onDismiss = { editTarget = null },
+                    onSave = { name, settings ->
+                        repository.addDnsResolver(settings, name, id = target.id)
                         toastRes(Res.string.saved)
                         editTarget = null
                     },
@@ -2235,16 +2382,22 @@ private fun AddServerSheet(
     onCustom: () -> Unit,
     onPsiphon: () -> Unit,
     onDnsTunnel: () -> Unit,
+    onDnsResolver: () -> Unit,
+    onDnsProfile: () -> Unit,
     onMasterDns: () -> Unit,
+    onDnsAuto: () -> Unit,
     onOpenConnect: () -> Unit,
     onIkev2: () -> Unit,
     onTor: () -> Unit,
     onSsh: () -> Unit,
     onWarp: () -> Unit,
+    onAether: () -> Unit,
+    onAetherSmart: () -> Unit,
     onSniSpoof: () -> Unit,
     onProxyChain: () -> Unit,
     onCrossChain: () -> Unit,
     onSubscription: () -> Unit,
+    onExplorer: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberAppSheetState()) {
         Column(
@@ -2291,11 +2444,16 @@ private fun AddServerSheet(
             Option(Res.drawable.ic_lock, Res.string.tor_add_title, onTor, free = true)
             Option(Res.drawable.ic_speed, Res.string.ssh_add_title, onSsh)
             Option(Res.drawable.ic_public, Res.string.warp_add_title, onWarp, free = true)
+            Option(Res.drawable.ic_bolt, Res.string.aether_smart_title, onAetherSmart, free = true)
+            OptionText(Res.drawable.ic_public, "Aether · WARP engine", onAether)
             if (LocalPlatform.current.supportsSniSpoof) Option(Res.drawable.ic_bolt, Res.string.snispoof_add_title, onSniSpoof)
 
             OptionGroup(Res.string.add_group_dns)
+            Option(Res.drawable.ic_dns, Res.string.dns_resolver_ips, onDnsResolver)
+            Option(Res.drawable.ic_dns, Res.string.dns_changer_add_title, onDnsProfile)
             Option(Res.drawable.ic_public, Res.string.dns_tunnel_add_title, onDnsTunnel)
             Option(Res.drawable.ic_public, Res.string.master_dns_add_title, onMasterDns)
+            OptionText(Res.drawable.ic_dns, "DNS AUTO · Smart discovery", onDnsAuto)
 
             OptionGroup(Res.string.add_group_vpn)
             Option(Res.drawable.ic_lock, Res.string.openconnect_add_title, onOpenConnect)
@@ -2307,6 +2465,100 @@ private fun AddServerSheet(
 
             OptionGroup(Res.string.add_group_subscription)
             Option(Res.drawable.ic_add_link, Res.string.subs_add, onSubscription)
+
+            OptionGroup(Res.string.add_group_import)
+            OptionText(Res.drawable.ic_search, "کاوشگر ZX", onExplorer)
+        }
+    }
+}
+
+@Composable
+private fun AetherProfileSheet(
+    initial: dev.cluvex.zedsecure.domain.config.AetherProfile = dev.cluvex.zedsecure.domain.config.AetherProfile(),
+    initialName: String = "Aether",
+    onDismiss: () -> Unit,
+    onSave: (String, dev.cluvex.zedsecure.domain.config.AetherProfile) -> Unit,
+) {
+    var name by rememberSaveable(initialName) { mutableStateOf(initialName) }
+    var protocol by rememberSaveable(initial.protocol) { mutableStateOf(initial.protocol) }
+    var scan by rememberSaveable(initial.scanMode) { mutableStateOf(initial.scanMode) }
+    var ip by rememberSaveable(initial.ipVersion) { mutableStateOf(initial.ipVersion) }
+    var noize by rememberSaveable(initial.noize) { mutableStateOf(initial.noize) }
+    var http2 by rememberSaveable(initial.http2) { mutableStateOf(initial.http2) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Aether · WARP engine") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("A separate WARP-based tunnel engine. Choose its transport and connection profile.")
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    singleLine = true,
+                    label = { Text("Profile name") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                AetherChoice("Protocol", protocol, listOf("masque", "wg", "gool", "mim")) { protocol = it; if (it == "wg") http2 = false }
+                AetherChoice("Scan mode", scan, listOf("turbo", "balanced", "thorough", "verified", "ironclad")) { scan = it }
+                AetherChoice("IP version", ip, listOf("v4", "v6", "both")) { ip = it }
+                AetherChoice("Anti-DPI profile", noize, listOf("off", "light", "firewall", "balanced", "gfw", "aggressive")) { noize = it }
+                if (protocol != "wg") {
+                    TextButton(onClick = { http2 = !http2 }) {
+                        Text(if (http2) "HTTP/2 transport: enabled" else "HTTP/2 transport: disabled")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onSave(
+                    name.trim().ifBlank { "Aether" },
+                    dev.cluvex.zedsecure.domain.config.AetherProfile(
+                        protocol = protocol,
+                        scanMode = scan,
+                        ipVersion = ip,
+                        noize = noize,
+                        http2 = http2,
+                    ),
+                )
+            }) { Text("Add Aether") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.action_cancel)) } },
+    )
+}
+
+@Composable
+private fun AetherChoice(
+    label: String,
+    selected: String,
+    choices: List<String>,
+    onSelect: (String) -> Unit,
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    Column {
+        TextButton(onClick = { expanded = true }) { Text("$label: $selected") }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            choices.forEach { choice ->
+                DropdownMenuItem(
+                    text = { Text(choice) },
+                    onClick = { expanded = false; onSelect(choice) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OptionText(iconRes: DrawableResource, label: String, onClick: () -> Unit) {
+    Surface(onClick = onClick, color = Color.Transparent, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 15.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(painterResource(iconRes), null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.width(18.dp))
+            Text(label, style = MaterialTheme.typography.titleMedium)
         }
     }
 }
@@ -2612,4 +2864,265 @@ private fun androidx.compose.foundation.layout.ColumnScope.ServerMenuItems(
         leadingIcon = { Icon(painterResource(Res.drawable.ic_delete), null) },
         onClick = { close(); onDelete() },
     )
+}
+
+@Composable
+private fun AetherSmartDialog(
+    onDismiss: () -> Unit,
+    onCreate: (dev.cluvex.zedsecure.domain.config.AetherProfile) -> Unit,
+    onCustomize: () -> Unit,
+) {
+    var profile by remember { mutableStateOf<dev.cluvex.zedsecure.domain.config.AetherProfile?>(null) }
+    var network by remember { mutableStateOf<dev.cluvex.zedsecure.platform.NetworkKind?>(null) }
+    var edgeMs by remember { mutableStateOf<Int?>(null) }
+    var apiMs by remember { mutableStateOf<Int?>(null) }
+    var udpReachable by remember { mutableStateOf<Boolean?>(null) }
+    var tlsSniReachable by remember { mutableStateOf<Boolean?>(null) }
+    var tcp443Reachable by remember { mutableStateOf<Boolean?>(null) }
+    var dnsSystemMatchesDoh by remember { mutableStateOf<Boolean?>(null) }
+    var publicIp by remember { mutableStateOf<String?>(null) }
+    var isp by remember { mutableStateOf<String?>(null) }
+    var asn by remember { mutableStateOf<String?>(null) }
+    var ooniAnomalyPercent by remember { mutableStateOf<Int?>(null) }
+    var ooniSamples by remember { mutableStateOf(0) }
+    var ipv6 by remember { mutableStateOf<Boolean?>(null) }
+    var probed by remember { mutableStateOf(false) }
+    var goal by remember { mutableStateOf(dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Auto) }
+    var edgeJitter by remember { mutableStateOf<Int?>(null) }
+    var scanNonce by remember { mutableStateOf(0) }
+    var lastInput by remember { mutableStateOf<dev.cluvex.zedsecure.domain.config.AetherSmartInput?>(null) }
+    LaunchedEffect(scanNonce) {
+        profile = null; probed = false; ipv6 = null; edgeMs = null; apiMs = null
+        udpReachable = null; tlsSniReachable = null
+        tcp443Reachable = null; dnsSystemMatchesDoh = null
+        publicIp = null; isp = null; asn = null
+        ooniAnomalyPercent = null; ooniSamples = 0
+        val kind = dev.cluvex.zedsecure.platform.detectNetworkKind()
+        network = kind
+        val infoJob = async {
+            withTimeoutOrNull(5_000) {
+                runCatching { dev.cluvex.zedsecure.data.net.NetworkInfoRepository().fetchInfo(force = true) }.getOrNull()
+            }
+        }
+        val probe = dev.cluvex.zedsecure.domain.config.AetherSmartProbe.run()
+        edgeMs = probe.edgeMs
+        apiMs = probe.apiMs
+        edgeJitter = probe.edgeJitterMs
+        udpReachable = probe.udpReachable
+        tlsSniReachable = probe.tlsSniReachable
+        tcp443Reachable = probe.tcp443Reachable
+        dnsSystemMatchesDoh = probe.dnsSystemMatchesDoh
+        publicIp = probe.publicIp
+        isp = probe.isp
+        asn = probe.asn
+        ooniAnomalyPercent = probe.ooniAnomalyPercent
+        ooniSamples = probe.ooniSamples
+        probed = true
+        val info = infoJob.await()
+        ipv6 = !info?.ipv6.isNullOrBlank()
+        val input = dev.cluvex.zedsecure.domain.config.AetherSmartInput(
+            network = kind,
+            hasIpv6 = ipv6 == true,
+            pingMs = info?.pingMs,
+            countryCode = probe.countryCode ?: info?.countryCode,
+            edgeReachable = probe.edgeMs != null,
+            edgeMs = probe.edgeMs,
+            apiReachable = probe.apiMs != null,
+            edgeJitterMs = probe.edgeJitterMs,
+            link = dev.cluvex.zedsecure.platform.detectLinkQuality(),
+            edgeLossPercent = probe.edgeLossPercent,
+            apiLossPercent = probe.apiLossPercent,
+            udpReachable = probe.udpReachable,
+            tlsSniReachable = probe.tlsSniReachable,
+            tcp443Reachable = probe.tcp443Reachable,
+            dnsSystemMatchesDoh = probe.dnsSystemMatchesDoh,
+            ooniAnomalyPercent = probe.ooniAnomalyPercent,
+        )
+        lastInput = input
+        profile = dev.cluvex.zedsecure.domain.config.AetherSmartConfig.build(input.copy(goal = goal))
+    }
+    LaunchedEffect(goal) {
+        lastInput?.let { profile = dev.cluvex.zedsecure.domain.config.AetherSmartConfig.build(it.copy(goal = goal)) }
+    }
+    val netLabel = stringResource(
+        when (network) {
+            dev.cluvex.zedsecure.platform.NetworkKind.Cellular -> Res.string.aether_smart_net_mobile
+            dev.cluvex.zedsecure.platform.NetworkKind.Wifi -> Res.string.aether_smart_net_wifi
+            dev.cluvex.zedsecure.platform.NetworkKind.Ethernet -> Res.string.aether_smart_net_lan
+            else -> Res.string.aether_smart_net_unknown
+        },
+    )
+    val okText = stringResource(Res.string.aether_smart_ok)
+    val blockedText = stringResource(Res.string.aether_smart_blocked)
+    val naText = stringResource(Res.string.aether_smart_na)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.aether_smart_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(Res.string.aether_smart_body), style = MaterialTheme.typography.bodySmall)
+                if (profile == null) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+                SmartStepRow(stringResource(Res.string.aether_smart_step_net), network != null, true, netLabel)
+                SmartStepRow(
+                    stringResource(Res.string.aether_smart_step_edge), probed, edgeMs != null,
+                    if (edgeMs != null) "$edgeMs ms" else blockedText,
+                )
+                SmartStepRow(
+                    stringResource(Res.string.aether_smart_step_api), probed, apiMs != null,
+                    if (apiMs != null) okText else blockedText,
+                )
+                SmartStepRow("UDP / DNS", probed, udpReachable == true,
+                    when (udpReachable) { true -> okText; false -> blockedText; null -> naText })
+                SmartStepRow("TCP / 443", probed, tcp443Reachable == true,
+                    when (tcp443Reachable) { true -> okText; false -> blockedText; null -> naText })
+                SmartStepRow("TLS / SNI", probed, tlsSniReachable == true,
+                    when (tlsSniReachable) { true -> okText; false -> blockedText; null -> naText })
+                SmartStepRow("DNS comparison", probed, dnsSystemMatchesDoh == true,
+                    when (dnsSystemMatchesDoh) { true -> "Matches DoH"; false -> "Mismatch"; null -> naText })
+                SmartStepRow("OONI · ASN", probed, (ooniAnomalyPercent ?: 0) < 60,
+                    if (ooniAnomalyPercent != null) "$ooniAnomalyPercent% anomalies · $ooniSamples samples" else "No recent public sample")
+                if (publicIp != null || isp != null || asn != null) {
+                    Text(
+                        listOfNotNull(publicIp, isp, asn).joinToString(" · "),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                val filteringSignals = buildList {
+                    if (dnsSystemMatchesDoh == false) add("Potential DNS manipulation")
+                    if (tcp443Reachable == false) add("TCP/443 unreachable")
+                    if (tcp443Reachable == true && tlsSniReachable == false) add("Possible TLS/SNI interference")
+                    if (udpReachable == false) add("UDP/53 unavailable (not a QUIC test)")
+                    if ((ooniAnomalyPercent ?: 0) >= 60) add("OONI ASN anomalies: $ooniAnomalyPercent%")
+                }
+                Text(
+                    if (!probed) "Filtering diagnosis pending"
+                    else if (filteringSignals.isEmpty()) "Filtering diagnosis: no strong signal / inconclusive"
+                    else "Potential filtering: " + filteringSignals.joinToString(" · "),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (filteringSignals.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
+                    else MaterialTheme.colorScheme.tertiary,
+                )
+                SmartStepRow(
+                    stringResource(Res.string.aether_smart_step_ip), probed, ipv6 == true,
+                    if (ipv6 == true) okText else naText,
+                )
+                val p = profile
+                if (p != null) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        androidx.compose.material3.FilterChip(
+                            selected = goal == dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Auto,
+                            onClick = { goal = dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Auto },
+                            label = { Text(stringResource(Res.string.aether_smart_goal_auto)) },
+                        )
+                        androidx.compose.material3.FilterChip(
+                            selected = goal == dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Speed,
+                            onClick = { goal = dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Speed },
+                            label = { Text(stringResource(Res.string.aether_smart_goal_speed)) },
+                        )
+                        androidx.compose.material3.FilterChip(
+                            selected = goal == dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Stealth,
+                            onClick = { goal = dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Stealth },
+                            label = { Text(stringResource(Res.string.aether_smart_goal_stealth)) },
+                        )
+                    }
+                    Surface(
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                    ) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(p.profileName, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                SmartChip(p.protocol.uppercase())
+                                SmartChip(if (p.http2) "HTTP/2" else "HTTP/3")
+                                SmartChip(p.ipVersion)
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                SmartChip("scan ${p.scanMode}")
+                                SmartChip("noize ${p.noize}")
+                                if (p.fragment) SmartChip("fragment")
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                SmartChip(if (p.http2) "HTTP/2 enabled" else "HTTP/2 disabled")
+                                SmartChip(if (p.smartFailover) "Smart fallback enabled" else "manual route")
+                                SmartChip(if (p.apiAddress.isBlank()) "API auto" else "API ${p.apiAddress}")
+                            }
+                        }
+                    }
+                    OutlinedTextField(
+                        value = p.commandPreview(),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Aether command · generated automatically") },
+                        minLines = 2,
+                        maxLines = 5,
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        ),
+                    )
+                    Text(
+                        "SOCKS port and Aether home path are assigned automatically when the tunnel starts. The app executes these arguments directly; no manual command or paid config is required.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (edgeMs == null || apiMs == null) {
+                        Text(
+                            stringResource(Res.string.aether_smart_blocked_note),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.tertiary,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = profile != null, onClick = { profile?.let(onCreate) }) {
+                Text(stringResource(Res.string.aether_smart_create))
+            }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = { scanNonce++ }) { Text(stringResource(Res.string.aether_smart_rescan)) }
+                TextButton(onClick = onCustomize) { Text(stringResource(Res.string.aether_smart_customize)) }
+                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.action_cancel)) }
+            }
+        },
+    )
+}
+
+@Composable
+private fun SmartStepRow(label: String, done: Boolean, ok: Boolean, detail: String) {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(Modifier.size(20.dp), contentAlignment = androidx.compose.ui.Alignment.Center) {
+            if (!done) {
+                CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
+            } else {
+                Text(
+                    if (ok) "✓" else "✕",
+                    fontWeight = FontWeight.Bold,
+                    color = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+        if (done) Text(detail, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun SmartChip(text: String) {
+    Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(50), color = MaterialTheme.colorScheme.surface) {
+        Text(
+            text,
+            Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall,
+        )
+    }
 }

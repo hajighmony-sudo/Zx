@@ -74,10 +74,11 @@ import dev.cluvex.zedsecure.domain.config.effectiveLanSocksPort
 import dev.cluvex.zedsecure.domain.config.effectiveLocalProxyPort
 import dev.cluvex.zedsecure.platform.secureRandomToken
 import dev.cluvex.zedsecure.ui.platform.appVerticalScroll
+import dev.cluvex.zedsecure.core.ghost.GhostEngine
 
 enum class SettingsPage {
     Root, Ui, Vpn, Core, Routing, PerApp, Mux, Fragment, Observatory, Advanced, Mode, Assets, SingBox,
-    DnsProtocols, Tor, TorBridges, Ssh, Support, SpeedTest, Map, Privacy, Monitor, Ai, AiChat, NavBar,
+    DnsProtocols, Tor, TorBridges, Ssh, Support, SpeedTest, Map, Privacy, Monitor, Ai, AiChat, NavBar, Ghost,
 }
 
 @Composable
@@ -114,6 +115,10 @@ fun SettingsScreen(
     var showAbout by rememberSaveable { mutableStateOf(false) }
 
     var deepLinked by rememberSaveable { mutableStateOf(false) }
+
+    androidx.compose.runtime.LaunchedEffect(settings.ghost) {
+        GhostEngine.updateSettings(settings.ghost)
+    }
 
     androidx.compose.runtime.LaunchedEffect(initialPage) {
         if (initialPage != SettingsPage.Root) {
@@ -179,7 +184,7 @@ fun SettingsScreen(
     ) {
     stateHolder.SaveableStateProvider(shown) {
         when (shown) {
-            SettingsPage.Root -> if (settings.appDesign == AppDesign.Bento) {
+            SettingsPage.Root -> if (settings.appDesign == AppDesign.Bento || settings.appDesign == AppDesign.Zx || settings.appDesign == AppDesign.ZxPs) {
                 BentoRoot(
                     settings = settings,
                     contentPadding = contentPadding,
@@ -222,6 +227,7 @@ fun SettingsScreen(
             SettingsPage.TorBridges -> TorBridgesScreen(settings, contentPadding, modifier, onUpdate)
             SettingsPage.Ssh -> SshPage(settings, contentPadding, modifier, onUpdate)
             SettingsPage.Support -> SupportPage(contentPadding, modifier)
+            SettingsPage.Ghost -> GhostSettingsPage(settings, contentPadding, modifier, onUpdate)
             SettingsPage.Privacy -> PrivacyPage(contentPadding, modifier)
             SettingsPage.Monitor -> LiveMonitorPage(contentPadding, modifier)
             SettingsPage.Ai -> ai?.let {
@@ -333,14 +339,6 @@ private fun RootPage(
             reduceMotion = settings.reduceMotion,
         )
 
-        SettingsGroup(modifier = Modifier.tourTargetInPage(TourTargets.SETTINGS_SUPPORT)) {
-            SettingsBannerRow(
-                stringResource(Res.string.support_title),
-                stringResource(Res.string.support_subtitle),
-                art = SettingsArts.Support,
-            ) { onOpen(SettingsPage.Support) }
-        }
-
         SettingsGroup(
             stringResource(Res.string.settings_group_personal),
             modifier = Modifier.tourTargetInPage(TourTargets.SETTINGS_LOOK),
@@ -360,6 +358,11 @@ private fun RootPage(
                 stringResource(Res.string.monitor_subtitle),
                 art = SettingsArts.Monitor,
             ) { onOpen(SettingsPage.Monitor) }
+            SettingsMenuRow(
+                title = "GHOST MOD",
+                subtitle = "ترافیک جعلی هوشمند ضد DPI",
+                art = SettingsArts.Ghost,
+            ) { onOpen(SettingsPage.Ghost) }
             if (hasAi) {
                 SettingsMenuRow(
                     stringResource(Res.string.ai_title),
@@ -506,11 +509,6 @@ private fun RootPage(
                 },
             ) { if (!checking) { checking = true; checkTrigger++ } }
             SettingsMenuRow(
-                stringResource(if (fromPlay) Res.string.rate_title else Res.string.rate_title_github),
-                stringResource(if (fromPlay) Res.string.rate_summary else Res.string.rate_summary_github),
-                art = SettingsArts.Rate,
-            ) { platform.openStorePage() }
-            SettingsMenuRow(
                 stringResource(Res.string.privacy_title),
                 stringResource(Res.string.privacy_settings_sub),
                 art = SettingsArts.Privacy,
@@ -554,6 +552,8 @@ private fun BentoRoot(
             AppDesign.Bento -> Res.string.home_design_bento
             AppDesign.Pixel -> Res.string.home_design_pixel
             AppDesign.Old -> Res.string.home_design_old
+            AppDesign.Zx -> Res.string.home_design_zx
+            AppDesign.ZxPs -> Res.string.home_design_zxps
         },
     )
     val paletteName = stringResource(
@@ -675,6 +675,12 @@ private fun BentoRoot(
             art = SettingsArts.Monitor,
         ) { onOpen(SettingsPage.Monitor) })
         add(dev.cluvex.zedsecure.ui.bento.BentoHubEntry(
+            key = "ghost",
+            title = "GHOST MOD",
+            summary = "ترافیک جعلی هوشمند ضد DPI",
+            art = SettingsArts.Ghost,
+        ) { onOpen(SettingsPage.Ghost) })
+        add(dev.cluvex.zedsecure.ui.bento.BentoHubEntry(
             key = "per-app",
             title = stringResource(Res.string.per_app_title),
             summary = if (settings.perAppProxyEnabled) {
@@ -789,13 +795,6 @@ private fun BentoRoot(
             art = SettingsArts.Assets,
             keywords = listOf(stringResource(Res.string.title_pref_geo_files_source)),
         ) { onOpen(SettingsPage.Assets) })
-        add(dev.cluvex.zedsecure.ui.bento.BentoHubEntry(
-            key = "support",
-            title = stringResource(Res.string.support_title),
-            summary = stringResource(Res.string.support_subtitle),
-            art = SettingsArts.Support,
-            tourKey = TourTargets.SETTINGS_SUPPORT,
-        ) { onOpen(SettingsPage.Support) })
         if (hasAi) {
             add(dev.cluvex.zedsecure.ui.bento.BentoHubEntry(
                 key = "ai",
@@ -832,12 +831,6 @@ private fun BentoRoot(
             art = SettingsArts.Update,
         ) { if (!checking) { checking = true; checkTrigger++ } })
         add(dev.cluvex.zedsecure.ui.bento.BentoHubEntry(
-            key = "rate",
-            title = stringResource(if (fromPlay) Res.string.rate_title else Res.string.rate_title_github),
-            summary = stringResource(if (fromPlay) Res.string.rate_summary else Res.string.rate_summary_github),
-            art = SettingsArts.Rate,
-        ) { platform.openStorePage() })
-        add(dev.cluvex.zedsecure.ui.bento.BentoHubEntry(
             key = "privacy",
             title = stringResource(Res.string.privacy_title),
             summary = stringResource(Res.string.privacy_settings_sub),
@@ -851,13 +844,17 @@ private fun BentoRoot(
             tourKey = TourTargets.SETTINGS_ABOUT,
         ) { onAbout() })
     }
-    dev.cluvex.zedsecure.ui.bento.BentoHub(
-        entries = entries,
-        layoutCode = settings.bento.tiles,
-        onLayoutChange = { code -> onUpdate { it.copy(bento = it.bento.copy(tiles = code)) } },
-        contentPadding = contentPadding,
-        modifier = modifier,
-    )
+    if (settings.appDesign == AppDesign.ZxPs) {
+        dev.cluvex.zedsecure.ui.zxps.ZxPsHub(entries = entries, contentPadding = contentPadding, modifier = modifier)
+    } else {
+        dev.cluvex.zedsecure.ui.bento.BentoHub(
+            entries = entries,
+            layoutCode = settings.bento.tiles,
+            onLayoutChange = { code -> onUpdate { it.copy(bento = it.bento.copy(tiles = code)) } },
+            contentPadding = contentPadding,
+            modifier = modifier,
+        )
+    }
     ManualUpdateCheckHost(
         settings = settings,
         trigger = checkTrigger,
@@ -1241,6 +1238,15 @@ private fun UiPage(
             dev.cluvex.zedsecure.ui.bento.BentoLookSection(s, onUpdate)
         }
 
+        if (s.appDesign == AppDesign.Zx) {
+            // Reuse the mature Bento appearance controls for the new hybrid ZX design.
+            dev.cluvex.zedsecure.ui.bento.BentoLookSection(s, onUpdate)
+        }
+
+        if (s.appDesign == AppDesign.ZxPs) {
+            dev.cluvex.zedsecure.ui.zxps.ZxPsLookSection(s, onUpdate)
+        }
+
         if (LocalPlatform.current.hasStatusNotification) {
             SettingsGroup(title = stringResource(Res.string.settings_group_notification)) {
                 SettingsSwitchRow(
@@ -1265,12 +1271,33 @@ private fun UiPage(
                 SettingsListRow(
                     title = stringResource(Res.string.notif_style_title),
                     options = listOf(
+                        dev.cluvex.zedsecure.domain.model.NotifStyle.ZxPs to stringResource(Res.string.notif_style_zxps),
                         dev.cluvex.zedsecure.domain.model.NotifStyle.Bento to stringResource(Res.string.notif_style_bento),
                         dev.cluvex.zedsecure.domain.model.NotifStyle.System to stringResource(Res.string.notif_style_system),
                     ),
                     selected = s.notifStyle,
                     enabled = !s.liveNotification,
                     onSelected = { v -> onUpdate { it.copy(notifStyle = v) } },
+                )
+                SettingsListRow(
+                    title = stringResource(Res.string.notif_accent_title),
+                    options = listOf(
+                        dev.cluvex.zedsecure.domain.model.NotifAccent.Theme to stringResource(Res.string.notif_accent_theme),
+                        dev.cluvex.zedsecure.domain.model.NotifAccent.Cyan to stringResource(Res.string.notif_accent_cyan),
+                        dev.cluvex.zedsecure.domain.model.NotifAccent.Magenta to stringResource(Res.string.notif_accent_magenta),
+                        dev.cluvex.zedsecure.domain.model.NotifAccent.Amber to stringResource(Res.string.notif_accent_amber),
+                        dev.cluvex.zedsecure.domain.model.NotifAccent.Mint to stringResource(Res.string.notif_accent_mint),
+                    ),
+                    selected = s.notifAccent,
+                    enabled = !s.liveNotification && s.notifStyle == dev.cluvex.zedsecure.domain.model.NotifStyle.ZxPs,
+                    onSelected = { v -> onUpdate { it.copy(notifAccent = v) } },
+                )
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.notif_graph_title),
+                    summary = stringResource(Res.string.notif_graph_summary),
+                    checked = s.notifGraph,
+                    enabled = !s.liveNotification && s.notifStyle == dev.cluvex.zedsecure.domain.model.NotifStyle.ZxPs,
+                    onCheckedChange = { v -> onUpdate { it.copy(notifGraph = v) } },
                 )
                 if (s.liveNotification) {
                     SettingsInfoRow(

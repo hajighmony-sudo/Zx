@@ -130,13 +130,13 @@ object TourTargets {
     const val SERVERS_MORE = "servers-more"
     const val SERVERS_GROUPS = "servers-groups"
     const val SERVER_CARD = "server-card"
-    const val SETTINGS_SUPPORT = "settings-support"
     const val SETTINGS_LOOK = "settings-look"
     const val SETTINGS_ROUTING = "settings-routing"
     const val SETTINGS_TUNNELS = "settings-tunnels"
     const val SETTINGS_CORE = "settings-core"
     const val SETTINGS_TOOLS = "settings-tools"
     const val SETTINGS_ABOUT = "settings-about"
+    const val SETTINGS_SUPPORT = "settings-support"
 }
 
 fun Modifier.tourTarget(key: String): Modifier = this then TourTargetElement(key)

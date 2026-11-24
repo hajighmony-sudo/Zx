@@ -18,6 +18,8 @@ import java.io.File
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicBoolean
+import libbox.AutoRedirectHandler
+import libbox.AutoRedirectSession
 import libbox.BridgeOptions
 import libbox.BridgeSession
 import libbox.CommandClient
@@ -197,6 +199,15 @@ class SingBoxEngine(
         override fun usePlatformBridge(): Boolean = false
         override fun createBridge(options: BridgeOptions?): BridgeSession =
             throw UnsupportedOperationException("bridges need root")
+
+        // Android's VpnService TUN implementation does not provide platform auto-redirect.
+        // Keep sing-box on its regular auto-redirect path instead of claiming platform support.
+        override fun usePlatformAutoRedirect(): Boolean = false
+
+        override fun createAutoRedirect(
+            options: ByteArray,
+            handler: AutoRedirectHandler,
+        ): AutoRedirectSession = throw UnsupportedOperationException("platform auto-redirect is not supported")
     }
 
     private fun openTunInterface(options: TunOptions): Int {

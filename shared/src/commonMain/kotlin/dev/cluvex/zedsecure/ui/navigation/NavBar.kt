@@ -43,7 +43,9 @@ import dev.cluvex.zedsecure.ui.onboarding.tourTarget
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.cluvex.zedsecure.domain.model.AppDesign
 import dev.cluvex.zedsecure.domain.model.NavBarStyle
+import dev.cluvex.zedsecure.ui.theme.LocalAppDesign
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -54,6 +56,12 @@ fun ZedNavBar(
     current: TopDestination,
     onSelect: (TopDestination) -> Unit,
 ) {
+    if (LocalAppDesign.current == AppDesign.ZxPs) {
+        dev.cluvex.zedsecure.ui.zxps.ZxPsNavBar(tabs, current, onSelect)
+        return
+    }
+    // ZX Reimagined uses the same adaptive Material 3 pill navigation as the
+    // rest of the app, rather than the retired neon HUD navigation.
     when (style) {
         NavBarStyle.FloatingPill, NavBarStyle.Dock -> FloatingPillBar(tabs, current, onSelect, compact = false)
         NavBarStyle.CompactDock -> FloatingPillBar(tabs, current, onSelect, compact = true)

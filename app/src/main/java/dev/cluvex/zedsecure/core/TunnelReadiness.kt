@@ -29,15 +29,36 @@ object TunnelReadiness {
         return false
     }
 
+    /**
+     * Verify a SOCKS tunnel against several independent HTTP endpoints.
+     * A single probe host being filtered must not make a healthy tunnel look dead.
+     */
+    fun verifyAny(
+        socksPort: Int,
+        timeoutMs: Int = DNS_TUNNEL_TIMEOUT_MS,
+        hosts: List<String> = listOf(PROBE_HOST, "www.cloudflare.com", "example.com"),
+        port: Int = PROBE_PORT,
+        connectTimeoutMs: Int = 2_000,
+    ): Boolean {
+        for (host in hosts.distinct().filter(String::isNotBlank)) {
+            if (attempt(socksPort, timeoutMs, host, port, connectTimeoutMs)) {
+                Log.i(TAG, "readiness probe succeeded via $host:$port")
+                return true
+            }
+        }
+        Log.w(TAG, "readiness probe failed for all ${hosts.size} endpoints on SOCKS port $socksPort")
+        return false
+    }
     private fun attempt(
         socksPort: Int,
         timeoutMs: Int,
         host: String,
         port: Int,
+        connectTimeoutMs: Int = 5_000,
     ): Boolean = runCatching {
         Socket().use { socket ->
             socket.tcpNoDelay = true
-            socket.connect(InetSocketAddress("127.0.0.1", socksPort), 5_000)
+            socket.connect(InetSocketAddress("127.0.0.1", socksPort), connectTimeoutMs.coerceAtLeast(250))
             socket.soTimeout = timeoutMs
             val out = socket.getOutputStream()
             val input = socket.getInputStream()

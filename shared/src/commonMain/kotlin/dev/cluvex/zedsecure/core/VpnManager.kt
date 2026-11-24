@@ -1,5 +1,6 @@
 package dev.cluvex.zedsecure.core
 
+import dev.cluvex.zedsecure.core.ghost.GhostEngine
 import dev.cluvex.zedsecure.domain.model.ConnectionState
 import kotlin.concurrent.Volatile
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,6 +61,8 @@ object VpnManager {
 
     const val KIND_MASTERDNS = "master_dns"
 
+    const val KIND_DNS_RESOLVER = "dns_resolver"
+
     const val KIND_TOR = "tor"
 
     const val KIND_SSH = "ssh"
@@ -73,9 +76,12 @@ object VpnManager {
     const val KIND_CROSS_CHAIN = "cross_chain"
 
     const val KIND_SINGBOX = "sing_box"
+    const val KIND_AETHER = "aether"
 
     fun onStarting(remark: String) {
         activeSocksPort = null
+        // Tunnel not fully up yet – keep GHOST off until onConnected
+        GhostEngine.onTunnelDisconnected()
         _status.value = Status(
             state = ConnectionState.Connecting,
             serverName = remark,
@@ -85,6 +91,7 @@ object VpnManager {
 
     fun onStopping(): Boolean {
         if (_status.value.state == ConnectionState.Idle) return false
+        GhostEngine.onTunnelDisconnected()
         _status.value = _status.value.copy(state = ConnectionState.Disconnecting)
         return true
     }
@@ -95,6 +102,8 @@ object VpnManager {
             serverName = remark ?: _status.value.serverName,
             error = null,
         )
+        // Only now: if user enabled GHOST in settings, start helping the tunnel
+        GhostEngine.onTunnelConnected()
     }
 
     fun onMetrics(durationSeconds: Int, downBps: Long, upBps: Long, totalDown: Long, totalUp: Long) {
@@ -110,6 +119,7 @@ object VpnManager {
     }
 
     fun onError(reason: String) {
+        GhostEngine.onTunnelDisconnected()
         _status.value = Status(
             state = ConnectionState.Error,
             error = reason,
@@ -120,6 +130,7 @@ object VpnManager {
     fun onDisconnected(keepError: Boolean = false) {
         activeSocksPort = null
         _activeKind.value = null
+        GhostEngine.onTunnelDisconnected()
         val previous = _status.value
         if (keepError && previous.state == ConnectionState.Error) return
         _status.value = Status(

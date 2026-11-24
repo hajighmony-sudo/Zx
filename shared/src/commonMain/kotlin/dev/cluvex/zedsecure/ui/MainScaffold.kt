@@ -70,6 +70,7 @@ fun MainScaffold(
     onToggleConnection: () -> Unit,
 
     onActiveServerChanged: () -> Unit = {},
+    onDnsAutoConnect: () -> Unit = {},
     onImportZsx: () -> Unit,
     onUpdateSettings: ((AppSettings) -> AppSettings) -> Unit,
     onLanguage: (AppLanguage) -> Unit,
@@ -361,6 +362,8 @@ fun MainScaffold(
                 TopDestination.Servers -> ServersScreen(
                     repository = configRepository,
                     contentPadding = innerPadding,
+                    settings = settings,
+                    onUpdateSettings = onUpdateSettings,
                     twoColumns = settings.doubleColumnDisplay,
                     showAllGroup = settings.groupAllDisplay,
                     confirmRemove = settings.confirmRemove,
@@ -375,6 +378,10 @@ fun MainScaffold(
                         if (settings.homeAfterSelect) current = TopDestination.Home
 
                         onActiveServerChanged()
+                    },
+                    onDnsAutoConnect = {
+                        if (settings.homeAfterSelect) current = TopDestination.Home
+                        onDnsAutoConnect()
                     },
                     detectServerLocation = settings.detectServerLocation,
                 )
@@ -476,6 +483,8 @@ fun MainScaffold(
         val detailsOpen by homeVm.expanded.collectAsStateWithLifecycle()
         HomeFabCluster(
             visible = current == TopDestination.Home && !bento &&
+                settings.appDesign != dev.cluvex.zedsecure.domain.model.AppDesign.Zx &&
+                settings.appDesign != dev.cluvex.zedsecure.domain.model.AppDesign.ZxPs &&
                 !(detailsOpen && settings.appDesign == dev.cluvex.zedsecure.domain.model.AppDesign.Pixel),
             showSpeedTest = vpnStatus.state == dev.cluvex.zedsecure.domain.model.ConnectionState.Connected &&
                 activeProfile?.isDnsBasedTunnel != true,

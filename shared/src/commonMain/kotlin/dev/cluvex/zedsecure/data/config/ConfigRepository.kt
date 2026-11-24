@@ -72,6 +72,7 @@ class CrossChainUdpUnsupportedException(val protocol: String, val carrier: Strin
     Exception("$protocol needs UDP, which $carrier cannot relay")
 
 class ConfigRepository(private val store: KeyValueStore) {
+    val configExplorer: ConfigExplorerRepository by lazy { ConfigExplorerRepository(store) }
     private val json = Json { ignoreUnknownKeys = true }
     private val lenientJson = Json { ignoreUnknownKeys = true; isLenient = true }
     private val prettyJson = Json { prettyPrint = true }
@@ -108,6 +109,11 @@ class ConfigRepository(private val store: KeyValueStore) {
     fun importText(text: String, subscriptionId: String = ""): Result<Int> = runCatching {
         val trimmed = text.trim()
         require(trimmed.isNotEmpty()) { "empty" }
+
+        dev.cluvex.zedsecure.domain.config.AetherProfile.decode(trimmed)?.let { aether ->
+            addAether(aether, aether.profileName)
+            return@runCatching 1
+        }
 
         val sshLines = trimmed.lines().map { it.trim() }.filter { SshLink.isSshLink(it) }
         if (sshLines.isNotEmpty()) {
@@ -445,9 +451,36 @@ class ConfigRepository(private val store: KeyValueStore) {
         settings: dev.cluvex.zedsecure.domain.config.MasterDnsProfile,
         name: String,
         id: String? = null,
+        autoManaged: Boolean = false,
     ): VpnProfile {
         val existing = id?.let { profile(it) }
         val profile = VpnProfile.fromMasterDns(
+            settings = settings.copy(autoManaged = false),
+            id = existing?.id ?: newId(),
+            addedAt = existing?.addedAt ?: currentTimeMillis(),
+            name = name,
+        ).let { built ->
+            carryOver(existing, built).copy(
+                dnsAutoManaged = autoManaged || existing?.dnsAutoManaged == true,
+            )
+        }
+        _profiles.value = if (existing != null) {
+            _profiles.value.map { if (it.id == profile.id) profile else it }
+        } else {
+            listOf(profile) + _profiles.value
+        }
+        persistProfiles()
+        if (_activeId.value == null) setActive(profile.id)
+        return profile
+    }
+
+    fun addDnsResolver(
+        settings: dev.cluvex.zedsecure.domain.model.DnsResolverProfile,
+        name: String,
+        id: String? = null,
+    ): VpnProfile {
+        val existing = id?.let { profile(it) }
+        val profile = VpnProfile.fromDnsResolver(
             settings = settings,
             id = existing?.id ?: newId(),
             addedAt = existing?.addedAt ?: currentTimeMillis(),
@@ -462,7 +495,6 @@ class ConfigRepository(private val store: KeyValueStore) {
         if (_activeId.value == null) setActive(profile.id)
         return profile
     }
-
     fun addOpenConnect(
         settings: dev.cluvex.zedsecure.domain.config.OpenConnectProfile,
         name: String,
@@ -755,6 +787,7 @@ class ConfigRepository(private val store: KeyValueStore) {
             is ProfileSource.Tor -> { addTor(name); 1 }
             is ProfileSource.Ssh -> { addSsh(src.settings, name); 1 }
             is ProfileSource.MasterDns -> { addMasterDns(src.settings, name); 1 }
+            is ProfileSource.DnsResolver -> { addDnsResolver(src.settings, name); 1 }
             is ProfileSource.OpenConnect -> { addOpenConnect(src.settings, name); 1 }
             is ProfileSource.Ikev2 -> { addIkev2(src.settings, name); 1 }
             is ProfileSource.ProxyChain, is ProfileSource.CrossChain -> {
@@ -898,6 +931,28 @@ class ConfigRepository(private val store: KeyValueStore) {
         persistProfiles()
         if (_activeId.value == null) setActive(profile.id)
         return profile
+    }
+
+    fun addAether(
+        settings: dev.cluvex.zedsecure.domain.config.AetherProfile = dev.cluvex.zedsecure.domain.config.AetherProfile(),
+        name: String = "Aether",
+        id: String? = null,
+    ): VpnProfile {
+        val existing = id?.let { profile(it) }
+        val updated = VpnProfile.fromAether(
+            settings = settings,
+            id = existing?.id ?: newId(),
+            addedAt = existing?.addedAt ?: currentTimeMillis(),
+            name = name,
+        ).let { carryOver(existing, it) }
+        _profiles.value = if (existing != null) {
+            _profiles.value.map { if (it.id == updated.id) updated else it }
+        } else {
+            listOf(updated) + _profiles.value
+        }
+        persistProfiles()
+        if (_activeId.value == null) setActive(updated.id)
+        return updated
     }
 
     fun update(profile: VpnProfile) {
@@ -1444,7 +1499,7 @@ class ConfigRepository(private val store: KeyValueStore) {
             protocol = "LOCKED",
             address = "•••",
             port = 0,
-            transportLabel = "Locked · .zsx",
+            transportLabel = "Locked · .ZX",
             source = ProfileSource.Sealed(Base64.encode(resealed)),
             addedAt = currentTimeMillis(),
             isLocked = true,

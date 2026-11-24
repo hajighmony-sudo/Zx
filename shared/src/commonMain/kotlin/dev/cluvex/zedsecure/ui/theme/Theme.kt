@@ -19,11 +19,18 @@ import com.materialkolor.dynamicColorScheme
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.ktx.animateColorScheme
 import dev.cluvex.zedsecure.domain.model.AppDesign
+import dev.cluvex.zedsecure.domain.model.ZxAnim
 import dev.cluvex.zedsecure.domain.model.BentoPrefs
 import dev.cluvex.zedsecure.ui.bento.BentoPalettes
 import dev.cluvex.zedsecure.ui.bento.BentoStyle
 import dev.cluvex.zedsecure.ui.bento.LocalBentoStyle
 import dev.cluvex.zedsecure.ui.bento.bentoColorScheme
+import dev.cluvex.zedsecure.domain.model.ZxPsPrefs
+import dev.cluvex.zedsecure.ui.zxps.LocalZxPsStyle
+import dev.cluvex.zedsecure.ui.zxps.ZxPsPalettes
+import dev.cluvex.zedsecure.ui.zxps.ZxPsStyle
+import dev.cluvex.zedsecure.ui.zxps.zxPsColorScheme
+import dev.cluvex.zedsecure.ui.zxps.zxPsShapes
 import dev.cluvex.zedsecure.domain.model.ColorContrast
 import dev.cluvex.zedsecure.domain.model.ColorStyle
 
@@ -44,6 +51,10 @@ fun ZedSecureTheme(
 
     bento: BentoPrefs = BentoPrefs(),
 
+    zxAnim: ZxAnim = ZxAnim.Auto,
+
+    zxPs: ZxPsPrefs = ZxPsPrefs(),
+
     languageTag: String = "en",
 
     fontScale: Float = 1f,
@@ -58,12 +69,18 @@ fun ZedSecureTheme(
     val bentoColors = remember(bento.palette, darkTheme, bentoSeed, amoledBlack) {
         BentoPalettes.of(bento.palette, darkTheme, bentoSeed, amoledBlack)
     }
-    val scheme = if (design == AppDesign.Bento) {
+    val zxPsColors = remember(zxPs.palette, darkTheme) { ZxPsPalettes.of(zxPs.palette, darkTheme) }
+    val scheme = if (design == AppDesign.ZxPs) {
+        remember(zxPsColors) { zxPsColorScheme(zxPsColors) }
+    } else if (design == AppDesign.Zx || design == AppDesign.Bento) {
+        // ZX Reimagined shares the calmer Bento palette system; the neon HUD
+        // palette is intentionally retired from the active design path.
         remember(bentoColors) { bentoColorScheme(bentoColors) }
     } else {
         (system ?: rememberZedColorScheme(darkTheme, accentColor, colorStyle, colorContrast))
             .let { if (amoledBlack) it.amoled(darkTheme) else it }
     }
+    val zxPsStyle = remember(zxPsColors, zxPs) { ZxPsStyle(zxPsColors, zxPs) }
     val bentoStyle = remember(bentoColors, bento, languageTag) { BentoStyle(bentoColors, bento, latin = languageTag != "fa") }
     val colorScheme = if (animateColors) {
         animateColorScheme(scheme, animationSpec = { spring(stiffness = Spring.StiffnessMediumLow) })
@@ -79,13 +96,18 @@ fun ZedSecureTheme(
     MaterialExpressiveTheme(
         colorScheme = colorScheme,
         motionScheme = MotionScheme.expressive(),
-        shapes = ZedShapes,
+        shapes = when (design) {
+            AppDesign.Zx -> ZedShapes
+            AppDesign.ZxPs -> remember(zxPs.tile) { zxPsShapes(zxPs.tile) }
+            else -> ZedShapes
+        },
         typography = typographyFor(languageTag, design, font),
     ) {
         CompositionLocalProvider(
             LocalDensity provides scaled,
             LocalAppDesign provides design,
             LocalBentoStyle provides bentoStyle,
+            LocalZxPsStyle provides zxPsStyle,
             content = content,
         )
     }

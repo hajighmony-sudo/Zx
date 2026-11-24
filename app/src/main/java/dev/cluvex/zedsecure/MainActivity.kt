@@ -299,6 +299,8 @@ class MainActivity : ComponentActivity() {
                 colorContrast = settings.colorContrast,
                 design = settings.appDesign,
                 bento = settings.bento,
+                zxAnim = settings.zxAnim,
+                zxPs = settings.zxPs,
                 animateColors = !settings.reduceMotion,
                 languageTag = langTag,
                 fontScale = settings.uiFontScale.scale,
@@ -334,6 +336,7 @@ class MainActivity : ComponentActivity() {
                         configRepository = configRepository,
                         onToggleConnection = ::toggleConnection,
                         onActiveServerChanged = ::switchActiveServer,
+                        onDnsAutoConnect = ::connectDnsAutoProfile,
                         onImportZsx = ::importZsx,
                         onUpdateSettings = repo::update,
                         onLanguage = { lang ->
@@ -375,6 +378,28 @@ class MainActivity : ComponentActivity() {
                 return@launch
             }
 
+            delay(switchSettleMs)
+            toggleConnection()
+        }
+    }
+
+    /** DNS AUTO saves a new active profile and immediately starts it, replacing any old session safely. */
+    private fun connectDnsAutoProfile() {
+        val state = VpnManager.status.value.state
+        if (!state.isActive && !state.isTransitioning) {
+            toggleConnection()
+            return
+        }
+        lifecycleScope.launch {
+            toggleConnection()
+            val stopped = withTimeoutOrNull(switchStopTimeoutMs) {
+                VpnManager.status.first { !it.state.isActive && !it.state.isTransitioning }
+                true
+            } != null
+            if (!stopped) {
+                toast(getString(R.string.switch_server_timeout))
+                return@launch
+            }
             delay(switchSettleMs)
             toggleConnection()
         }
