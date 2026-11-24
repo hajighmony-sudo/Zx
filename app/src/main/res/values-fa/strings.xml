@@ -680,4 +680,11 @@
     <string name="widget_upload">آپلود</string>
     <string name="widget_toggle_label">کلید ZX VPN</string>
     <string name="widget_toggle_description">با یک لمس وصل یا قطع کنید.</string>
+    <string name="quick_connect_title">ZX VPN</string>
+    <string name="quick_connect_subtitle">اتصال سریع</string>
+    <string name="quick_connect_empty">هنوز کانفیگی ذخیره نشده است</string>
+    <string name="quick_connect_connected">متصل</string>
+    <string name="quick_connect_connecting">در حال اتصال…</string>
+    <string name="quick_connect_timeout">پاسخی دریافت نشد</string>
+    <string name="quick_connect_unavailable">در دسترس نیست</string>
 </resources>
