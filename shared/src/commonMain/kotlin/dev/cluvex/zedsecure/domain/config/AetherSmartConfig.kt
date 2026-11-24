@@ -88,7 +88,7 @@ object AetherSmartConfig {
         }
         val scan = when {
             input.goal == AetherSmartGoal.Stealth -> "verified"
-            edgeBlocked || unstable || networkUnvalidated -> "thorough"
+            edgeBlocked || unstable || networkUnvalidated || hostile || sniFiltered -> "thorough"
             input.goal == AetherSmartGoal.Speed -> "turbo"
             fastEdge && !apiDegraded -> "turbo"
             slow || weak -> "turbo"
