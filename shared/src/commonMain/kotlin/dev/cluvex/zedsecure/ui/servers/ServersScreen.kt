@@ -2908,6 +2908,8 @@ private fun AetherSmartDialog(
             apiReachable = probe.apiMs != null,
             edgeJitterMs = probe.edgeJitterMs,
             link = dev.cluvex.zedsecure.platform.detectLinkQuality(),
+            edgeLossPercent = probe.edgeLossPercent,
+            apiLossPercent = probe.apiLossPercent,
         )
         lastInput = input
         profile = dev.cluvex.zedsecure.domain.config.AetherSmartConfig.build(input.copy(goal = goal))
