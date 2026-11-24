@@ -126,9 +126,23 @@ build_psiphon() {
     echo "Pinned Psiphon build script changed; review its linker flags before patching." >&2
     exit 1
   fi
-  sed 's/go build -trimpath -ldflags "-s -w"/go build -trimpath -ldflags "-s -w -checklinkname=0"/' \
+  sed \
+    -e 's/go build -trimpath -ldflags "-s -w"/go build -trimpath -ldflags "-s -w -checklinkname=0"/' \
+    -e 's/CGO_ENABLED=0 GOFLAGS=/CGO_ENABLED="${CGO_ENABLED:-0}" GOFLAGS=/' \
     "$AETHER_ROOT/psiphon-build.sh" > "$psiphon_build"
-  bash "$psiphon_build" android "$goarch" "$out" "$goarm" "$licenses"
+
+  if [ "$abi" = "armeabi-v7a" ]; then
+    # Go's android/arm port requires cgo and external linking. Use the NDK's
+    # API-matched ARMv7 clang wrapper; arm64 and x86_64 remain pure-Go builds.
+    local clang="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi${API}-clang"
+    [ -x "$clang" ] || {
+      echo "Android NDK ARMv7 clang wrapper not found: $clang" >&2
+      exit 1
+    }
+    CGO_ENABLED=1 CC="$clang" bash "$psiphon_build" android "$goarch" "$out" "$goarm" "$licenses"
+  else
+    bash "$psiphon_build" android "$goarch" "$out" "$goarm" "$licenses"
+  fi
   [ -s "$out/psiphon-tunnel-core" ] || {
     echo "Psiphon Android executable was not produced for $abi" >&2
     exit 1
