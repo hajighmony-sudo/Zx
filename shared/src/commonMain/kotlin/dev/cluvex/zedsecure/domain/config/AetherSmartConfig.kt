@@ -27,6 +27,12 @@ data class AetherSmartInput(
     val udpReachable: Boolean? = null,
     /** Full TLS handshake with Cloudflare SNI; null when unavailable. */
     val tlsSniReachable: Boolean? = null,
+    /** TCP/443 reachability helps separate routing/port failure from TLS-stage interference. */
+    val tcp443Reachable: Boolean? = null,
+    /** Compare system-resolver A answers with independent DNS-over-HTTPS answers. */
+    val dnsSystemMatchesDoh: Boolean? = null,
+    /** Recent OONI anomaly ratio for the same country/ASN; contextual, not device proof. */
+    val ooniAnomalyPercent: Int? = null,
 )
 
 /**
@@ -74,21 +80,29 @@ object AetherSmartConfig {
         }
         val networkUnvalidated = link?.validated == false
         val udpThrottled = input.udpReachable == false
-        val sniFiltered = input.tlsSniReachable == false
-        val hostile = udpThrottled && sniFiltered
+        val dnsTampering = input.dnsSystemMatchesDoh == false
+        val tcp443Blocked = input.tcp443Reachable == false
+        // A TLS failure is an SNI/TLS signal only when TCP/443 itself is reachable.
+        val sniFiltered = input.tlsSniReachable == false && input.tcp443Reachable != false
+        val hostile = (udpThrottled && sniFiltered) || (dnsTampering && tcp443Blocked)
+        val communityCorroboration = (input.ooniAnomalyPercent ?: 0) >= OONI_HIGH_ANOMALY_PERCENT
         val speedOverride = input.goal == AetherSmartGoal.Speed &&
             !edgeBlocked && !unstable && !networkUnvalidated && !udpThrottled && !sniFiltered
         val strict = edgeBlocked || unstable || networkUnvalidated || sniFiltered || hostile ||
+            dnsTampering || tcp443Blocked || communityCorroboration ||
             input.goal == AetherSmartGoal.Stealth
 
         val noize = when {
-            hostile || edgeBlocked || unstable || networkUnvalidated || input.goal == AetherSmartGoal.Stealth -> "gfw"
-            cellular || weak || apiDegraded || udpThrottled || sniFiltered -> "firewall"
+            hostile || edgeBlocked || unstable || networkUnvalidated || communityCorroboration ||
+                input.goal == AetherSmartGoal.Stealth -> "gfw"
+            cellular || weak || apiDegraded || udpThrottled || sniFiltered ||
+                dnsTampering || tcp443Blocked -> "firewall"
             else -> "balanced"
         }
         val scan = when {
             input.goal == AetherSmartGoal.Stealth -> "verified"
-            edgeBlocked || unstable || networkUnvalidated || hostile || sniFiltered -> "thorough"
+            edgeBlocked || unstable || networkUnvalidated || hostile || sniFiltered ||
+                dnsTampering || tcp443Blocked || communityCorroboration -> "thorough"
             input.goal == AetherSmartGoal.Speed -> "turbo"
             fastEdge && !apiDegraded -> "turbo"
             slow || weak -> "turbo"
@@ -98,7 +112,8 @@ object AetherSmartConfig {
         // Prefer TCP-carried MASQUE where the physical link is metered, cellular,
         // weak, unstable, or not demonstrably friendly to the faster UDP path.
         val h2 = !speedOverride && (
-            cellular || strict || weak || !udpFriendlyHint || apiDegraded || udpThrottled || sniFiltered
+            cellular || strict || weak || !udpFriendlyHint || apiDegraded || udpThrottled ||
+                sniFiltered || dnsTampering || tcp443Blocked || communityCorroboration
             )
 
         return AetherProfile(
@@ -132,5 +147,6 @@ object AetherSmartConfig {
     private const val WEAK_DOWN_KBPS = 5_000
     private const val WEAK_UP_KBPS = 1_000
     private const val WEAK_SIGNAL_DBM = -105
+    private const val OONI_HIGH_ANOMALY_PERCENT = 60
     private const val CLOUDFLARE_API_FALLBACK = "162.159.137.105"
 }
