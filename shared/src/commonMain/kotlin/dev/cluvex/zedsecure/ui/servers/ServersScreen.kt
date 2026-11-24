@@ -3051,28 +3051,23 @@ private fun AetherSmartDialog(
                             }
                         }
                     }
-                    Surface(
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.surfaceVariant,
+                    OutlinedTextField(
+                        value = p.commandPreview(),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Aether command · generated automatically") },
+                        minLines = 2,
+                        maxLines = 5,
                         modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text("Aether command · generated automatically", fontWeight = FontWeight.SemiBold,
-                                style = MaterialTheme.typography.labelMedium)
-                            Text(
-                                p.commandPreview(),
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                ),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                "SOCKS port and Aether home path are assigned automatically when the tunnel starts.",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
+                        textStyle = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                        ),
+                    )
+                    Text(
+                        "SOCKS port and Aether home path are assigned automatically when the tunnel starts. The app executes these arguments directly; no manual command or paid config is required.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     if (edgeMs == null || apiMs == null) {
                         Text(
                             stringResource(Res.string.aether_smart_blocked_note),
