@@ -109,17 +109,22 @@ object AetherSmartProbe {
                 val response = httpGetResponse(endpoint, USER_AGENT, null, TIMEOUT_MS, TIMEOUT_MS)
                 require(response.code in 200..299)
                 val root = json.parseToJsonElement(response.body).jsonObject
-                val org = sequenceOf("org", "as", "isp", "organization")
+                val asText = sequenceOf("as", "org")
                     .mapNotNull { key -> root[key]?.jsonPrimitive?.contentOrNull }
                     .firstOrNull { it.isNotBlank() }.orEmpty()
-                val asn = Regex("(?i)AS\\d+").find(org)?.value?.uppercase()
+                val asn = Regex("(?i)AS\\d+").find(asText)?.value?.uppercase()
+                val provider = sequenceOf("isp", "organization", "org")
+                    .mapNotNull { key -> root[key]?.jsonPrimitive?.contentOrNull }
+                    .firstOrNull { it.isNotBlank() }
+                    ?: asText.substringAfter(asn ?: "\u0000").trim().takeIf { it.isNotBlank() }
+                val country = sequenceOf("countryCode", "country_code", "country")
+                    .mapNotNull { root[it]?.jsonPrimitive?.contentOrNull }
+                    .firstOrNull { it.length == 2 }
                 IpIdentity(
                     ip = sequenceOf("ip", "query").mapNotNull { root[it]?.jsonPrimitive?.contentOrNull }.firstOrNull(),
-                    isp = org.substringAfter(asn ?: "\u0000").trim().takeIf { it.isNotBlank() } ?: org.takeIf { it.isNotBlank() },
+                    isp = provider,
                     asn = asn,
-                    countryCode = sequenceOf("country", "countryCode", "country_code")
-                        .mapNotNull { root[it]?.jsonPrimitive?.contentOrNull }
-                        .firstOrNull()?.uppercase(),
+                    countryCode = country?.uppercase(),
                 )
             }.getOrNull()
             if (identity != null && (identity.ip != null || identity.asn != null || identity.countryCode != null)) {
@@ -174,5 +179,5 @@ object AetherSmartProbe {
     private const val IPMYP_URL = "https://api.ipmyp.ir/json"
     private val IP_IDENTITY_ENDPOINTS = listOf(IPINFO_URL, IPMYP_URL)
     private const val DOH_URL = "https://cloudflare-dns.com/dns-query?name=example.com&type=A"
-    private const val OONI_URL = "https://api.ooni.org/api/v1/measurements"
+    private const val OONI_URL = "https://api.ooni.io/api/v1/measurements"
 }
