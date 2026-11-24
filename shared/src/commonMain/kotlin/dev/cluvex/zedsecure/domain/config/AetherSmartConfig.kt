@@ -23,6 +23,10 @@ data class AetherSmartInput(
     /** Packet-like loss estimate from repeated HTTPS reachability samples (0..100). */
     val edgeLossPercent: Int? = null,
     val apiLossPercent: Int? = null,
+    /** Direct UDP/53 round-trip probe; null when the platform cannot test it. */
+    val udpReachable: Boolean? = null,
+    /** Full TLS handshake with Cloudflare SNI; null when unavailable. */
+    val tlsSniReachable: Boolean? = null,
 )
 
 /**
@@ -69,14 +73,17 @@ object AetherSmartConfig {
             else -> input.network == NetworkKind.Wifi || input.network == NetworkKind.Ethernet
         }
         val networkUnvalidated = link?.validated == false
+        val udpThrottled = input.udpReachable == false
+        val sniFiltered = input.tlsSniReachable == false
+        val hostile = udpThrottled && sniFiltered
         val speedOverride = input.goal == AetherSmartGoal.Speed &&
             !edgeBlocked && !unstable && !networkUnvalidated
-        val strict = edgeBlocked || unstable || networkUnvalidated ||
+        val strict = edgeBlocked || unstable || networkUnvalidated || sniFiltered || hostile ||
             input.goal == AetherSmartGoal.Stealth
 
         val noize = when {
-            strict -> "gfw"
-            cellular || weak || apiDegraded -> "firewall"
+            hostile || edgeBlocked || unstable || networkUnvalidated || input.goal == AetherSmartGoal.Stealth -> "gfw"
+            cellular || weak || apiDegraded || udpThrottled || sniFiltered -> "firewall"
             else -> "balanced"
         }
         val scan = when {
@@ -91,7 +98,7 @@ object AetherSmartConfig {
         // Prefer TCP-carried MASQUE where the physical link is metered, cellular,
         // weak, unstable, or not demonstrably friendly to the faster UDP path.
         val h2 = !speedOverride && (
-            cellular || strict || weak || !udpFriendlyHint || apiDegraded
+            cellular || strict || weak || !udpFriendlyHint || apiDegraded || udpThrottled || sniFiltered
             )
 
         return AetherProfile(
@@ -102,7 +109,7 @@ object AetherSmartConfig {
             ipVersion = if (input.hasIpv6) "both" else "v4",
             noize = noize,
             http2 = h2,
-            fragment = h2 && strict,
+            fragment = h2 && (strict || udpThrottled || sniFiltered),
             apiAddress = if (apiBlocked || apiDegraded) CLOUDFLARE_API_FALLBACK else "",
         )
     }
