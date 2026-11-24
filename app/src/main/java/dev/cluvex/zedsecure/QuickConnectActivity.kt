@@ -168,11 +168,17 @@ class QuickConnectActivity : ComponentActivity() {
                 snapshot.map { profile ->
                     async {
                         val latency = permits.withPermit {
-                            if (profile.address.isBlank() || profile.address == "-" || profile.port !in 1..65535) {
-                                -1L
-                            } else {
-                                runCatching { PingService.tcpPing(profile.address, profile.port) }
-                                    .getOrDefault(-1L)
+                            when {
+                                profile.isManagedTunnel || profile.isProxyChain -> null
+                                profile.address.isBlank() || profile.address == "-" || profile.port !in 1..65535 -> null
+                                profile.protocol.uppercase() in UDP_PING_PROTOCOLS ->
+                                    runCatching { PingService.realDelay(profile) }
+                                        .getOrDefault(-1L)
+                                        .let { it.takeIf { value -> value > 0 }?.toInt() ?: PingService.FAILED_PING }
+                                else ->
+                                    runCatching { PingService.tcpPing(profile.address, profile.port) }
+                                        .getOrDefault(-1L)
+                                        .let { it.takeIf { value -> value > 0 }?.toInt() ?: PingService.FAILED_PING }
                             }
                         }
                         profile.id to latency
@@ -180,7 +186,7 @@ class QuickConnectActivity : ComponentActivity() {
                 }.awaitAll()
             }
             results.forEach { (id, latency) ->
-                configRepository.setPing(id, latency.takeIf { it > 0 }?.toInt() ?: PingService.FAILED_PING, persist = false)
+                configRepository.setPing(id, latency, persist = false)
                 pingingProfiles[id] = false
             }
             configRepository.flushProfiles()
@@ -276,6 +282,9 @@ class QuickConnectActivity : ComponentActivity() {
 
     private fun toast(message: String) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    }
+    private companion object {
+        val UDP_PING_PROTOCOLS = setOf("WIREGUARD", "AMNEZIAWG", "HYSTERIA", "MASQUE")
     }
 }
 
