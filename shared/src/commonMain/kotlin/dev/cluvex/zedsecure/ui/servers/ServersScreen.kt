@@ -2876,6 +2876,8 @@ private fun AetherSmartDialog(
     var network by remember { mutableStateOf<dev.cluvex.zedsecure.platform.NetworkKind?>(null) }
     var edgeMs by remember { mutableStateOf<Int?>(null) }
     var apiMs by remember { mutableStateOf<Int?>(null) }
+    var udpReachable by remember { mutableStateOf<Boolean?>(null) }
+    var tlsSniReachable by remember { mutableStateOf<Boolean?>(null) }
     var ipv6 by remember { mutableStateOf<Boolean?>(null) }
     var probed by remember { mutableStateOf(false) }
     var goal by remember { mutableStateOf(dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Auto) }
@@ -2884,6 +2886,7 @@ private fun AetherSmartDialog(
     var lastInput by remember { mutableStateOf<dev.cluvex.zedsecure.domain.config.AetherSmartInput?>(null) }
     LaunchedEffect(scanNonce) {
         profile = null; probed = false; ipv6 = null; edgeMs = null; apiMs = null
+        udpReachable = null; tlsSniReachable = null
         val kind = dev.cluvex.zedsecure.platform.detectNetworkKind()
         network = kind
         val infoJob = async {
@@ -2895,6 +2898,8 @@ private fun AetherSmartDialog(
         edgeMs = probe.edgeMs
         apiMs = probe.apiMs
         edgeJitter = probe.edgeJitterMs
+        udpReachable = probe.udpReachable
+        tlsSniReachable = probe.tlsSniReachable
         probed = true
         val info = infoJob.await()
         ipv6 = !info?.ipv6.isNullOrBlank()
@@ -2948,6 +2953,10 @@ private fun AetherSmartDialog(
                     stringResource(Res.string.aether_smart_step_api), probed, apiMs != null,
                     if (apiMs != null) okText else blockedText,
                 )
+                SmartStepRow("UDP / DNS", udpReachable != null, udpReachable == true,
+                    if (udpReachable == true) okText else blockedText)
+                SmartStepRow("TLS / SNI", tlsSniReachable != null, tlsSniReachable == true,
+                    if (tlsSniReachable == true) okText else blockedText)
                 SmartStepRow(
                     stringResource(Res.string.aether_smart_step_ip), ipv6 != null, ipv6 == true,
                     if (ipv6 == true) okText else naText,
