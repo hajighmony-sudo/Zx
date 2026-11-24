@@ -315,7 +315,7 @@ private fun QuickConnectContent(
                         text = when {
                             connectionState.isActive -> serverName ?: stringResource(R.string.quick_connect_connected)
                             connectionState.isTransitioning -> stringResource(R.string.quick_connect_connecting)
-                            else -> stringResource(R.string.quick_connect_subtitle),
+                            else -> stringResource(R.string.quick_connect_subtitle)
                         },
                         color = Color(0xFFB8BBC4),
                         fontSize = 13.sp,
@@ -376,7 +376,7 @@ private fun QuickConnectContent(
                                     text = when {
                                         connecting -> stringResource(R.string.quick_connect_connecting)
                                         selected && connectionState.isActive -> "Connected"
-                                        else -> profile.protocol,
+                                        else -> profile.protocol
                                     },
                                     color = Color(0xFFB8BBC4),
                                     fontSize = 12.sp,
