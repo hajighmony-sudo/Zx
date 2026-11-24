@@ -145,6 +145,26 @@ class AetherProfileTest {
     }
 
     @Test
+    fun smartSpeedGoalDoesNotForceUdpWhenFingerprintShowsThrottling() {
+        val profile = AetherSmartConfig.build(
+            AetherSmartInput(
+                network = dev.cluvex.zedsecure.platform.NetworkKind.Wifi,
+                goal = AetherSmartGoal.Speed,
+                edgeReachable = true,
+                edgeMs = 80,
+                apiReachable = true,
+                udpReachable = false,
+                tlsSniReachable = true,
+                edgeLossPercent = 0,
+                apiLossPercent = 0,
+            ),
+        )
+
+        assertTrue(profile.http2)
+        assertTrue(profile.fragment)
+    }
+
+    @Test
     fun smartUsesStrongObfuscationWhenUdpAndSniBothFail() {
         val profile = AetherSmartConfig.build(
             AetherSmartInput(
