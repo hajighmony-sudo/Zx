@@ -184,6 +184,64 @@ class AetherProfileTest {
         assertEquals("thorough", profile.scanMode)
     }
 
+
+    @Test
+    fun smartTreatsDnsMismatchAsPotentialTamperingAndUsesConservativeTransport() {
+        val profile = AetherSmartConfig.build(
+            AetherSmartInput(
+                network = dev.cluvex.zedsecure.platform.NetworkKind.Wifi,
+                edgeReachable = true,
+                apiReachable = true,
+                udpReachable = true,
+                tcp443Reachable = true,
+                tlsSniReachable = true,
+                dnsSystemMatchesDoh = false,
+            ),
+        )
+
+        assertTrue(profile.http2)
+        assertTrue(profile.fragment)
+        assertEquals("firewall", profile.noize)
+        assertEquals("thorough", profile.scanMode)
+    }
+
+    @Test
+    fun smartDistinguishesTcp443FailureFromTlsStageInterference() {
+        val profile = AetherSmartConfig.build(
+            AetherSmartInput(
+                network = dev.cluvex.zedsecure.platform.NetworkKind.Wifi,
+                edgeReachable = true,
+                apiReachable = true,
+                tcp443Reachable = false,
+                tlsSniReachable = false,
+                udpReachable = true,
+            ),
+        )
+
+        assertTrue(profile.http2)
+        assertEquals("firewall", profile.noize)
+    }
+
+    @Test
+    fun recentOoniAsnAnomaliesCorroborateButCountryAloneDoesNot() {
+        val profile = AetherSmartConfig.build(
+            AetherSmartInput(
+                network = dev.cluvex.zedsecure.platform.NetworkKind.Wifi,
+                countryCode = "XX",
+                edgeReachable = true,
+                apiReachable = true,
+                tcp443Reachable = true,
+                tlsSniReachable = true,
+                udpReachable = true,
+                ooniAnomalyPercent = 75,
+            ),
+        )
+
+        assertTrue(profile.http2)
+        assertEquals("gfw", profile.noize)
+        assertEquals("thorough", profile.scanMode)
+    }
+
     @Test
     fun smartUsesApiFallbackWhenRepeatedApiSamplesAreDegraded() {
         val profile = AetherSmartConfig.build(
