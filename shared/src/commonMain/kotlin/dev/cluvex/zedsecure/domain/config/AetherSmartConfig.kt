@@ -87,7 +87,8 @@ object AetherSmartConfig {
         val hostile = (udpThrottled && sniFiltered) || (dnsTampering && tcp443Blocked)
         val communityCorroboration = (input.ooniAnomalyPercent ?: 0) >= OONI_HIGH_ANOMALY_PERCENT
         val speedOverride = input.goal == AetherSmartGoal.Speed &&
-            !edgeBlocked && !unstable && !networkUnvalidated && !udpThrottled && !sniFiltered
+            !edgeBlocked && !unstable && !networkUnvalidated && !udpThrottled && !sniFiltered &&
+            !dnsTampering && !tcp443Blocked && !communityCorroboration
         val strict = edgeBlocked || unstable || networkUnvalidated || sniFiltered || hostile ||
             dnsTampering || tcp443Blocked || communityCorroboration ||
             input.goal == AetherSmartGoal.Stealth
