@@ -2878,6 +2878,13 @@ private fun AetherSmartDialog(
     var apiMs by remember { mutableStateOf<Int?>(null) }
     var udpReachable by remember { mutableStateOf<Boolean?>(null) }
     var tlsSniReachable by remember { mutableStateOf<Boolean?>(null) }
+    var tcp443Reachable by remember { mutableStateOf<Boolean?>(null) }
+    var dnsSystemMatchesDoh by remember { mutableStateOf<Boolean?>(null) }
+    var publicIp by remember { mutableStateOf<String?>(null) }
+    var isp by remember { mutableStateOf<String?>(null) }
+    var asn by remember { mutableStateOf<String?>(null) }
+    var ooniAnomalyPercent by remember { mutableStateOf<Int?>(null) }
+    var ooniSamples by remember { mutableStateOf(0) }
     var ipv6 by remember { mutableStateOf<Boolean?>(null) }
     var probed by remember { mutableStateOf(false) }
     var goal by remember { mutableStateOf(dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Auto) }
@@ -2887,6 +2894,9 @@ private fun AetherSmartDialog(
     LaunchedEffect(scanNonce) {
         profile = null; probed = false; ipv6 = null; edgeMs = null; apiMs = null
         udpReachable = null; tlsSniReachable = null
+        tcp443Reachable = null; dnsSystemMatchesDoh = null
+        publicIp = null; isp = null; asn = null
+        ooniAnomalyPercent = null; ooniSamples = 0
         val kind = dev.cluvex.zedsecure.platform.detectNetworkKind()
         network = kind
         val infoJob = async {
@@ -2900,6 +2910,13 @@ private fun AetherSmartDialog(
         edgeJitter = probe.edgeJitterMs
         udpReachable = probe.udpReachable
         tlsSniReachable = probe.tlsSniReachable
+        tcp443Reachable = probe.tcp443Reachable
+        dnsSystemMatchesDoh = probe.dnsSystemMatchesDoh
+        publicIp = probe.publicIp
+        isp = probe.isp
+        asn = probe.asn
+        ooniAnomalyPercent = probe.ooniAnomalyPercent
+        ooniSamples = probe.ooniSamples
         probed = true
         val info = infoJob.await()
         ipv6 = !info?.ipv6.isNullOrBlank()
@@ -2907,7 +2924,7 @@ private fun AetherSmartDialog(
             network = kind,
             hasIpv6 = ipv6 == true,
             pingMs = info?.pingMs,
-            countryCode = info?.countryCode,
+            countryCode = probe.countryCode ?: info?.countryCode,
             edgeReachable = probe.edgeMs != null,
             edgeMs = probe.edgeMs,
             apiReachable = probe.apiMs != null,
@@ -2917,6 +2934,9 @@ private fun AetherSmartDialog(
             apiLossPercent = probe.apiLossPercent,
             udpReachable = probe.udpReachable,
             tlsSniReachable = probe.tlsSniReachable,
+            tcp443Reachable = probe.tcp443Reachable,
+            dnsSystemMatchesDoh = probe.dnsSystemMatchesDoh,
+            ooniAnomalyPercent = probe.ooniAnomalyPercent,
         )
         lastInput = input
         profile = dev.cluvex.zedsecure.domain.config.AetherSmartConfig.build(input.copy(goal = goal))
@@ -2955,8 +2975,21 @@ private fun AetherSmartDialog(
                 )
                 SmartStepRow("UDP / DNS", udpReachable != null, udpReachable == true,
                     if (udpReachable == true) okText else blockedText)
+                SmartStepRow("TCP / 443", tcp443Reachable != null, tcp443Reachable == true,
+                    if (tcp443Reachable == true) okText else blockedText)
                 SmartStepRow("TLS / SNI", tlsSniReachable != null, tlsSniReachable == true,
                     if (tlsSniReachable == true) okText else blockedText)
+                SmartStepRow("DNS integrity", dnsSystemMatchesDoh != null, dnsSystemMatchesDoh == true,
+                    when (dnsSystemMatchesDoh) { true -> "Matches DoH"; false -> "Mismatch"; null -> naText })
+                SmartStepRow("OONI · ASN", ooniAnomalyPercent != null, (ooniAnomalyPercent ?: 0) < 60,
+                    if (ooniAnomalyPercent != null) "$ooniAnomalyPercent% anomalies · $ooniSamples samples" else "No recent public sample")
+                if (publicIp != null || isp != null || asn != null) {
+                    Text(
+                        listOfNotNull(publicIp, isp, asn).joinToString(" · "),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 SmartStepRow(
                     stringResource(Res.string.aether_smart_step_ip), ipv6 != null, ipv6 == true,
                     if (ipv6 == true) okText else naText,
