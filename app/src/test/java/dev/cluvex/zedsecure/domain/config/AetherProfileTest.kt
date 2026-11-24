@@ -85,4 +85,59 @@ class AetherProfileTest {
         val profile = AetherSmartConfig.build(AetherSmartInput())
         assertEquals(profile, AetherProfile.decode(AetherProfile.encode(profile)))
     }
+
+    @Test
+    fun smartUsesMeasuredLossToChooseConservativeTransport() {
+        val profile = AetherSmartConfig.build(
+            AetherSmartInput(
+                network = dev.cluvex.zedsecure.platform.NetworkKind.Wifi,
+                edgeReachable = true,
+                edgeMs = 180,
+                apiReachable = true,
+                edgeJitterMs = 240,
+                edgeLossPercent = 34,
+                apiLossPercent = 0,
+            ),
+        )
+
+        assertEquals("thorough", profile.scanMode)
+        assertEquals("gfw", profile.noize)
+        assertTrue(profile.http2)
+        assertTrue(profile.fragment)
+    }
+
+    @Test
+    fun smartDoesNotTreatCountryAsProofOfDpiFiltering() {
+        val profile = AetherSmartConfig.build(
+            AetherSmartInput(
+                network = dev.cluvex.zedsecure.platform.NetworkKind.Wifi,
+                countryCode = "RU",
+                edgeReachable = true,
+                edgeMs = 90,
+                apiReachable = true,
+                edgeJitterMs = 10,
+                edgeLossPercent = 0,
+                apiLossPercent = 0,
+            ),
+        )
+
+        assertEquals("balanced", profile.noize)
+        assertFalse(profile.http2)
+    }
+
+    @Test
+    fun smartUsesApiFallbackWhenRepeatedApiSamplesAreDegraded() {
+        val profile = AetherSmartConfig.build(
+            AetherSmartInput(
+                network = dev.cluvex.zedsecure.platform.NetworkKind.Wifi,
+                edgeReachable = true,
+                apiReachable = true,
+                edgeLossPercent = 0,
+                apiLossPercent = 67,
+            ),
+        )
+
+        assertEquals("162.159.137.105", profile.apiAddress)
+        assertTrue(profile.http2)
+    }
 }
