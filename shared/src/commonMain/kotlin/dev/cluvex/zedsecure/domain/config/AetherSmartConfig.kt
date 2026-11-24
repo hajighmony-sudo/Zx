@@ -77,7 +77,7 @@ object AetherSmartConfig {
         val sniFiltered = input.tlsSniReachable == false
         val hostile = udpThrottled && sniFiltered
         val speedOverride = input.goal == AetherSmartGoal.Speed &&
-            !edgeBlocked && !unstable && !networkUnvalidated
+            !edgeBlocked && !unstable && !networkUnvalidated && !udpThrottled && !sniFiltered
         val strict = edgeBlocked || unstable || networkUnvalidated || sniFiltered || hostile ||
             input.goal == AetherSmartGoal.Stealth
 
