@@ -7,4 +7,5 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 
 @Composable
-actual fun rememberAppSheetState(): SheetState = rememberModalBottomSheetState()
+actual fun rememberAppSheetState(skipPartiallyExpanded: Boolean): SheetState =
+    rememberModalBottomSheetState(skipPartiallyExpanded = skipPartiallyExpanded)
