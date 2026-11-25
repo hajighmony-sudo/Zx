@@ -79,14 +79,6 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-    private var pendingConnectAfterCameraPermission = false
-    private val flashCameraPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-            val shouldContinue = pendingConnectAfterCameraPermission
-            pendingConnectAfterCameraPermission = false
-            if (shouldContinue) toggleConnection(skipFlashPermissionCheck = true)
-        }
-
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
@@ -413,7 +405,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun toggleConnection(skipFlashPermissionCheck: Boolean = false) {
+    private fun toggleConnection() {
         val state = VpnManager.status.value.state
         if (state.isActive || state.isTransitioning) {
             if (dev.cluvex.zedsecure.core.Ikev2Controller.isActive) {
@@ -427,14 +419,6 @@ class MainActivity : ComponentActivity() {
         val profile = configRepository.activeProfile()
         if (profile == null) {
             toast(getString(R.string.select_config_first))
-            return
-        }
-        if (!skipFlashPermissionCheck &&
-            settingsRepository.settings.value.flashConnectionSignals &&
-            checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED
-        ) {
-            pendingConnectAfterCameraPermission = true
-            flashCameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
             return
         }
         planning = true
