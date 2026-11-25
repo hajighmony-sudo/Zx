@@ -129,8 +129,10 @@ data class GhostSettings(
     val enabled: Boolean = false,
     /** DNS-based adult-content filtering and SafeSearch enforcement while the VPN is active. */
     val adultContentProtectionEnabled: Boolean = false,
-    /** Extra hosts the user wants blocked by the anti-porn filter, one per line. */
+    /** Extra hostnames or full URLs the user wants blocked by content protection. */
     val adultExtraDomains: String = "",
+    /** Optional exceptions; these domains are routed normally before protection rules. */
+    val adultAllowedDomains: String = "",
     val autoMode: Boolean = false,
 
     // Legacy serialized keys retained for existing installs; GHOST no longer reads these values.
