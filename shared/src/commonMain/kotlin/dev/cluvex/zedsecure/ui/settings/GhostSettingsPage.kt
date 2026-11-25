@@ -63,8 +63,8 @@ fun GhostSettingsPage(
                 },
             )
             SettingsSwitchRow(
-                title = "ضد Porn",
-                summary = "DNS خانوادگی، مسدودسازی دامنه‌ها و SafeSearch در سرویس‌های پشتیبانی‌شده؛ هنگام اتصال VPN اعمال می‌شود",
+                title = "محافظت محتوایی",
+                summary = "فیلتر محتوای نامناسب و SafeSearch برای ترافیک عبوری از VPN",
                 checked = ghost.adultContentProtectionEnabled,
                 onCheckedChange = { v ->
                     onUpdate {
@@ -72,25 +72,41 @@ fun GhostSettingsPage(
                     }
                 },
             )
-            Text(
-                text = "این حالت از Family Filter استفاده می‌کند و SafeSearch را در سرویس‌های پشتیبانی‌شده فعال می‌کند. برای اعمال تغییر، VPN را دوباره وصل کن. DNS رمزگذاری‌شدهٔ مستقل در بعضی برنامه‌ها یا VPN دیگر ممکن است این سیاست را دور بزند؛ فیلتر تضمین صددرصدی نیست.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             if (ghost.adultContentProtectionEnabled) {
+                Text(
+                    text = "حالت محافظت از DNS خانوادگی، فهرست دامنه‌های داخلی و قوانین مسیریابی GHOST استفاده می‌کند. برای اعمال تغییرات، اتصال VPN را یک‌بار قطع و وصل کن.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 androidx.compose.material3.OutlinedTextField(
                     value = ghost.adultExtraDomains,
                     onValueChange = { v ->
-                        onUpdate { it.copy(ghost = it.ghost.copy(adultExtraDomains = v.take(8000))) }
+                        onUpdate { it.copy(ghost = it.ghost.copy(adultExtraDomains = v.take(16000))) }
                     },
-                    label = { Text("دامنه‌های اضافهٔ مسدود (هر خط یکی)") },
-                    placeholder = { Text("example.com") },
-                    minLines = 2,
-                    maxLines = 6,
+                    label = { Text("سایت‌ها و لینک‌های مسدود") },
+                    placeholder = { Text("https://example.com/page یا example.org") },
+                    minLines = 3,
+                    maxLines = 7,
                     modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
                 )
                 Text(
-                    text = "علاوه بر لیست داخلی، این دامنه‌ها هم هنگام اتصال مسدود می‌شوند. هم‌زمان نشانی‌های DNS رمزگذاری‌شدهٔ عمومی (مثل dns.google و cloudflare-dns.com) بسته می‌شوند تا مرورگرها نتوانند فیلتر DNS را دور بزنند.",
+                    text = "لینک کامل یا فقط دامنه را وارد کن؛ مسیر صفحه و پارامترها حذف می‌شوند و دامنه و زیردامنه‌های آن مسدود می‌شوند. هر مورد را در یک خط بنویس.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                androidx.compose.material3.OutlinedTextField(
+                    value = ghost.adultAllowedDomains,
+                    onValueChange = { v ->
+                        onUpdate { it.copy(ghost = it.ghost.copy(adultAllowedDomains = v.take(8000))) }
+                    },
+                    label = { Text("استثناها / سایت‌های مجاز") },
+                    placeholder = { Text("https://example.net یا example.net") },
+                    minLines = 2,
+                    maxLines = 5,
+                    modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
+                )
+                Text(
+                    text = "سایت‌های این فهرست از قانون مسدودسازی GHOST مستثنا می‌شوند و مثل ترافیک عادی از VPN عبور می‌کنند. اگر یک دامنه هم در دو فهرست باشد، استثنا اولویت دارد.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
