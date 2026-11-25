@@ -1727,7 +1727,12 @@ class ZedVpnService : VpnService() {
     private val tearingDown = java.util.concurrent.atomic.AtomicBoolean(false)
 
     private fun setFlashTorch(enabled: Boolean) {
-        if (!flashSignalsEnabled || checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
+        // Re-read the live preference for each ON pulse; always allow OFF so a
+        // setting change or cancellation cannot leave the LED illuminated.
+        if (enabled && (!flashSignalsEnabled ||
+                !SettingsRepository(this).settings.value.flashConnectionSignals)
+        ) return
+        if (checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
         runCatching {
             val manager = getSystemService(android.hardware.camera2.CameraManager::class.java) ?: return
             val cameraId = flashCameraId ?: manager.cameraIdList.firstOrNull { id ->
