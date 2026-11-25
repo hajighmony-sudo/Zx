@@ -381,6 +381,12 @@ data class AppSettings(
     val torFakeSniHosts: String = "",
     val detectServerLocation: Boolean = false,
     val localProxyAuth: Boolean = true,
+    /** Flash LED feedback after verified tunnel traffic and on user-initiated disconnect. */
+    val flashConnectionSignals: Boolean = true,
+    val flashConnectFirstOnMs: Int = 500,
+    val flashConnectSecondOnMs: Int = 2500,
+    val flashDisconnectBlinkCount: Int = 3,
+    val flashDisconnectIntervalMs: Int = 140,
     val reconnectOnNetworkChange: Boolean = true,
     val ghost: GhostSettings = GhostSettings(),
 ) {
