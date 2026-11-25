@@ -104,6 +104,8 @@ object XrayJsonBuilder {
 
     private const val FAKEDNS_POOL = "198.18.0.0/15"
     private val KNOWN_DNS_HOSTS = mapOf(
+        "doh.cleanbrowsing.org" to listOf("185.228.168.168", "185.228.169.168"),
+        "family-filter-dns.cleanbrowsing.org" to listOf("185.228.168.168", "185.228.169.168"),
         "cloudflare-dns.com" to listOf("104.16.248.249", "104.16.249.249"),
         "dns.cloudflare.com" to listOf("162.159.61.8", "172.64.41.8"),
         "one.one.one.one" to listOf("1.1.1.1", "1.0.0.1"),
