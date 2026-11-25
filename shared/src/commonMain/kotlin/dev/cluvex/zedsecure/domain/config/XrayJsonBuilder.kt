@@ -180,7 +180,7 @@ object XrayJsonBuilder {
         front: EngineFront,
         socksPort: Int = LocalProxy.SOCKS_PORT,
         options: BuildOptions = BuildOptions(),
-        remoteDns: String = ENGINE_REMOTE_DNS,
+        remoteDns: String = options.remoteDns,
     ): String {
         val frontOptions = options.copy(
             carrier = false,
