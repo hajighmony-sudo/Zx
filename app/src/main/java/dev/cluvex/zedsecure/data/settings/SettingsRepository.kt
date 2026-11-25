@@ -276,6 +276,11 @@ class SettingsRepository(context: Context) {
             detectServerLocation = prefs.getBoolean("detect_server_location", d.detectServerLocation),
             localProxyAuth = prefs.getBoolean("local_proxy_auth", d.localProxyAuth),
             reconnectOnNetworkChange = prefs.getBoolean("reconnect_on_network_change", d.reconnectOnNetworkChange),
+            flashConnectionSignals = prefs.getBoolean("flash_connection_signals", d.flashConnectionSignals),
+            flashConnectFirstOnMs = prefs.getInt("flash_connect_first_ms", d.flashConnectFirstOnMs).coerceIn(100, 5000),
+            flashConnectSecondOnMs = prefs.getInt("flash_connect_second_ms", d.flashConnectSecondOnMs).coerceIn(100, 10000),
+            flashDisconnectBlinkCount = prefs.getInt("flash_disconnect_blinks", d.flashDisconnectBlinkCount).coerceIn(1, 10),
+            flashDisconnectIntervalMs = prefs.getInt("flash_disconnect_interval_ms", d.flashDisconnectIntervalMs).coerceIn(50, 1000),
 
             ai = prefs.getString("ai_settings", null)
                 ?.let { runCatching { aiJson.decodeFromString(AiSettings.serializer(), it) }.getOrNull() }
@@ -506,6 +511,11 @@ class SettingsRepository(context: Context) {
             putBoolean("detect_server_location", s.detectServerLocation)
             putBoolean("local_proxy_auth", s.localProxyAuth)
             putBoolean("reconnect_on_network_change", s.reconnectOnNetworkChange)
+            putBoolean("flash_connection_signals", s.flashConnectionSignals)
+            putInt("flash_connect_first_ms", s.flashConnectFirstOnMs.coerceIn(100, 5000))
+            putInt("flash_connect_second_ms", s.flashConnectSecondOnMs.coerceIn(100, 10000))
+            putInt("flash_disconnect_blinks", s.flashDisconnectBlinkCount.coerceIn(1, 10))
+            putInt("flash_disconnect_interval_ms", s.flashDisconnectIntervalMs.coerceIn(50, 1000))
             putString("ai_settings", aiJson.encodeToString(AiSettings.serializer(), s.ai))
         }.apply()
     }
