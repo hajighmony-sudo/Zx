@@ -94,22 +94,6 @@ fun GhostSettingsPage(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                androidx.compose.material3.OutlinedTextField(
-                    value = ghost.adultAllowedDomains,
-                    onValueChange = { v ->
-                        onUpdate { it.copy(ghost = it.ghost.copy(adultAllowedDomains = v.take(8000))) }
-                    },
-                    label = { Text("استثناها / سایت‌های مجاز") },
-                    placeholder = { Text("https://example.net یا example.net") },
-                    minLines = 2,
-                    maxLines = 5,
-                    modifier = androidx.compose.ui.Modifier.fillMaxWidth(),
-                )
-                Text(
-                    text = "سایت‌های این فهرست از قانون مسدودسازی GHOST مستثنا می‌شوند و مثل ترافیک عادی از VPN عبور می‌کنند. اگر یک دامنه هم در دو فهرست باشد، استثنا اولویت دارد.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
             SettingsSwitchRow(
                 title = "AUTO",
