@@ -38,10 +38,6 @@ fun AppSettings.toBuildOptions(
         dev.cluvex.zedsecure.core.ghost.AdultBlocklist.rules +
             dev.cluvex.zedsecure.core.ghost.AdultBlocklist.userRules(ghost.adultExtraDomains)
     } else emptyList(),
-    adultAllowDomains = if (ghost.adultContentProtectionEnabled) {
-        dev.cluvex.zedsecure.core.ghost.AdultBlocklist.userRules(ghost.adultAllowedDomains)
-    } else emptyList(),
-
     rulesets = RoutingMigration.effectiveRulesets(this),
     networkType = networkType,
     ruleOutbounds = ruleOutbounds,
