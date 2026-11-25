@@ -163,7 +163,10 @@ object XrayJsonBuilder {
         val net = server.transport.network.lowercase()
         if (net in REMOVED_NETWORKS) throw UnsupportedTransportException(net)
 
-        val configDns = server.dnsServers.mapNotNull(::dnsServerAddress)
+        // A per-server DNS override must not replace the family resolver while GHOST
+        // content protection is active.
+        val configDns = if (options.adultContentProtectionEnabled) emptyList()
+            else server.dnsServers.mapNotNull(::dnsServerAddress)
         val withDns = if (configDns.isEmpty()) options else options.copy(serverDns = configDns)
         return assemble(socksPort, withDns, forSpeedtest) { add(proxyOutbound(server, withDns)) }
     }
@@ -604,6 +607,8 @@ object XrayJsonBuilder {
                 if (blocked.isNotEmpty()) add(
                     EffectiveRule(blocked, emptyList(), "", "", emptyList(), "block"),
                 )
+                // DNS-over-TLS and DNS-over-QUIC normally use port 853.
+                add(EffectiveRule(emptyList(), emptyList(), "853", "tcp,udp", emptyList(), "block"))
             } else emptyList()
             // GHOST policy is evaluated first and is included in DNS split/hosts handling.
             val rules = adultRules + configuredRules
@@ -642,6 +647,9 @@ object XrayJsonBuilder {
                                 put("type", "field")
                                 put("outboundTag", resolveOutboundTag(r.outboundTag))
                                 if (r.domains.isNotEmpty()) putJsonArray("domain") { r.domains.forEach { add(it) } }
+                                if (r.port.isNotBlank()) put("port", r.port)
+                                if (r.network.isNotBlank()) put("network", r.network)
+                                if (r.protocol.isNotEmpty()) putJsonArray("protocol") { r.protocol.forEach { add(it) } }
                             }
                         }
                     }
