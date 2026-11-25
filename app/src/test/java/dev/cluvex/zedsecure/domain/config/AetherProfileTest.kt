@@ -68,7 +68,7 @@ class AetherProfileTest {
         val command = profile.commandPreview()
 
         assertTrue(command.contains("--protocol masque"))
-        assertTrue(command.contains("--scan thorough"))
+        assertTrue(command.contains("--scan ironclad"))
         assertTrue(command.contains("--ip both"))
         assertTrue(command.contains("--noize gfw"))
         assertTrue(command.contains("--h2"))
@@ -175,7 +175,7 @@ class AetherProfileTest {
             ),
         )
 
-        assertEquals("balanced", profile.noize)
+        assertEquals("light", profile.noize)
         assertFalse(profile.http2)
     }
 
@@ -235,7 +235,7 @@ class AetherProfileTest {
         assertTrue(profile.http2)
         assertTrue(profile.fragment)
         assertEquals("gfw", profile.noize)
-        assertEquals("thorough", profile.scanMode)
+        assertEquals("ironclad", profile.scanMode)
     }
 
 
@@ -293,7 +293,7 @@ class AetherProfileTest {
 
         assertTrue(profile.http2)
         assertEquals("gfw", profile.noize)
-        assertEquals("thorough", profile.scanMode)
+        assertEquals("ironclad", profile.scanMode)
     }
 
 
@@ -316,7 +316,7 @@ class AetherProfileTest {
         assertTrue(profile.http2)
         assertTrue(profile.fragment)
         assertEquals("gfw", profile.noize)
-        assertEquals("thorough", profile.scanMode)
+        assertEquals("ironclad", profile.scanMode)
     }
 
     @Test
