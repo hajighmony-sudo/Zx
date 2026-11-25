@@ -98,6 +98,14 @@ class ZedVpnService : VpnService() {
     @Volatile private var attemptStartedAt = 0L
     private var retryDelayMs = RETRY_FIRST_MS
 
+    @Volatile private var flashSignalsEnabled = true
+    @Volatile private var flashTrafficConfirmed = false
+    private var flashConnectFirstOnMs = 500
+    private var flashConnectSecondOnMs = 2500
+    private var flashDisconnectBlinkCount = 3
+    private var flashDisconnectIntervalMs = 140
+    private var flashConnectJob: Job? = null
+    @Volatile private var flashCameraId: String? = null
     private var connected = false
 
     private var proxyOnly = false
@@ -249,6 +257,13 @@ class ZedVpnService : VpnService() {
         userStop = false
         killSwitchActive = false
         connected = false
+        flashSignalsEnabled = settings.flashConnectionSignals
+        flashTrafficConfirmed = false
+        flashConnectFirstOnMs = settings.flashConnectFirstOnMs.coerceIn(100, 5000)
+        flashConnectSecondOnMs = settings.flashConnectSecondOnMs.coerceIn(100, 10000)
+        flashDisconnectBlinkCount = settings.flashDisconnectBlinkCount.coerceIn(1, 10)
+        flashDisconnectIntervalMs = settings.flashDisconnectIntervalMs.coerceIn(50, 1000)
+        flashConnectJob?.cancel()
         showSpeed = settings.speedInNotification
         livePromotion = settings.liveNotification
         notifChip = settings.notifChip
@@ -1468,6 +1483,10 @@ class ZedVpnService : VpnService() {
                 }
                 totalDown += down
                 totalUp += up
+                if (flashSignalsEnabled && !flashTrafficConfirmed && (down > 0L || up > 0L)) {
+                    flashTrafficConfirmed = true
+                    playFlashConnectSignal()
+                }
 
                 val seconds = (waited / 1000L).coerceAtLeast(1L)
                 VpnManager.onMetrics(elapsed, down / seconds, up / seconds, totalDown, totalUp)
@@ -1692,6 +1711,9 @@ class ZedVpnService : VpnService() {
     private fun resetSessionState() {
         statsJob?.cancel()
         statsJob = null
+        flashConnectJob?.cancel()
+        flashConnectJob = null
+        flashTrafficConfirmed = false
         connected = false
         aetherRouteLabel = "WARP"
         dnsAutoManaged = false
@@ -1704,6 +1726,47 @@ class ZedVpnService : VpnService() {
 
     private val tearingDown = java.util.concurrent.atomic.AtomicBoolean(false)
 
+    private fun setFlashTorch(enabled: Boolean) {
+        if (!flashSignalsEnabled || checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
+        runCatching {
+            val manager = getSystemService(android.hardware.camera2.CameraManager::class.java) ?: return
+            val cameraId = flashCameraId ?: manager.cameraIdList.firstOrNull { id ->
+                manager.getCameraCharacteristics(id).get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
+            }?.also { flashCameraId = it } ?: return
+            manager.setTorchMode(cameraId, enabled)
+        }.onFailure { Log.w(TAG, "flash signal unavailable", it) }
+    }
+
+    private fun playFlashConnectSignal() {
+        flashConnectJob?.cancel()
+        flashConnectJob = scope.launch {
+            try {
+                setFlashTorch(true)
+                delay(flashConnectFirstOnMs.toLong())
+                setFlashTorch(false)
+                delay(180L)
+                setFlashTorch(true)
+                delay(flashConnectSecondOnMs.toLong())
+            } catch (_: kotlinx.coroutines.CancellationException) {
+                throw
+            } finally {
+                setFlashTorch(false)
+            }
+        }
+    }
+
+    /** Runs only for a user-requested disconnect; unexpected failures remain silent. */
+    private fun playManualDisconnectSignalBlocking() {
+        if (!flashSignalsEnabled || checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
+        repeat(flashDisconnectBlinkCount) {
+            setFlashTorch(true)
+            Thread.sleep(flashDisconnectIntervalMs.toLong())
+            setFlashTorch(false)
+            Thread.sleep(flashDisconnectIntervalMs.toLong())
+        }
+        setFlashTorch(false)
+    }
+
     private fun stopEverything() {
         if (reconnecting && !userStop && killSwitchEnabled && ensureKillSwitchTun()) {
             holdTraffic(null)
@@ -1715,6 +1778,9 @@ class ZedVpnService : VpnService() {
         dev.cluvex.zedsecure.domain.config.LocalProxyAuth.end()
         val tunToClose = tun
         tun = null
+        val wasConnected = connected
+        val runManualFlash = userStop && wasConnected && flashSignalsEnabled
+        flashConnectJob?.cancel()
         connected = false
         VpnManager.onDisconnected(keepError = !userStop)
         stopForeground(Service.STOP_FOREGROUND_REMOVE)
@@ -1723,6 +1789,7 @@ class ZedVpnService : VpnService() {
         if (Looper.myLooper() != Looper.getMainLooper()) {
             stopEngines()
             runCatching { tunToClose?.close() }
+            if (runManualFlash) runCatching { playManualDisconnectSignalBlocking() }
             stopSelf()
             return
         }
@@ -1731,6 +1798,7 @@ class ZedVpnService : VpnService() {
         Thread({
             runCatching { stopEngines() }
             runCatching { tunToClose?.close() }
+            if (runManualFlash) runCatching { playManualDisconnectSignalBlocking() }
             tearingDown.set(false)
             stopSelf()
         }, "zed-teardown").apply { isDaemon = false }.start()
