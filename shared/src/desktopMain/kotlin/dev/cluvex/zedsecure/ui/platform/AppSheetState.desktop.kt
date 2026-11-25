@@ -7,6 +7,7 @@ import androidx.compose.material3.SheetValue
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
-actual fun rememberAppSheetState(): SheetState =
+actual fun rememberAppSheetState(skipPartiallyExpanded: Boolean): SheetState =
     rememberBottomSheetState(SheetValue.Hidden, setOf(SheetValue.Hidden, SheetValue.Expanded))
