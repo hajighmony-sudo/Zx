@@ -79,6 +79,7 @@ import dev.cluvex.zedsecure.core.ghost.GhostEngine
 enum class SettingsPage {
     Root, Ui, Vpn, Core, Routing, PerApp, Mux, Fragment, Observatory, Advanced, Mode, Assets, SingBox,
     DnsProtocols, Tor, TorBridges, Ssh, Support, SpeedTest, Map, Privacy, Monitor, Ai, AiChat, NavBar, Ghost,
+    Utilities, Flasher,
 }
 
 @Composable
@@ -138,6 +139,7 @@ fun SettingsScreen(
             }
             page == SettingsPage.TorBridges -> page = SettingsPage.Tor
             page == SettingsPage.NavBar -> page = SettingsPage.Ui
+            page == SettingsPage.Flasher -> page = SettingsPage.Utilities
             else -> {
                 deepLinked = false
                 page = SettingsPage.Root
@@ -218,6 +220,8 @@ fun SettingsScreen(
             SettingsPage.Fragment -> FragmentPage(settings, contentPadding, modifier, onUpdate)
             SettingsPage.Observatory -> ObservatoryPage(settings, contentPadding, modifier, onUpdate, autoCountries)
             SettingsPage.Advanced -> AdvancedPage(settings, contentPadding, modifier, onUpdate)
+            SettingsPage.Utilities -> UtilitiesPage(contentPadding, modifier) { page = it }
+            SettingsPage.Flasher -> FlasherPage(settings, contentPadding, modifier, onUpdate)
             SettingsPage.Mode -> ModePage(settings, contentPadding, modifier, onUpdate)
             SettingsPage.Routing -> RoutingScreen(settings, contentPadding, onUpdate, modifier, serverTargets, groupTargets)
             SettingsPage.PerApp -> PerAppProxyScreen(settings, contentPadding, onUpdate, modifier)
@@ -305,7 +309,7 @@ private fun Modifier.statusBarScrim(color: androidx.compose.ui.graphics.Color, h
 
 private fun pageDepth(page: SettingsPage): Int = when (page) {
     SettingsPage.Root -> 0
-    SettingsPage.TorBridges, SettingsPage.NavBar -> 2
+    SettingsPage.TorBridges, SettingsPage.NavBar, SettingsPage.Flasher -> 2
     else -> 1
 }
 
@@ -487,6 +491,11 @@ private fun RootPage(
                 stringResource(Res.string.summary_speedtest),
                 art = SettingsArts.SpeedTest,
             ) { onOpen(SettingsPage.SpeedTest) }
+            SettingsMenuRow(
+                title = "کاربردی‌ها",
+                subtitle = "ابزارها و قابلیت‌های کاربردی برنامه",
+                art = SettingsArts.Advanced,
+            ) { onOpen(SettingsPage.Utilities) }
         }
 
         SettingsGroup(
@@ -788,6 +797,13 @@ private fun BentoRoot(
                 stringResource(Res.string.bento_detect_location_title),
             ),
         ) { onOpen(SettingsPage.Advanced) })
+        add(dev.cluvex.zedsecure.ui.bento.BentoHubEntry(
+            key = "utilities",
+            title = "کاربردی‌ها",
+            summary = "ابزارها و قابلیت‌های کاربردی برنامه",
+            art = SettingsArts.Advanced,
+            keywords = listOf("فلاشر", "چراغ قوه", "ابزارهای کاربردی"),
+        ) { onOpen(SettingsPage.Utilities) })
         add(dev.cluvex.zedsecure.ui.bento.BentoHubEntry(
             key = "assets",
             title = stringResource(Res.string.assets_title),
@@ -2499,6 +2515,82 @@ private fun ObservatoryPage(
 }
 
 @Composable
+private fun UtilitiesPage(
+    contentPadding: PaddingValues,
+    modifier: Modifier,
+    onOpen: (SettingsPage) -> Unit,
+) {
+    SettingsPageScaffold(
+        title = "کاربردی‌ها",
+        art = SettingsArts.Advanced,
+        subtitle = "ابزارها و قابلیت‌های کاربردی برنامه",
+        contentPadding = contentPadding,
+        modifier = modifier,
+    ) {
+        SettingsGroup {
+            SettingsMenuRow(
+                title = "فلاشر",
+                subtitle = "تنظیم چشمک‌زدن چراغ‌قوه هنگام اتصال و قطع VPN",
+                art = SettingsArts.Advanced,
+            ) { onOpen(SettingsPage.Flasher) }
+        }
+    }
+}
+
+@Composable
+private fun FlasherPage(
+    s: AppSettings,
+    contentPadding: PaddingValues,
+    modifier: Modifier,
+    onUpdate: ((AppSettings) -> AppSettings) -> Unit,
+) {
+    SettingsPageScaffold(
+        title = "فلاشر",
+        art = SettingsArts.Advanced,
+        subtitle = "کنترل بازخورد نوری وضعیت اتصال",
+        contentPadding = contentPadding,
+        modifier = modifier,
+    ) {
+        SettingsGroup(title = "تنظیمات فلاشر") {
+            SettingsSwitchRow(
+                title = "فعال‌سازی فلاشر",
+                summary = "اتصال موفق: دو پالس نوری؛ قطع دستی: سه چشمک؛ قطع ناخواسته: بدون چشمک",
+                checked = s.flashConnectionSignals,
+                onCheckedChange = { v -> onUpdate { it.copy(flashConnectionSignals = v) } },
+            )
+            SettingsEditRow(
+                title = "مدت پالس اول اتصال (میلی‌ثانیه)",
+                value = s.flashConnectFirstOnMs.toString(),
+                enabled = s.flashConnectionSignals,
+                numeric = true,
+                onValueChanged = { v -> v.toIntOrNull()?.coerceIn(100, 5000)?.let { n -> onUpdate { it.copy(flashConnectFirstOnMs = n) } } },
+            )
+            SettingsEditRow(
+                title = "مدت پالس دوم اتصال (میلی‌ثانیه)",
+                value = s.flashConnectSecondOnMs.toString(),
+                enabled = s.flashConnectionSignals,
+                numeric = true,
+                onValueChanged = { v -> v.toIntOrNull()?.coerceIn(100, 10000)?.let { n -> onUpdate { it.copy(flashConnectSecondOnMs = n) } } },
+            )
+            SettingsEditRow(
+                title = "تعداد چشمک هنگام قطع دستی",
+                value = s.flashDisconnectBlinkCount.toString(),
+                enabled = s.flashConnectionSignals,
+                numeric = true,
+                onValueChanged = { v -> v.toIntOrNull()?.coerceIn(1, 10)?.let { n -> onUpdate { it.copy(flashDisconnectBlinkCount = n) } } },
+            )
+            SettingsEditRow(
+                title = "فاصله روشن/خاموش هر چشمک (میلی‌ثانیه)",
+                value = s.flashDisconnectIntervalMs.toString(),
+                enabled = s.flashConnectionSignals,
+                numeric = true,
+                onValueChanged = { v -> v.toIntOrNull()?.coerceIn(50, 1000)?.let { n -> onUpdate { it.copy(flashDisconnectIntervalMs = n) } } },
+            )
+        }
+    }
+}
+
+@Composable
 private fun AdvancedPage(
     s: AppSettings,
     contentPadding: PaddingValues,
@@ -2512,42 +2604,6 @@ private fun AdvancedPage(
         contentPadding = contentPadding,
         modifier = modifier,
     ) {
-        SettingsGroup(title = "Flash Connection Signals · نشانگر فلش اتصال") {
-            SettingsSwitchRow(
-                title = "Enable flash connection signals",
-                summary = "After real tunnel traffic: 0.5s on, then 2.5s on. Manual disconnect: three quick flashes. Unexpected drops stay silent.",
-                checked = s.flashConnectionSignals,
-                onCheckedChange = { v -> onUpdate { it.copy(flashConnectionSignals = v) } },
-            )
-            SettingsEditRow(
-                title = "First confirmation pulse (ms)",
-                value = s.flashConnectFirstOnMs.toString(),
-                enabled = s.flashConnectionSignals,
-                numeric = true,
-                onValueChanged = { v -> v.toIntOrNull()?.coerceIn(100, 5000)?.let { n -> onUpdate { it.copy(flashConnectFirstOnMs = n) } } },
-            )
-            SettingsEditRow(
-                title = "Second confirmation pulse (ms)",
-                value = s.flashConnectSecondOnMs.toString(),
-                enabled = s.flashConnectionSignals,
-                numeric = true,
-                onValueChanged = { v -> v.toIntOrNull()?.coerceIn(100, 10000)?.let { n -> onUpdate { it.copy(flashConnectSecondOnMs = n) } } },
-            )
-            SettingsEditRow(
-                title = "Manual disconnect flashes",
-                value = s.flashDisconnectBlinkCount.toString(),
-                enabled = s.flashConnectionSignals,
-                numeric = true,
-                onValueChanged = { v -> v.toIntOrNull()?.coerceIn(1, 10)?.let { n -> onUpdate { it.copy(flashDisconnectBlinkCount = n) } } },
-            )
-            SettingsEditRow(
-                title = "Flash on/off interval (ms)",
-                value = s.flashDisconnectIntervalMs.toString(),
-                enabled = s.flashConnectionSignals,
-                numeric = true,
-                onValueChanged = { v -> v.toIntOrNull()?.coerceIn(50, 1000)?.let { n -> onUpdate { it.copy(flashDisconnectIntervalMs = n) } } },
-            )
-        }
         SettingsGroup {
             SettingsSwitchRow(
                 title = stringResource(Res.string.title_pref_is_booted),
