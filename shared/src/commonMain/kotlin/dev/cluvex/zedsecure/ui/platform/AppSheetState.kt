@@ -6,4 +6,4 @@ import androidx.compose.material3.SheetState
 import androidx.compose.runtime.Composable
 
 @Composable
-expect fun rememberAppSheetState(): SheetState
+expect fun rememberAppSheetState(skipPartiallyExpanded: Boolean = false): SheetState
