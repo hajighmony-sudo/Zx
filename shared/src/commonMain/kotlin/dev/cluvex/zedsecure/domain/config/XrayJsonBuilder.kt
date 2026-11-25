@@ -593,7 +593,20 @@ object XrayJsonBuilder {
             }
             val geo = options.geoAssetsAvailable
 
-            val rules = if (forSpeedtest) emptyList() else effectiveRules(options.rulesets, geo, options.networkType, options.geoCodes)
+            val configuredRules = if (forSpeedtest) emptyList() else
+                effectiveRules(options.rulesets, geo, options.networkType, options.geoCodes)
+            val adultRules = if (!forSpeedtest && options.adultContentProtectionEnabled) buildList {
+                val allowed = RuleValidation.usableDomains(options.adultAllowDomains, geo, options.geoCodes)
+                if (allowed.isNotEmpty()) add(
+                    EffectiveRule(allowed, emptyList(), "", "", emptyList(), "proxy"),
+                )
+                val blocked = RuleValidation.usableDomains(options.adultBlockDomains, geo, options.geoCodes)
+                if (blocked.isNotEmpty()) add(
+                    EffectiveRule(blocked, emptyList(), "", "", emptyList(), "block"),
+                )
+            } else emptyList()
+            // GHOST policy is evaluated first and is included in DNS split/hosts handling.
+            val rules = adultRules + configuredRules
 
             val dnsSplit = if (forSpeedtest) DnsSplit() else dnsSplit(rules, options, endpointHosts)
             if (!forSpeedtest) put("dns", dns(options, dnsSplit))
@@ -623,8 +636,17 @@ object XrayJsonBuilder {
                         }
                     }
 
+                    if (adultRules.isNotEmpty()) {
+                        adultRules.forEach { r ->
+                            addJsonObject {
+                                put("type", "field")
+                                put("outboundTag", resolveOutboundTag(r.outboundTag))
+                                if (r.domains.isNotEmpty()) putJsonArray("domain") { r.domains.forEach { add(it) } }
+                            }
+                        }
+                    }
                     if (options.rulesets.isNotEmpty()) {
-                        rules.forEach { r ->
+                        configuredRules.forEach { r ->
                             addJsonObject {
                                 put("type", "field")
                                 put("outboundTag", resolveOutboundTag(r.outboundTag))
@@ -719,6 +741,11 @@ object XrayJsonBuilder {
         val customProxyRules: List<String> = emptyList(),
         val customDirectRules: List<String> = emptyList(),
         val customBlockRules: List<String> = emptyList(),
+
+        /** GHOST content rules are kept separate so rulesets cannot shadow them. */
+        val adultContentProtectionEnabled: Boolean = false,
+        val adultBlockDomains: List<String> = emptyList(),
+        val adultAllowDomains: List<String> = emptyList(),
 
         val rulesets: List<dev.cluvex.zedsecure.domain.model.RulesetItem> = emptyList(),
 
