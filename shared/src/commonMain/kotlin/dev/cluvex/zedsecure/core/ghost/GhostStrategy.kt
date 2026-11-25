@@ -3,7 +3,12 @@ package dev.cluvex.zedsecure.core.ghost
 /**
  * High-level anti-DPI strategies for GHOST.
  *
- * Inspired by zapret's multi-mode desync philosophy, adapted to pure
+ * Strengthened to have a more direct effect on the live tunnel:
+ * higher decoy volume, tighter intervals under pressure, stronger
+ * multiphase + disorder patterns, and an Ironclad mode for the
+ * hardest Iranian-style DPI conditions.
+ *
+ * Inspired by zapret multi-mode desync philosophy, adapted to pure
  * application-layer decoys (this project cannot inject raw TCP fakes).
  *
  * Mapping (conceptual):
@@ -25,6 +30,9 @@ enum class GhostStrategy {
     /** Mobile-first: strong enough noise, controlled data use */
     CellularStealth,
 
+    /** Extreme mode for heavy DPI – highest volume + tightest timing */
+    Ironclad,
+
     /** Engine picks from network + pressure */
     Auto,
     ;
@@ -36,6 +44,7 @@ enum class GhostStrategy {
                 "aggressive" -> Aggressive
                 "max", "maxnoise", "max_noise" -> MaxNoise
                 "cellular", "cellularstealth", "stealth" -> CellularStealth
+                "ironclad", "extreme", "hard" -> Ironclad
                 "auto", null, "" -> Auto
                 else -> Auto
             }
@@ -67,11 +76,11 @@ object GhostStrategyResolver {
     ): StrategyProfile {
         val effective = when (requested) {
             GhostStrategy.Auto -> when {
-                underPressure && networkIsWifi -> GhostStrategy.MaxNoise
-                underPressure && networkIsCellular -> GhostStrategy.Aggressive
+                underPressure && networkIsWifi -> GhostStrategy.Ironclad
+                underPressure && networkIsCellular -> GhostStrategy.MaxNoise
                 networkIsCellular -> GhostStrategy.CellularStealth
                 networkIsWifi -> GhostStrategy.Aggressive
-                underPressure -> GhostStrategy.Aggressive
+                underPressure -> GhostStrategy.MaxNoise
                 else -> GhostStrategy.Balanced
             }
             else -> requested
@@ -84,21 +93,21 @@ object GhostStrategyResolver {
             GhostStrategy.Balanced -> StrategyProfile(
                 strategy = s,
                 profiles = "rubika,neshan,digikala,snapp,aparat",
-                volumePercent = if (underPressure) 55 else 42,
-                intervalSeconds = if (underPressure) 8 else 12,
+                volumePercent = if (underPressure) 62 else 48,
+                intervalSeconds = if (underPressure) 7 else 11,
                 burst = true,
                 burstIntensity = if (underPressure) 3 else 2,
                 parallel = 2,
                 multiphase = true,
                 disorder = true,
-                fakeFlood = underPressure,
+                fakeFlood = underPressure || true,
                 multiApp = true,
             )
             GhostStrategy.Aggressive -> StrategyProfile(
                 strategy = s,
                 profiles = "rubika,digikala,neshan,snapp,aparat,balad,generic",
-                volumePercent = if (underPressure) 65 else 52,
-                intervalSeconds = if (underPressure) 6 else 9,
+                volumePercent = if (underPressure) 72 else 58,
+                intervalSeconds = if (underPressure) 5 else 8,
                 burst = true,
                 burstIntensity = if (underPressure) 4 else 3,
                 parallel = if (underPressure) 3 else 2,
@@ -110,8 +119,8 @@ object GhostStrategyResolver {
             GhostStrategy.MaxNoise -> StrategyProfile(
                 strategy = s,
                 profiles = "rubika,digikala,neshan,snapp,aparat,balad,torob,generic",
-                volumePercent = if (underPressure) 75 else 62,
-                intervalSeconds = if (underPressure) 5 else 7,
+                volumePercent = if (underPressure) 80 else 68,
+                intervalSeconds = if (underPressure) 4 else 6,
                 burst = true,
                 burstIntensity = 5,
                 parallel = 4,
@@ -126,14 +135,27 @@ object GhostStrategyResolver {
                     "rubika,neshan,snapp,digikala,aparat,balad,generic"
                 else
                     "rubika,neshan,snapp,digikala,aparat",
-                volumePercent = if (underPressure) 58 else 44,
-                intervalSeconds = if (underPressure) 7 else 11,
+                volumePercent = if (underPressure) 64 else 50,
+                intervalSeconds = if (underPressure) 6 else 10,
                 burst = true,
                 burstIntensity = if (underPressure) 4 else 2,
                 parallel = if (underPressure) 3 else 2,
                 multiphase = true,
                 disorder = true,
-                fakeFlood = underPressure || true,
+                fakeFlood = true,
+                multiApp = true,
+            )
+            GhostStrategy.Ironclad -> StrategyProfile(
+                strategy = s,
+                profiles = "rubika,digikala,neshan,snapp,aparat,balad,torob,generic",
+                volumePercent = if (underPressure) 88 else 78,
+                intervalSeconds = if (underPressure) 3 else 5,
+                burst = true,
+                burstIntensity = 5,
+                parallel = 4,
+                multiphase = true,
+                disorder = true,
+                fakeFlood = true,
                 multiApp = true,
             )
             GhostStrategy.Auto -> profileFor(GhostStrategy.Balanced, underPressure)
