@@ -1727,19 +1727,31 @@ class ZedVpnService : VpnService() {
     private val tearingDown = java.util.concurrent.atomic.AtomicBoolean(false)
 
     private fun setFlashTorch(enabled: Boolean) {
-        // Re-read the live preference for each ON pulse; always allow OFF so a
-        // setting change or cancellation cannot leave the LED illuminated.
+        // Use Android's public torch API directly. This controls only the LED:
+        // it does not open the camera or capture images, and needs no CAMERA permission.
         if (enabled && (!flashSignalsEnabled ||
                 !SettingsRepository(this).settings.value.flashConnectionSignals)
         ) return
-        if (checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
-        runCatching {
-            val manager = getSystemService(android.hardware.camera2.CameraManager::class.java) ?: return
-            val cameraId = flashCameraId ?: manager.cameraIdList.firstOrNull { id ->
-                manager.getCameraCharacteristics(id).get(android.hardware.camera2.CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
-            }?.also { flashCameraId = it } ?: return
-            manager.setTorchMode(cameraId, enabled)
-        }.onFailure { Log.w(TAG, "flash signal unavailable", it) }
+
+        val manager = getSystemService(android.hardware.camera2.CameraManager::class.java) ?: return
+        if (!enabled) {
+            val cameraId = flashCameraId ?: return
+            runCatching { manager.setTorchMode(cameraId, false) }
+                .onFailure { Log.w(TAG, "flash off signal unavailable", it) }
+            return
+        }
+
+        val cachedId = flashCameraId
+        if (cachedId != null && runCatching { manager.setTorchMode(cachedId, true) }.isSuccess) return
+
+        flashCameraId = null
+        for (cameraId in runCatching { manager.cameraIdList.toList() }.getOrDefault(emptyList())) {
+            if (runCatching { manager.setTorchMode(cameraId, true) }.isSuccess) {
+                flashCameraId = cameraId
+                return
+            }
+        }
+        Log.w(TAG, "no available torch found for flash signal")
     }
 
     private fun playFlashConnectSignal() {
@@ -1762,7 +1774,7 @@ class ZedVpnService : VpnService() {
 
     /** Runs only for a user-requested disconnect; unexpected failures remain silent. */
     private fun playManualDisconnectSignalBlocking() {
-        if (!flashSignalsEnabled || checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
+        if (!flashSignalsEnabled) return
         repeat(flashDisconnectBlinkCount) {
             setFlashTorch(true)
             Thread.sleep(flashDisconnectIntervalMs.toLong())
