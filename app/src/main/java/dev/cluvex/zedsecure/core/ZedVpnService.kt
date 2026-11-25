@@ -1747,8 +1747,8 @@ class ZedVpnService : VpnService() {
                 delay(180L)
                 setFlashTorch(true)
                 delay(flashConnectSecondOnMs.toLong())
-            } catch (_: kotlinx.coroutines.CancellationException) {
-                throw
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
             } finally {
                 setFlashTorch(false)
             }
