@@ -599,10 +599,6 @@ object XrayJsonBuilder {
             val configuredRules = if (forSpeedtest) emptyList() else
                 effectiveRules(options.rulesets, geo, options.networkType, options.geoCodes)
             val adultRules = if (!forSpeedtest && options.adultContentProtectionEnabled) buildList {
-                val allowed = RuleValidation.usableDomains(options.adultAllowDomains, geo, options.geoCodes)
-                if (allowed.isNotEmpty()) add(
-                    EffectiveRule(allowed, emptyList(), "", "", emptyList(), "proxy"),
-                )
                 val blocked = RuleValidation.usableDomains(options.adultBlockDomains, geo, options.geoCodes)
                 if (blocked.isNotEmpty()) add(
                     EffectiveRule(blocked, emptyList(), "", "", emptyList(), "block"),
@@ -753,7 +749,6 @@ object XrayJsonBuilder {
         /** GHOST content rules are kept separate so rulesets cannot shadow them. */
         val adultContentProtectionEnabled: Boolean = false,
         val adultBlockDomains: List<String> = emptyList(),
-        val adultAllowDomains: List<String> = emptyList(),
 
         val rulesets: List<dev.cluvex.zedsecure.domain.model.RulesetItem> = emptyList(),
 
