@@ -423,18 +423,18 @@ class MainActivity : ComponentActivity() {
             AndroidVpn.stop(this)
             return
         }
+        if (planning) return
+        val profile = configRepository.activeProfile()
+        if (profile == null) {
+            toast(getString(R.string.select_config_first))
+            return
+        }
         if (!skipFlashPermissionCheck &&
             settingsRepository.settings.value.flashConnectionSignals &&
             checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED
         ) {
             pendingConnectAfterCameraPermission = true
             flashCameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
-            return
-        }
-        if (planning) return
-        val profile = configRepository.activeProfile()
-        if (profile == null) {
-            toast(getString(R.string.select_config_first))
             return
         }
         planning = true
