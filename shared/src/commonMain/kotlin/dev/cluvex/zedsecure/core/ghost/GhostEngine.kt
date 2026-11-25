@@ -20,6 +20,11 @@ import kotlin.random.Random
 /**
  * GHOST engine: decoy + packet/desync patterns (app-layer).
  * Native nfqws only if GhostNativeDesync reports available.
+ *
+ * Strengthened so that when a tunnel is active, GHOST produces
+ * denser, more realistic domestic-app traffic patterns that raise
+ * the analysis cost for DPI and improve tunnel survival under
+ * heavy Iranian-style filtering.
  */
 object GhostEngine {
 
@@ -160,7 +165,7 @@ object GhostEngine {
 
     fun onTunnelConnected() {
         tunnelConnected = true
-        Log.i("GhostEngine", "tunnel connected")
+        Log.i("GhostEngine", "tunnel connected – GHOST armed")
         reconcileNativeDesync()
         reconcile()
     }
@@ -212,7 +217,7 @@ object GhostEngine {
         if (job?.isActive == true) return
         job = scope.launch {
             isRunning = true
-            Log.i("GhostEngine", "GHOST multiphase started")
+            Log.i("GhostEngine", "GHOST multiphase started (strengthened)")
             while (isActive) {
                 if (!currentSettings.enabled || !tunnelConnected) break
                 val s = effectiveSettings()
@@ -228,9 +233,10 @@ object GhostEngine {
                     lastError = e.message
                     Log.w("GhostEngine", "cycle error: ${e.message}")
                 }
-                val base = s.decoyIntervalSeconds.coerceIn(4, 120)
-                val jitter = Random.nextInt(0, (base * 0.75).toInt().coerceAtLeast(2))
-                val pressureFactor = if (underPressure && s.adaptiveFallbackEnabled) 0.5 else 1.0
+                // Tighter timing when under pressure so GHOST reacts faster to DPI
+                val base = s.decoyIntervalSeconds.coerceIn(3, 120)
+                val jitter = Random.nextInt(0, (base * 0.65).toInt().coerceAtLeast(2))
+                val pressureFactor = if (underPressure && s.adaptiveFallbackEnabled) 0.42 else 1.0
                 delay(((base + jitter) * pressureFactor * 1000L).toLong())
             }
             isRunning = false
@@ -249,8 +255,9 @@ object GhostEngine {
         recentResults.addLast(ok)
         while (recentResults.size > 48) recentResults.removeFirst()
         val s = effectiveSettings()
-        if (s.pressureDetectionEnabled && recentResults.size >= 6) {
-            underPressure = recentResults.count { !it }.toFloat() / recentResults.size >= 0.28f
+        if (s.pressureDetectionEnabled && recentResults.size >= 5) {
+            // Slightly more sensitive pressure detection
+            underPressure = recentResults.count { !it }.toFloat() / recentResults.size >= 0.24f
         } else {
             underPressure = false
         }
@@ -261,6 +268,7 @@ object GhostEngine {
      * Split ≈ staggered parallel bursts
      * Disorder ≈ shuffled/reversed fire order
      * FakeBurst ≈ cheap probes before mimic
+     * Strengthened phases for stronger tunnel impact.
      */
     private suspend fun runDesyncCycle(settings: GhostSettings) {
         val profiles = resolveActiveProfiles(settings)
@@ -268,22 +276,22 @@ object GhostEngine {
         val profile = DesyncProfile.fromRaw(currentSettings.desyncProfile)
 
         lastPhase = "Z0-Arm"
-        delay(Random.nextLong(30, 120))
+        delay(Random.nextLong(20, 90))
 
         when (profile) {
             DesyncProfile.Off -> runMultiphaseCycle(settings)
             DesyncProfile.FakeBurst, DesyncProfile.Max -> {
                 lastPhase = "Z1-FakeBurst"
-                val n = 3 + settings.burstIntensity
+                val n = 4 + settings.burstIntensity
                 val probes = profiles.flatMap { it.requests }.shuffled().take(n)
                 fireRequests(probes, settings, settings.maxParallelRequests)
-                delay(Random.nextLong(40, 180))
+                delay(Random.nextLong(30, 140))
                 lastPhase = "Z2-SplitMimic"
                 runSplitMimic(settings, profiles)
                 if (profile == DesyncProfile.Max) {
                     lastPhase = "Z3-DisorderTail"
-                    val tail = profiles.flatMap { it.requests }.shuffled().take(Random.nextInt(2, 5))
-                    fireRequests(tail.reversed(), settings, 2)
+                    val tail = profiles.flatMap { it.requests }.shuffled().take(Random.nextInt(3, 7))
+                    fireRequests(tail.reversed(), settings, 3)
                 }
             }
             DesyncProfile.Split -> {
@@ -293,8 +301,8 @@ object GhostEngine {
             DesyncProfile.Disorder -> {
                 lastPhase = "Z1-Disorder"
                 val reqs = profiles.flatMap { it.requests }.shuffled()
-                fireRequests(reqs.take(Random.nextInt(4, 10)).reversed(), settings, settings.maxParallelRequests)
-                delay(Random.nextLong(60, 220))
+                fireRequests(reqs.take(Random.nextInt(5, 12)).reversed(), settings, settings.maxParallelRequests)
+                delay(Random.nextLong(40, 180))
                 runMainMimic(settings, profiles)
             }
         }
@@ -302,13 +310,15 @@ object GhostEngine {
     }
 
     private suspend fun runSplitMimic(settings: GhostSettings, profiles: List<AppProfile>) {
-        val selected = profiles.shuffled().take(if (settings.multiAppConcurrent) Random.nextInt(2, minOf(4, profiles.size) + 1) else 1)
+        val selected = profiles.shuffled().take(
+            if (settings.multiAppConcurrent) Random.nextInt(2, minOf(5, profiles.size) + 1) else 1
+        )
         for (p in selected) {
             lastProfileUsed = p.displayName
             val parts = p.requests.shuffled().chunked(1)
-            for (chunk in parts.take(Random.nextInt(2, 6))) {
+            for (chunk in parts.take(Random.nextInt(3, 7))) {
                 fireRequests(chunk, settings, 1)
-                delay(Random.nextLong(35, 160)) // split-like spacing
+                delay(Random.nextLong(25, 130)) // tighter split-like spacing
             }
         }
     }
@@ -320,18 +330,18 @@ object GhostEngine {
             lastPhase = "P0-FakeFlood"
             fireRequests(
                 profiles.flatMap { it.requests }.shuffled().take(
-                    if (settings.burstModeEnabled) settings.burstIntensity.coerceIn(1, 5) + 1 else 2
+                    if (settings.burstModeEnabled) settings.burstIntensity.coerceIn(1, 5) + 2 else 3
                 ),
                 settings,
                 settings.maxParallelRequests,
             )
-            delay(Random.nextLong(80, 350))
+            delay(Random.nextLong(50, 280))
         }
         lastPhase = "P1-MainMimic"
         runMainMimic(settings, profiles)
         lastPhase = "P2-Residual"
         fireRequests(
-            profiles.shuffled().first().requests.let { if (settings.requestDisorder) it.shuffled() else it }.take(Random.nextInt(1, 3)),
+            profiles.shuffled().first().requests.let { if (settings.requestDisorder) it.shuffled() else it }.take(Random.nextInt(2, 4)),
             settings,
             1,
         )
@@ -347,19 +357,19 @@ object GhostEngine {
     }
 
     private suspend fun runMainMimic(settings: GhostSettings, profiles: List<AppProfile>) {
-        var volumeBoost = 1.0f + (settings.decoyVolumePercent.coerceIn(10, 85) / 100f)
-        if (settings.adaptiveFallbackEnabled && underPressure) volumeBoost *= 1.45f
+        var volumeBoost = 1.0f + (settings.decoyVolumePercent.coerceIn(10, 90) / 100f)
+        if (settings.adaptiveFallbackEnabled && underPressure) volumeBoost *= 1.55f
         if (settings.burstModeEnabled) {
-            volumeBoost *= (1.0f + settings.burstIntensity.coerceIn(1, 5) * 0.3f)
+            volumeBoost *= (1.0f + settings.burstIntensity.coerceIn(1, 5) * 0.35f)
             lastBurstAtMs = currentTimeMillis()
         }
-        val appCount = if (settings.multiAppConcurrent) Random.nextInt(1, minOf(4, profiles.size) + 1) else 1
+        val appCount = if (settings.multiAppConcurrent) Random.nextInt(1, minOf(5, profiles.size) + 1) else 1
         for (profile in profiles.shuffled().take(appCount)) {
             lastProfileUsed = profile.displayName
-            var reqs = profile.requests.shuffled().take((Random.nextInt(1, 5) * volumeBoost).toInt().coerceIn(1, 12))
+            var reqs = profile.requests.shuffled().take((Random.nextInt(2, 6) * volumeBoost).toInt().coerceIn(1, 14))
             if (settings.requestDisorder && Random.nextBoolean()) reqs = reqs.reversed()
             fireRequests(reqs, settings, settings.maxParallelRequests)
-            delay(Random.nextLong(200, 1800))
+            delay(Random.nextLong(150, 1400))
         }
     }
 
@@ -372,7 +382,7 @@ object GhostEngine {
                         totalRequests++
                         try {
                             val ua = if (settings.appLayerMimicryEnabled) req.userAgent else DEFAULT_UA
-                            val resp = httpGetResponse(req.url, ua, connectTimeoutMs = 7_000, readTimeoutMs = 10_000)
+                            val resp = httpGetResponse(req.url, ua, connectTimeoutMs = 6_500, readTimeoutMs = 9_000)
                             val ok = resp.code in 200..499
                             if (ok) successCount++ else failureCount++
                             recordResult(ok)
@@ -384,7 +394,7 @@ object GhostEngine {
                     }
                 }.awaitAll()
             }
-            delay(Random.nextLong(120, 900))
+            delay(Random.nextLong(90, 700))
         }
     }
 
