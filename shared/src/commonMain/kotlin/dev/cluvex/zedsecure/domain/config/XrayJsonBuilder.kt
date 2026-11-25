@@ -187,7 +187,9 @@ object XrayJsonBuilder {
             localDns = true,
             dialerSocksPort = null,
             serverDns = emptyList(),
-            remoteDns = streamDns(remoteDns),
+            remoteDns = streamDns(
+                if (options.adultContentProtectionEnabled) options.remoteDns else remoteDns,
+            ),
             engineFront = front,
         )
         return assemble(socksPort, frontOptions, forSpeedtest = false) { add(engineOutbound(front.port)) }
