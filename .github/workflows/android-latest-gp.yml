@@ -4,9 +4,18 @@ run-name: Build latest GP Android APKs
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - GP
+    paths:
+      - 'shared/src/**'
+      - 'app/src/**'
+      - 'gradle.properties'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - '.github/workflows/android-latest-gp.yml'
 
-# This workflow is intentionally manual. It always checks out the newest commit
-# on GP, regardless of which branch was selected in the Actions UI.
+# Every run checks out the newest commit on GP.
 concurrency:
   group: build-latest-gp-apk
   cancel-in-progress: false
