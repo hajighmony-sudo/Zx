@@ -181,7 +181,7 @@ object AetherSmartConfig {
     private const val UNSTABLE_JITTER_MS = 180
     private const val UNSTABLE_LOSS_PERCENT = 34
     private const val DEGRADED_API_LOSS_PERCENT = 34
-    private collst val STRONG_DOWN_KBPS = 15_000
+    private const val STRONG_DOWN_KBPS = 15_000
     private const val STRONG_UP_KBPS = 3_000
     private const val STRONG_SIGNAL_DBM = -85
     private const val WEAK_DOWN_KBPS = 5_000
