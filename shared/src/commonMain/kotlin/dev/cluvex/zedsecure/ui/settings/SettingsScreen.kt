@@ -2512,6 +2512,42 @@ private fun AdvancedPage(
         contentPadding = contentPadding,
         modifier = modifier,
     ) {
+        SettingsGroup(title = "Flash Connection Signals · نشانگر فلش اتصال") {
+            SettingsSwitchRow(
+                title = "Enable flash connection signals",
+                summary = "After real tunnel traffic: 0.5s on, then 2.5s on. Manual disconnect: three quick flashes. Unexpected drops stay silent.",
+                checked = s.flashConnectionSignals,
+                onCheckedChange = { v -> onUpdate { it.copy(flashConnectionSignals = v) } },
+            )
+            SettingsEditRow(
+                title = "First confirmation pulse (ms)",
+                value = s.flashConnectFirstOnMs.toString(),
+                enabled = s.flashConnectionSignals,
+                numeric = true,
+                onValueChanged = { v -> v.toIntOrNull()?.coerceIn(100, 5000)?.let { n -> onUpdate { it.copy(flashConnectFirstOnMs = n) } } },
+            )
+            SettingsEditRow(
+                title = "Second confirmation pulse (ms)",
+                value = s.flashConnectSecondOnMs.toString(),
+                enabled = s.flashConnectionSignals,
+                numeric = true,
+                onValueChanged = { v -> v.toIntOrNull()?.coerceIn(100, 10000)?.let { n -> onUpdate { it.copy(flashConnectSecondOnMs = n) } } },
+            )
+            SettingsEditRow(
+                title = "Manual disconnect flashes",
+                value = s.flashDisconnectBlinkCount.toString(),
+                enabled = s.flashConnectionSignals,
+                numeric = true,
+                onValueChanged = { v -> v.toIntOrNull()?.coerceIn(1, 10)?.let { n -> onUpdate { it.copy(flashDisconnectBlinkCount = n) } } },
+            )
+            SettingsEditRow(
+                title = "Flash on/off interval (ms)",
+                value = s.flashDisconnectIntervalMs.toString(),
+                enabled = s.flashConnectionSignals,
+                numeric = true,
+                onValueChanged = { v -> v.toIntOrNull()?.coerceIn(50, 1000)?.let { n -> onUpdate { it.copy(flashDisconnectIntervalMs = n) } } },
+            )
+        }
         SettingsGroup {
             SettingsSwitchRow(
                 title = stringResource(Res.string.title_pref_is_booted),
