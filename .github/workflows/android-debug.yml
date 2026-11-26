@@ -59,10 +59,26 @@ jobs:
         run: ./tools/get-cores.sh android
 
       - name: Run Android unit tests
-        run: ./gradlew --no-daemon --warning-mode all :app:testDebugUnitTest
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4; do
+            if ./gradlew --no-daemon --no-configuration-cache --warning-mode all :app:testDebugUnitTest; then exit 0; fi
+            if [ "$attempt" -eq 4 ]; then exit 1; fi
+            echo "Gradle dependency resolution/build failed; retrying in 30 seconds (attempt $attempt/4)"
+            sleep 30
+          done
 
       - name: Build debug APKs
-        run: ./gradlew --no-daemon --warning-mode all :app:assembleDebug
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4; do
+            if ./gradlew --no-daemon --no-configuration-cache --warning-mode all :app:assembleDebug; then exit 0; fi
+            if [ "$attempt" -eq 4 ]; then exit 1; fi
+            echo "Gradle dependency resolution/build failed; retrying in 30 seconds (attempt $attempt/4)"
+            sleep 30
+          done
 
       - name: Prepare and verify APK files
         shell: bash
