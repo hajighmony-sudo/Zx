@@ -5,6 +5,12 @@ package dev.cluvex.zedsecure.domain.config
 import dev.cluvex.zedsecure.crypto.ZsxCrypto
 import dev.cluvex.zedsecure.domain.model.DnsResolverProfile
 import kotlin.io.encoding.Base64
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.put
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -216,8 +222,28 @@ data class VpnProfile(
     fun unsealed(): VpnProfile {
         val src = source as? ProfileSource.Sealed ?: return this
         val payload = runCatching { ZsxCrypto.open(Base64.decode(src.zsxBase64), password = null) }.getOrNull() ?: return this
+        // New portable ZX payloads preserve the complete profile (not only its URI/source),
+        // so protocol metadata, DNS settings, and chain references survive unlocking.
+        val portable = fromLockedSharePayload(payload)
+        if (portable != null) {
+            return portable.copy(
+                id = id,
+                addedAt = addedAt,
+                isLocked = false,
+                note = note ?: portable.note,
+            )
+        }
         val inner = sourceOfPayload(payload) ?: return this
-        return copy(source = inner)
+        return copy(source = inner, isLocked = false)
+    }
+
+    /** Serializes the complete transferable profile into the encrypted ZX container. */
+    fun lockedSharePayload(): String {
+        val codec = Json { encodeDefaults = true }
+        return buildJsonObject {
+            put("format", "zx_profile_v1")
+            put("profile", codec.encodeToJsonElement(VpnProfile.serializer(), this@VpnProfile))
+        }.toString()
     }
 
     fun rawPayload(): String? = when (val src = source) {
@@ -589,9 +615,18 @@ data class VpnProfile(
             payload?.let { sourceOfPayload(it) }?.takeIf { it !is ProfileSource.Sealed }?.let { engineLabelOf(it) } ?: ENGINE_XRAY
         }
 
+        fun fromLockedSharePayload(payload: String): VpnProfile? = runCatching {
+            val codec = Json { ignoreUnknownKeys = true }
+            val root = codec.parseToJsonElement(payload) as? JsonObject ?: return null
+            if (root["format"]?.toString()?.trim('"') != "zx_profile_v1") return null
+            val profile = root["profile"] ?: return null
+            codec.decodeFromJsonElement<VpnProfile>(profile)
+        }.getOrNull()
+
         fun sourceOfPayload(payload: String): ProfileSource? {
             val text = payload.trim()
             if (text.isEmpty()) return null
+            fromLockedSharePayload(text)?.let { return it.source }
             if (ZedLink.isZedLink(text)) {
                 return ZedLink.parse(text)?.source?.takeIf { ZedLink.handles(it) && it !is ProfileSource.ProxyChain && it !is ProfileSource.CrossChain }
             }
