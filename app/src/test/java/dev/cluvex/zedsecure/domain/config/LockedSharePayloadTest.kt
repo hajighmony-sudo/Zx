@@ -7,7 +7,7 @@ import org.junit.Test
 
 class LockedSharePayloadTest {
     @Test
-    fun linkProfileRoundTripsWithItsFullMetadata() {
+    fun linkProfilePreservesPortableDataButNotSenderLocalState() {
         val profile = VpnProfile(
             id = "profile-1",
             name = "Primary",
@@ -19,20 +19,32 @@ class LockedSharePayloadTest {
                 "vless://00000000-0000-0000-0000-000000000000@example.com:443?security=tls&type=tcp#Primary",
             ),
             addedAt = 1234L,
-            subscriptionId = "subscription-1",
-            note = "portable note",
+            subscriptionId = "sender-subscription",
+            lastPingMs = 42,
+            bytesDown = 1000L,
+            bytesUp = 2000L,
+            note = "sender-only note",
+            dnsAutoManaged = true,
         )
 
         val payload = profile.lockedSharePayload()
         val restored = VpnProfile.fromLockedSharePayload(payload)
 
         assertNotNull(restored)
-        assertEquals(profile, restored)
+        assertEquals(profile.id, restored!!.id)
+        assertEquals(profile.name, restored.name)
+        assertEquals(profile.source, restored.source)
+        assertEquals("", restored.subscriptionId)
+        assertEquals(null, restored.lastPingMs)
+        assertEquals(0L, restored.bytesDown)
+        assertEquals(0L, restored.bytesUp)
+        assertEquals(null, restored.note)
+        assertEquals(false, restored.dnsAutoManaged)
         assertEquals(profile.source, VpnProfile.sourceOfPayload(payload))
     }
 
     @Test
-    fun dnsResolverProfileDoesNotCollapseIntoAnUnsupportedUri() {
+    fun dnsResolverProfilesRemainTransferableWithoutAnExportableUri() {
         val profile = VpnProfile(
             id = "dns-1",
             name = "DNS profile",
@@ -55,7 +67,8 @@ class LockedSharePayloadTest {
         val payload = profile.lockedSharePayload()
         val restored = VpnProfile.fromLockedSharePayload(payload)
 
-        assertEquals(profile, restored)
+        assertNotNull(restored)
+        assertEquals(profile.source, restored!!.source)
         assertEquals(profile.source, VpnProfile.sourceOfPayload(payload))
     }
 }
