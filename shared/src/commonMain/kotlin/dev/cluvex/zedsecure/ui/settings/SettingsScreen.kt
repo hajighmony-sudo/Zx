@@ -1250,6 +1250,35 @@ private fun UiPage(
             }
         }
 
+        if (LocalPlatform.current.supportsLauncherIconSelection) {
+            SettingsGroup(title = "آیکون‌ها") {
+                SettingsInfoRow(
+                    title = "شخصی‌سازی آیکون برنامه",
+                    body = "یکی از طرح‌های ZX را انتخاب کن. آیکون صفحه اصلی گوشی پس از اعمال تغییر، با طرح انتخابی جایگزین می‌شود. ظاهر Adaptive برای لانچرهای جدید اندروید در نظر گرفته شده است."
+                )
+                SettingsListRow(
+                    title = "طرح آیکون",
+                    options = listOf(
+                        "zx_orange" to "ZX نارنجی",
+                        "zx_steel" to "ZX فلزی",
+                        "zx_blade" to "ZX تیغه‌ای",
+                        "zx_white" to "ZX سفید",
+                        "zx_silver" to "ZX نقره‌ای",
+                        "zx_distressed" to "ZX فرسوده",
+                    ),
+                    selected = s.launcherIcon,
+                    onSelected = { id ->
+                        if (LocalPlatform.current.setLauncherIcon(id)) {
+                            onUpdate { it.copy(launcherIcon = id) }
+                            LocalPlatform.current.toast("آیکون برنامه تغییر کرد")
+                        } else {
+                            LocalPlatform.current.toast("تغییر آیکون در این لانچر انجام نشد")
+                        }
+                    },
+                )
+            }
+        }
+
         if (s.appDesign == AppDesign.Bento) {
             dev.cluvex.zedsecure.ui.bento.BentoLookSection(s, onUpdate)
         }
