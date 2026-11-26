@@ -240,9 +240,21 @@ data class VpnProfile(
     /** Serializes the complete transferable profile into the encrypted ZX container. */
     fun lockedSharePayload(): String {
         val codec = Json { encodeDefaults = true }
+        // Only portable connection data is shared. Local counters, ping history,
+        // subscription ownership, and DNS AUTO lifecycle flags stay on the sender.
+        val portable = copy(
+            addedAt = 0L,
+            subscriptionId = "",
+            lastPingMs = null,
+            bytesDown = 0L,
+            bytesUp = 0L,
+            note = null,
+            isLocked = false,
+            dnsAutoManaged = false,
+        )
         return buildJsonObject {
             put("format", "zx_profile_v1")
-            put("profile", codec.encodeToJsonElement(VpnProfile.serializer(), this@VpnProfile))
+            put("profile", codec.encodeToJsonElement(VpnProfile.serializer(), portable))
         }.toString()
     }
 
