@@ -129,6 +129,7 @@ fun AiAssistantPage(
         Text(stringResource(Res.string.ai_provider), style = MaterialTheme.typography.titleSmall)
         Spacer(Modifier.height(8.dp))
         // Keep provider choices aligned in a compact two-column grid.
+        // DeepSeek uses the OpenAI-compatible client with its own base URL.
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             AiProvider.entries.chunked(2).forEach { providerRow ->
                 Row(
