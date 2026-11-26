@@ -683,6 +683,11 @@ fun ServersScreen(
                             shape = MaterialTheme.shapes.largeIncreased,
                         ) { overflowItems() }
                     }
+                    dev.cluvex.zedsecure.ui.bento.BentoIconButton(
+                        Res.drawable.ic_edit,
+                        stringResource(Res.string.servers_add_manual),
+                        { showManual = true },
+                    )
                     Spacer(Modifier.weight(1f))
                     dev.cluvex.zedsecure.ui.bento.MotifButton(
                         shape = androidx.compose.material3.MaterialShapes.Clover4Leaf,
