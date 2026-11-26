@@ -56,6 +56,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 class ProxyChainMemberMissingException(val missing: List<String>) :
     Exception("Proxy chain is missing ${missing.size} member(s): ${missing.joinToString(", ")}")
@@ -1456,63 +1458,110 @@ class ConfigRepository(private val store: KeyValueStore) {
 
     fun createLockedZsx(request: ZsxSealRequest): ByteArray = ZsxCrypto.seal(request)
 
-    fun lockedRequests(chosen: List<VpnProfile>, form: ZsxSealRequest, combine: Boolean): List<Pair<ZsxSealRequest, String>> {
-        val members = if (combine) autoMembersOf(chosen) else emptyList()
+    fun lockedRequests(
+        chosen: List<VpnProfile>,
+        form: ZsxSealRequest,
+        combine: Boolean,
+        pack: Boolean = false,
+    ): List<Pair<ZsxSealRequest, String>> {
+        require(chosen.isNotEmpty()) { "No configurations selected" }
+        val members = if (combine && !pack) autoMembersOf(chosen) else emptyList()
         val group = if (members.size > 1) {
             runCatching { XrayJsonBuilder.buildAutoSelect(members, AutoSelectTuning()).json }.getOrNull()
-        } else {
-            null
-        }
+        } else null
         if (group != null) {
             val name = form.nameEn.ifBlank { chosen.first().name }
             return listOf(form.copy(configPayload = group, nameEn = name, nameFa = name) to name)
         }
-        return chosen.mapIndexedNotNull { index, profile ->
-            val payload = profile.rawPayload() ?: return@mapIndexedNotNull null
-            val base = form.nameEn.ifBlank { profile.name }
-            val name = if (chosen.size > 1) "$base ${index + 1}" else base
-            val fileName = if (chosen.size > 1) "${index + 1}_$base" else base
+        val entries = chosen.map { profile ->
+            val payload = profile.rawPayload() ?: throw IllegalArgumentException("Unsupported configuration: " + profile.name)
+            profile.name to payload
+        }
+        if (pack && entries.size > 1) {
+            val name = form.nameEn.ifBlank { "ZX Pack" }
+            val bundle = buildJsonObject {
+                put("format", "zx_locked_bundle_v1")
+                put("configs", JsonArray(entries.map { (configName, payload) ->
+                    buildJsonObject {
+                        put("name", configName)
+                        put("payload", payload)
+                    }
+                }))
+            }.toString()
+            return listOf(form.copy(configPayload = bundle, nameEn = name, nameFa = name) to name)
+        }
+        return entries.mapIndexed { index, entry ->
+            val (profileName, payload) = entry
+            val base = form.nameEn.ifBlank { profileName }
+            val name = if (entries.size > 1) base + " " + (index + 1) else base
+            val fileName = if (entries.size > 1) (index + 1).toString() + "_" + base else base
             form.copy(configPayload = payload, nameEn = name, nameFa = name) to fileName
         }
     }
 
     fun peekLocked(bytes: ByteArray): ZsxMetadata = ZsxCrypto.peek(bytes)
 
-    fun importLocked(bytes: ByteArray, password: String?): Result<VpnProfile> = runCatching {
+    fun importLocked(bytes: ByteArray, password: String?): Result<VpnProfile> =
+        importLockedBundle(bytes, password).map { it.first() }
+
+    fun importLockedBundle(bytes: ByteArray, password: String?): Result<List<VpnProfile>> = runCatching {
         val meta = ZsxCrypto.peek(bytes)
         if (meta.isExpired) throw ZsxExpiredException()
         val payload = ZsxCrypto.open(bytes, password)
-        val resealed = ZsxCrypto.seal(
-            ZsxSealRequest(
-                configPayload = payload,
-                nameEn = meta.nameEn,
-                nameFa = meta.nameFa,
-                note = meta.note,
-                expiresAt = meta.expiresAt,
-                password = null,
-            ),
-        )
-        val name = meta.nameEn.ifBlank { meta.nameFa }.ifBlank { "Locked config" }
-        val profile = VpnProfile(
-            id = newId(),
-            name = name,
-            protocol = "LOCKED",
-            address = "•••",
-            port = 0,
-            transportLabel = "Locked · .ZX",
-            source = ProfileSource.Sealed(Base64.encode(resealed)),
-            addedAt = currentTimeMillis(),
-            isLocked = true,
-            note = meta.note.takeIf { it.isNotBlank() },
-        )
-        when (VpnProfile.sourceOfPayload(payload) ?: throw ConfigParseException("This locked config holds a format ZedSecure cannot run")) {
-            is ProfileSource.Link, is ProfileSource.RawJson, is ProfileSource.SingBox -> profile.toXrayConfigJson()
-            else -> Unit
+        val root = runCatching { json.parseToJsonElement(payload) as? JsonObject }.getOrNull()
+        val bundleEntries = if (root?.get("format")?.toString()?.trim('"') == "zx_locked_bundle_v1") {
+            val configs = root["configs"] as? JsonArray ?: throw ConfigParseException("Invalid ZX bundle")
+            configs.map { item ->
+                val obj = item as? JsonObject ?: throw ConfigParseException("Invalid ZX bundle item")
+                val itemName = obj["name"]?.toString()?.trim('"').orEmpty()
+                val itemPayload = obj["payload"]?.let { element ->
+                    runCatching { json.decodeFromJsonElement<String>(element) }.getOrNull()
+                } ?: throw ConfigParseException("Invalid ZX bundle payload")
+                itemName to itemPayload
+            }.also { if (it.isEmpty()) throw ConfigParseException("Empty ZX bundle") }
+        } else listOf(meta.nameEn.ifBlank { meta.nameFa } to payload)
+
+        val imported = bundleEntries.mapIndexed { index, entry ->
+            val (entryName, configPayload) = entry
+            val source = VpnProfile.sourceOfPayload(configPayload)
+                ?: throw ConfigParseException("This locked config holds a format ZedSecure cannot run")
+            val name = entryName.ifBlank {
+                val base = meta.nameEn.ifBlank { meta.nameFa }.ifBlank { "Locked config" }
+                if (bundleEntries.size > 1) base + " " + (index + 1) else base
+            }
+            val resealed = ZsxCrypto.seal(
+                ZsxSealRequest(
+                    configPayload = configPayload,
+                    nameEn = name,
+                    nameFa = name,
+                    note = meta.note,
+                    expiresAt = meta.expiresAt,
+                    password = null,
+                ),
+            )
+            val profile = VpnProfile(
+                id = newId(),
+                name = name,
+                protocol = "LOCKED",
+                address = "•••",
+                port = 0,
+                transportLabel = "Locked · .ZX",
+                source = ProfileSource.Sealed(Base64.encode(resealed)),
+                addedAt = currentTimeMillis(),
+                isLocked = true,
+                note = meta.note.takeIf { it.isNotBlank() },
+            )
+            when (source) {
+                is ProfileSource.Link, is ProfileSource.RawJson, is ProfileSource.SingBox,
+                is ProfileSource.SingBoxConfig -> profile.toXrayConfigJson()
+                else -> Unit
+            }
+            profile
         }
-        _profiles.value = _profiles.value + profile
+        _profiles.value = _profiles.value + imported
         persistProfiles()
-        if (_activeId.value == null) setActive(profile.id)
-        profile
+        if (_activeId.value == null) setActive(imported.first().id)
+        imported
     }
 
     private fun persistProfiles() {
