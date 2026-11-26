@@ -16,6 +16,7 @@ enum class AiProvider(
     GEMINI("Google Gemini", "https://aistudio.google.com/apikey"),
     CLAUDE("Anthropic Claude", "https://console.anthropic.com/settings/keys"),
     OPENAI("OpenAI ChatGPT", "https://platform.openai.com/api-keys"),
+    DEEPSEEK("DeepSeek", "https://platform.deepseek.com/api_keys"),
 }
 
 @Serializable
