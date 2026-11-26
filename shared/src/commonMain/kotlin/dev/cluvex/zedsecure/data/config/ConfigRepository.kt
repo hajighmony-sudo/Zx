@@ -1489,7 +1489,7 @@ class ConfigRepository(private val store: KeyValueStore) {
                     }
                 }))
             }.toString()
-            return listOf(form.copy(configPayload = bundle, nameEn = name, nameFa = name) to name)
+            return listOf(form.copy(configPayload = bundle, nameEn = name, nameFa = name, configCount = entries.size) to name)
         }
         return entries.mapIndexed { index, entry ->
             val (profileName, payload) = entry
