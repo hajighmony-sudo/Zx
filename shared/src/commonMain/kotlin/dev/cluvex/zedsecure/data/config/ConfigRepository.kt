@@ -1466,17 +1466,55 @@ class ConfigRepository(private val store: KeyValueStore) {
         pack: Boolean = false,
     ): List<Pair<ZsxSealRequest, String>> {
         require(chosen.isNotEmpty()) { "No configurations selected" }
+        require(chosen.map { it.id }.distinct().size == chosen.size) { "Duplicate configurations were selected" }
+
+        // A chain is only portable when every referenced member travels in the same .ZX pack.
+        val selectedIds = chosen.mapTo(hashSetOf()) { it.id }
+        chosen.forEach { profile ->
+            when (val source = profile.source) {
+                is ProfileSource.ProxyChain -> {
+                    val missing = source.memberIds.filterNot { it in selectedIds }
+                    require(missing.isEmpty()) {
+                        "برای اشتراک زنجیره، همه اعضای آن را هم انتخاب کنید: " + profile.name
+                    }
+                }
+                is ProfileSource.CrossChain -> require(
+                    source.innerId in selectedIds && source.outerId in selectedIds,
+                ) {
+                    "برای اشتراک زنجیره ترکیبی، هر دو کانفیگ داخلی و بیرونی را هم انتخاب کنید: " + profile.name
+                }
+                is ProfileSource.AutoSelect -> throw IllegalArgumentException(
+                    "پروفایل Auto Select به اشتراک یا گروه اصلی وابسته است و قابل انتقال مستقل نیست: " + profile.name,
+                )
+                is ProfileSource.Sealed -> throw IllegalArgumentException(
+                    "ابتدا قفل کانفیگ را در فهرست خود باز کنید: " + profile.name,
+                )
+                else -> Unit
+            }
+        }
+
         val members = if (combine && !pack) autoMembersOf(chosen) else emptyList()
+        if (combine && !pack) {
+            require(chosen.size > 1 && members.size == chosen.size) {
+                "Auto Select فقط برای کانفیگ‌های سازگار با Xray قابل ساخت است؛ برای ترکیب انواع دیگر، پک را انتخاب کنید."
+            }
+        }
         val group = if (members.size > 1) {
-            runCatching { XrayJsonBuilder.buildAutoSelect(members, AutoSelectTuning()).json }.getOrNull()
+            runCatching { XrayJsonBuilder.buildAutoSelect(members, AutoSelectTuning()).json }
+                .getOrElse { throw IllegalArgumentException("ساخت Auto Select ناموفق بود: ${it.message.orEmpty()}") }
         } else null
         if (group != null) {
             val name = form.nameEn.ifBlank { chosen.first().name }
             return listOf(form.copy(configPayload = group, nameEn = name, nameFa = name) to name)
         }
+
+        // Serialize full profile objects rather than only raw URIs. This preserves DNS-only,
+        // managed tunnel, sing-box, and chain metadata which rawPayload() cannot represent.
+        if (chosen.any { it.source is ProfileSource.ProxyChain || it.source is ProfileSource.CrossChain } && !pack) {
+            throw IllegalArgumentException("برای اشتراک کانفیگ‌های زنجیره‌ای، حالت «یک فایل شامل همه کانفیگ‌ها» را فعال کنید.")
+        }
         val entries = chosen.map { profile ->
-            val payload = profile.rawPayload() ?: throw IllegalArgumentException("Unsupported configuration: " + profile.name)
-            profile.name to payload
+            profile.name to profile.lockedSharePayload()
         }
         if (pack && entries.size > 1) {
             val name = form.nameEn.ifBlank { chosen.first().name }
@@ -1522,8 +1560,54 @@ class ConfigRepository(private val store: KeyValueStore) {
             }.also { if (it.isEmpty()) throw ConfigParseException("Empty ZX bundle") }
         } else listOf(meta.nameEn.ifBlank { meta.nameFa } to payload)
 
+        // Pre-allocate new identities for every portable profile. Chain references are
+        // remapped against this table so imported Proxy/Cross Chains remain connected.
+        val portableProfiles = bundleEntries.mapNotNull { (_, itemPayload) ->
+            VpnProfile.fromLockedSharePayload(itemPayload)
+        }
+        val portableIds = portableProfiles.map { it.id }
+        require(portableIds.distinct().size == portableIds.size) {
+            "بسته شامل شناسه تکراری برای کانفیگ‌ها است."
+        }
+        val importedIds = portableProfiles.associate { it.id to newId() }
+
         val imported = bundleEntries.mapIndexed { index, entry ->
-            val (entryName, configPayload) = entry
+            val (entryName, originalPayload) = entry
+            val portable = VpnProfile.fromLockedSharePayload(originalPayload)
+            val configPayload = if (portable == null) {
+                originalPayload // Backward compatibility with existing URI/raw .ZX files.
+            } else {
+                val remappedSource = when (val source = portable.source) {
+                    is ProfileSource.ProxyChain -> {
+                        require(source.memberIds.all { it in importedIds }) {
+                            "بسته ناقص است؛ اعضای زنجیره داخل بسته وجود ندارند."
+                        }
+                        source.copy(memberIds = source.memberIds.map { importedIds.getValue(it) })
+                    }
+                    is ProfileSource.CrossChain -> {
+                        require(source.innerId in importedIds && source.outerId in importedIds) {
+                            "بسته ناقص است؛ کانفیگ‌های زنجیره ترکیبی داخل بسته وجود ندارند."
+                        }
+                        source.copy(
+                            innerId = importedIds.getValue(source.innerId),
+                            outerId = importedIds.getValue(source.outerId),
+                        )
+                    }
+                    is ProfileSource.AutoSelect -> throw ConfigParseException(
+                        "Auto Select needs its original subscription and cannot be imported as a standalone profile.",
+                    )
+                    is ProfileSource.Sealed -> throw ConfigParseException(
+                        "Nested locked files are not supported inside a ZX pack.",
+                    )
+                    else -> source
+                }
+                portable.copy(
+                    id = importedIds.getValue(portable.id),
+                    name = entryName.ifBlank { portable.name },
+                    source = remappedSource,
+                    isLocked = false,
+                ).lockedSharePayload()
+            }
             val source = VpnProfile.sourceOfPayload(configPayload)
                 ?: throw ConfigParseException("This locked config holds a format ZedSecure cannot run")
             val name = entryName.ifBlank {
@@ -1541,7 +1625,8 @@ class ConfigRepository(private val store: KeyValueStore) {
                 ),
             )
             val profile = VpnProfile(
-                id = newId(),
+                // The inner profile ID is already remapped for dependent chain references.
+                id = portable?.let { importedIds.getValue(it.id) } ?: newId(),
                 name = name,
                 protocol = "LOCKED",
                 address = "•••",
