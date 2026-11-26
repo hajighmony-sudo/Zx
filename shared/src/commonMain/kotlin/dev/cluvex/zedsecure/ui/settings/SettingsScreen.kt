@@ -1277,7 +1277,7 @@ private fun UiPage(
 
         if (s.appDesign == AppDesign.Zx) {
             // Reuse the mature Bento appearance controls for the new hybrid ZX design.
-            dev.cluvex.zedsecure.ui.bento.BentoLookSection(s, onUpdate)
+            dev.cluvex.zedsecure.ui.bento.BentoLookSection(s, onUpdate, zxMode = true)
         }
 
         if (s.appDesign == AppDesign.ZxPs) {
