@@ -125,6 +125,7 @@ fun ZxTopBar(
 @Composable
 private fun ZxHamburgerGlyph(open: Boolean) {
     val progress = animateFloatAsState(if (open) 1f else 0f, label = "zx-menu-morph").value
+    val lineColor = MaterialTheme.colorScheme.onSurface
     Canvas(Modifier.size(24.dp)) {
         val stroke = 2.2.dp.toPx()
         val left = size.width * 0.18f
@@ -134,7 +135,7 @@ private fun ZxHamburgerGlyph(open: Boolean) {
         val bottomY = size.height * 0.71f
         val inset = size.width * 0.17f * progress
         drawLine(
-            MaterialTheme.colorScheme.onSurface,
+            lineColor,
             androidx.compose.ui.geometry.Offset(left + inset, topY + (midY - topY) * progress),
             androidx.compose.ui.geometry.Offset(right - inset, topY + (midY - topY) * progress),
             strokeWidth = stroke,
@@ -142,7 +143,7 @@ private fun ZxHamburgerGlyph(open: Boolean) {
         )
         if (progress < 0.98f) {
             drawLine(
-                MaterialTheme.colorScheme.onSurface.copy(alpha = 1f - progress),
+                lineColor.copy(alpha = 1f - progress),
                 androidx.compose.ui.geometry.Offset(left, midY),
                 androidx.compose.ui.geometry.Offset(right, midY),
                 strokeWidth = stroke,
