@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="icon_bg_zx_orange">#101014</color>
+    <color name="icon_bg_zx_steel">#17191D</color>
+    <color name="icon_bg_zx_blade">#050608</color>
+    <color name="icon_bg_zx_white">#151515</color>
+    <color name="icon_bg_zx_silver">#24272B</color>
+    <color name="icon_bg_zx_distressed">#080808</color>
+</resources>
