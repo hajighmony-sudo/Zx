@@ -231,7 +231,12 @@ fun MainScaffold(
         },
     ) {
     Box(Modifier.fillMaxSize()) {
+    if (isZxUi) {
+        dev.cluvex.zedsecure.ui.navigation.ZxAmbientBackdrop(Modifier.fillMaxSize())
+    }
     Scaffold(
+        containerColor = if (isZxUi) androidx.compose.ui.graphics.Color.Transparent
+            else MaterialTheme.colorScheme.background,
         topBar = {
             if (isZxUi) {
                 dev.cluvex.zedsecure.ui.navigation.ZxTopBar(
