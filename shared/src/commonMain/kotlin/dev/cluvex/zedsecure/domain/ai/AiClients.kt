@@ -31,6 +31,7 @@ interface AiClient {
             AiProvider.GEMINI -> GeminiClient(apiKey)
             AiProvider.CLAUDE -> ClaudeClient(apiKey)
             AiProvider.OPENAI -> OpenAiClient(apiKey)
+            AiProvider.DEEPSEEK -> OpenAiClient(apiKey, AiProvider.DEEPSEEK, "https://api.deepseek.com")
         }
     }
 }
@@ -277,10 +278,11 @@ private class ClaudeClient(private val apiKey: String) : AiClient {
     }
 }
 
-private class OpenAiClient(private val apiKey: String) : AiClient {
-    override val provider = AiProvider.OPENAI
-
-    private val base = "https://api.openai.com/v1"
+private class OpenAiClient(
+    private val apiKey: String,
+    override val provider: AiProvider = AiProvider.OPENAI,
+    private val base: String = "https://api.openai.com/v1",
+) : AiClient {
     private fun headers() = mapOf(
         "Authorization" to "Bearer $apiKey",
         "Content-Type" to "application/json",
