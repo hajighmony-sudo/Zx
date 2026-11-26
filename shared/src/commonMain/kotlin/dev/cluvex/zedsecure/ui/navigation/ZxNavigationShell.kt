@@ -14,12 +14,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -37,6 +40,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -183,24 +187,24 @@ fun ZxNavigationDrawer(
     current: TopDestination,
     onSelect: (TopDestination) -> Unit,
 ) {
-    val shape = RoundedCornerShape(topEnd = 30.dp, bottomEnd = 30.dp)
+    val shape = RoundedCornerShape(topEnd = 32.dp, bottomEnd = 32.dp)
     ModalDrawerSheet(
         modifier = Modifier
             .fillMaxHeight()
-            .width(320.dp)
+            .width(328.dp)
             .border(
                 1.dp,
                 Brush.verticalGradient(
                     listOf(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.42f),
-                        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f),
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.58f),
+                        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.32f),
+                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f),
                     ),
                 ),
                 shape,
             ),
         drawerShape = shape,
-        drawerContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.97f),
+        drawerContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f),
         drawerContentColor = MaterialTheme.colorScheme.onSurface,
         drawerTonalElevation = 0.dp,
     ) {
@@ -210,139 +214,224 @@ fun ZxNavigationDrawer(
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.07f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.11f),
                             MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.02f),
-                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.05f),
+                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.08f),
                         ),
                     ),
                 )
                 .statusBarsPadding()
                 .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
         ) {
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(16.dp))
             Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.86f),
-                tonalElevation = 3.dp,
-                shadowElevation = 7.dp,
+                shape = RoundedCornerShape(26.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.72f),
+                tonalElevation = 2.dp,
+                shadowElevation = 9.dp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .border(
                         1.dp,
                         Brush.linearGradient(
                             listOf(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.48f),
-                                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.24f),
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.65f),
+                                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.35f),
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
                             ),
                         ),
-                        RoundedCornerShape(24.dp),
+                        RoundedCornerShape(26.dp),
                     ),
             ) {
                 Row(
-                    Modifier.padding(horizontal = 16.dp, vertical = 18.dp),
+                    Modifier.padding(horizontal = 16.dp, vertical = 17.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(18.dp),
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
                         contentColor = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(52.dp),
+                        modifier = Modifier.size(54.dp),
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Text("ZX", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
                         }
                     }
-                    Spacer(Modifier.width(14.dp))
+                    Spacer(Modifier.width(13.dp))
                     Column(Modifier.weight(1f)) {
                         Text("ZX", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
                         Text(
-                            "FUTURE OS  •  UI / XU",
+                            "FUTURE OS  ·  UI / XU",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.14f),
+                    ) {
+                        Box(Modifier.size(10.dp).padding(2.dp).background(MaterialTheme.colorScheme.tertiary, CircleShape))
+                    }
+                }
+            }
+            Spacer(Modifier.height(18.dp))
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.50f),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "CURRENT SPACE",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            stringResource(current.labelRes),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                        contentColor = MaterialTheme.colorScheme.primary,
+                    ) {
+                        Icon(painterResource(current.icon), null, Modifier.padding(9.dp).size(22.dp))
                     }
                 }
             }
             Spacer(Modifier.height(22.dp))
             Text(
                 "NAVIGATION",
-                modifier = Modifier.padding(start = 12.dp, bottom = 9.dp),
+                modifier = Modifier.padding(start = 10.dp, bottom = 8.dp),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold,
             )
-            val navigationSections = listOf(
+            val sections = listOf(
                 "CORE" to listOf(TopDestination.Home),
-                "NETWORK" to listOf(
-                    TopDestination.Servers,
-                    TopDestination.Subscriptions,
-                    TopDestination.Vault,
-                ),
-                "TOOLS" to listOf(
-                    TopDestination.SpeedTest,
-                    TopDestination.Map,
-                    TopDestination.Logs,
-                    TopDestination.Routing,
-                    TopDestination.Apps,
-                ),
+                "NETWORK" to listOf(TopDestination.Servers, TopDestination.Subscriptions, TopDestination.Vault),
+                "TOOLS" to listOf(TopDestination.SpeedTest, TopDestination.Map, TopDestination.Logs, TopDestination.Routing, TopDestination.Apps),
                 "SYSTEM" to listOf(TopDestination.Settings),
             )
-            navigationSections.forEach { (sectionTitle, destinations) ->
+            sections.forEach { (sectionTitle, destinations) ->
                 Text(
                     sectionTitle,
-                    modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 7.dp),
+                    modifier = Modifier.padding(start = 10.dp, top = 12.dp, bottom = 8.dp),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.tertiary,
                     fontWeight = FontWeight.Bold,
                 )
-                destinations.forEach { destination ->
-                    NavigationDrawerItem(
-                        label = {
-                            Text(
-                                stringResource(destination.labelRes),
-                                style = MaterialTheme.typography.labelLarge,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        },
-                        selected = current == destination,
-                        onClick = { onSelect(destination) },
-                        icon = {
-                            Icon(
-                                painterResource(destination.icon),
-                                contentDescription = null,
-                                modifier = Modifier.size(21.dp),
-                            )
-                        },
-                        shape = RoundedCornerShape(18.dp),
-                        colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            unselectedContainerColor = Color.Transparent,
-                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            unselectedTextColor = MaterialTheme.colorScheme.onSurface,
-                        ),
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                if (destinations.size == 1) {
+                    ZxDrawerTile(
+                        destination = destinations.first(),
+                        selected = current == destinations.first(),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp),
+                        onClick = { onSelect(destinations.first()) },
+                    )
+                } else {
+                    destinations.chunked(2).forEach { pair ->
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            pair.forEach { destination ->
+                                ZxDrawerTile(
+                                    destination = destination,
+                                    selected = current == destination,
+                                    modifier = Modifier.weight(1f).heightIn(min = 88.dp),
+                                    onClick = { onSelect(destination) },
+                                )
+                            }
+                            if (pair.size == 1) Spacer(Modifier.weight(1f))
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+                }
+                Spacer(Modifier.height(2.dp))
+            }
+            Spacer(Modifier.height(10.dp))
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.54f),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                    Text(
+                        "GLASS  ·  LIQUID  ·  HOLOGRAPHIC",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        "A calmer, adaptive ZX experience",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                     )
                 }
             }
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun ZxDrawerTile(
+    destination: TopDestination,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(20.dp)
+    val border = Brush.linearGradient(
+        listOf(
+            MaterialTheme.colorScheme.primary.copy(alpha = if (selected) 0.75f else 0.28f),
+            MaterialTheme.colorScheme.tertiary.copy(alpha = if (selected) 0.52f else 0.18f),
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+        ),
+    )
+    Surface(
+        onClick = onClick,
+        modifier = modifier.border(if (selected) 1.2.dp else 0.7.dp, border, shape),
+        shape = shape,
+        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+        else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.42f),
+        contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+        shadowElevation = if (selected) 5.dp else 1.dp,
+    ) {
+        Row(
+            Modifier.padding(horizontal = 11.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.62f),
-                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(13.dp),
+                color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)
+                else MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f),
+                contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+                modifier = Modifier.size(38.dp),
             ) {
-                Text(
-                    "GLASS  •  LIQUID  •  HOLOGRAPHIC",
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(painterResource(destination.icon), null, Modifier.size(20.dp))
+                }
             }
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.width(9.dp))
+            Text(
+                stringResource(destination.labelRes),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }
@@ -356,9 +445,9 @@ fun ZxBottomBar(
     val shape = RoundedCornerShape(30.dp)
     val borderBrush = Brush.linearGradient(
         listOf(
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.26f),
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.58f),
+            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.34f),
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f),
         ),
     )
     Box(
@@ -370,20 +459,32 @@ fun ZxBottomBar(
     ) {
         Surface(
             shape = shape,
-            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.88f),
-            tonalElevation = 2.dp,
-            shadowElevation = 12.dp,
+            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.78f),
+            tonalElevation = 1.dp,
+            shadowElevation = 16.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .border(1.dp, borderBrush, shape),
         ) {
             Row(
                 Modifier.padding(horizontal = 5.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 tabs.forEach { destination ->
                     val selected = current == destination
+                    val container by androidx.compose.animation.animateColorAsState(
+                        targetValue = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f) else Color.Transparent,
+                        label = "zx-nav-container-${destination.name}",
+                    )
+                    val content by androidx.compose.animation.animateColorAsState(
+                        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        label = "zx-nav-content-${destination.name}",
+                    )
+                    val scale by animateFloatAsState(
+                        targetValue = if (selected) 1.06f else 1f,
+                        label = "zx-nav-scale-${destination.name}",
+                    )
                     Surface(
                         onClick = { onSelect(destination) },
                         modifier = Modifier
@@ -394,23 +495,25 @@ fun ZxBottomBar(
                                 shape = RoundedCornerShape(22.dp),
                             ),
                         shape = RoundedCornerShape(22.dp),
-                        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else Color.Transparent,
-                        contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = container,
+                        contentColor = content,
                     ) {
                         Row(
-                            Modifier.padding(horizontal = 5.dp, vertical = 10.dp),
+                            Modifier.padding(horizontal = 3.dp, vertical = 9.dp),
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
                                 painterResource(destination.icon),
                                 contentDescription = stringResource(destination.labelRes),
-                                modifier = Modifier.size(21.dp),
+                                modifier = Modifier.size(21.dp).then(
+                                    Modifier,
+                                ).graphicsLayer(scaleX = scale, scaleY = scale),
                             )
                             AnimatedVisibility(visible = selected || tabs.size <= 4) {
                                 Text(
                                     stringResource(destination.labelRes),
-                                    modifier = Modifier.padding(start = 6.dp),
+                                    modifier = Modifier.padding(start = 5.dp),
                                     style = MaterialTheme.typography.labelSmall,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
@@ -420,6 +523,55 @@ fun ZxBottomBar(
                     }
                 }
             }
+        }
+    }
+}
+
+/** Subtle ambient light field behind the ZX interface. */
+@Composable
+fun ZxAmbientBackdrop(modifier: Modifier = Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Canvas(modifier) {
+        drawRect(
+            Brush.linearGradient(
+                colors = listOf(
+                    colors.background,
+                    colors.surfaceContainerLow,
+                    colors.background,
+                ),
+                start = androidx.compose.ui.geometry.Offset.Zero,
+                end = androidx.compose.ui.geometry.Offset(size.width, size.height),
+            ),
+        )
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(colors.primary.copy(alpha = 0.16f), Color.Transparent),
+                center = androidx.compose.ui.geometry.Offset(size.width * 0.08f, size.height * 0.12f),
+                radius = size.minDimension * 0.78f,
+            ),
+            radius = size.minDimension * 0.78f,
+            center = androidx.compose.ui.geometry.Offset(size.width * 0.08f, size.height * 0.12f),
+        )
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(colors.tertiary.copy(alpha = 0.12f), Color.Transparent),
+                center = androidx.compose.ui.geometry.Offset(size.width * 0.94f, size.height * 0.70f),
+                radius = size.minDimension * 0.68f,
+            ),
+            radius = size.minDimension * 0.68f,
+            center = androidx.compose.ui.geometry.Offset(size.width * 0.94f, size.height * 0.70f),
+        )
+        val gridColor = colors.outlineVariant.copy(alpha = 0.10f)
+        val step = 32.dp.toPx()
+        var x = 0f
+        while (x <= size.width) {
+            drawLine(gridColor, androidx.compose.ui.geometry.Offset(x, 0f), androidx.compose.ui.geometry.Offset(x, size.height), strokeWidth = 0.45.dp.toPx())
+            x += step
+        }
+        var y = 0f
+        while (y <= size.height) {
+            drawLine(gridColor, androidx.compose.ui.geometry.Offset(0f, y), androidx.compose.ui.geometry.Offset(size.width, y), strokeWidth = 0.45.dp.toPx())
+            y += step
         }
     }
 }
