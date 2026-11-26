@@ -8,6 +8,7 @@ package dev.cluvex.zedsecure.ui.vault
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,6 +39,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -71,6 +73,7 @@ import dev.cluvex.zedsecure.ui.platform.LocalPlatform
 import dev.cluvex.zedsecure.crypto.ZsxSealRequest
 import dev.cluvex.zedsecure.data.config.ConfigRepository
 import dev.cluvex.zedsecure.domain.config.VpnProfile
+import dev.cluvex.zedsecure.domain.config.ProfileSource
 import dev.cluvex.zedsecure.ui.components.MorphingBlob
 import dev.cluvex.zedsecure.ui.components.PageHeader
 import dev.cluvex.zedsecure.ui.theme.ZedGradients
@@ -104,8 +107,10 @@ fun VaultScreen(
     val locked = profiles.filter { it.isLocked }
 
     val sources = remember(profiles) {
-        profiles.filter { p ->
-            !p.isLocked && !p.isProxyChain && !p.isCrossChain && !p.isAutoSelect && p.rawPayload() != null
+        profiles.filter { profile ->
+            !profile.isLocked &&
+                !profile.isAutoSelect &&
+                profile.source !is ProfileSource.Sealed
         }
     }
     var showCreate by remember { mutableStateOf(false) }
@@ -560,6 +565,8 @@ private fun CreateLockedSheet(
     onCreate: (List<VpnProfile>, ZsxSealRequest, Boolean, Boolean) -> Unit,
 ) {
     var selected by remember { mutableStateOf(sources.take(1).map { it.id }.toSet()) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var sourceFilter by rememberSaveable { mutableStateOf("all") }
     var combine by remember { mutableStateOf(false) }
     var pack by remember { mutableStateOf(false) }
     var showPreview by remember { mutableStateOf(false) }
@@ -589,10 +596,61 @@ private fun CreateLockedSheet(
                 color = MaterialTheme.colorScheme.primary,
             )
 
-            Row {
-                TextButton(onClick = { selected = sources.mapTo(LinkedHashSet()) { it.id } }) {
-                    Text(stringResource(Res.string.select_all))
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                label = { Text("جستجوی نام، پروتکل یا نوع کانفیگ") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                listOf(
+                    "all" to "همه",
+                    "proxy" to "پروکسی",
+                    "dns" to "DNS",
+                    "managed" to "سرویس‌ها",
+                    "chain" to "زنجیره‌ها",
+                ).forEach { (key, label) ->
+                    FilterChip(
+                        selected = sourceFilter == key,
+                        onClick = { sourceFilter = key },
+                        label = { Text(label) },
+                    )
                 }
+            }
+            val visibleSources = remember(sources, searchQuery, sourceFilter) {
+                sources.filter { profile ->
+                    val matchesCategory = when (sourceFilter) {
+                        "proxy" -> profile.standardLink != null || profile.isSingBox || profile.isAether
+                        "dns" -> profile.isDnsBasedTunnel || profile.isDnsResolver
+                        "managed" -> profile.isPsiphon || profile.isTor || profile.isSsh ||
+                            profile.isOpenConnect || profile.isIkev2 || profile.isMasterDns ||
+                            profile.isSniSpoof
+                        "chain" -> profile.isProxyChain || profile.isCrossChain
+                        else -> true
+                    }
+                    matchesCategory && (
+                        searchQuery.isBlank() ||
+                            profile.name.contains(searchQuery, ignoreCase = true) ||
+                            profile.protocol.contains(searchQuery, ignoreCase = true) ||
+                            profile.transportLabel.contains(searchQuery, ignoreCase = true)
+                        )
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "انتخاب‌شده: ${selected.size} از ${sources.size}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    onClick = { selected = selected + visibleSources.map { it.id } },
+                    enabled = visibleSources.any { it.id !in selected },
+                ) { Text("انتخاب نتایج") }
                 TextButton(onClick = { selected = emptySet() }, enabled = selected.isNotEmpty()) {
                     Text(stringResource(Res.string.select_none))
                 }
@@ -603,7 +661,17 @@ private fun CreateLockedSheet(
                 modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp).mouseDragScrollVertical(listState),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-              items(sources, key = { it.id }) { profile ->
+              if (visibleSources.isEmpty()) {
+                  item {
+                      Text(
+                          "کانفیگی با این فیلتر پیدا نشد.",
+                          style = MaterialTheme.typography.bodyMedium,
+                          color = MaterialTheme.colorScheme.onSurfaceVariant,
+                          modifier = Modifier.padding(vertical = 20.dp),
+                      )
+                  }
+              }
+              items(visibleSources, key = { it.id }) { profile ->
                 val checked = profile.id in selected
                 Surface(
                     onClick = { selected = if (checked) selected - profile.id else selected + profile.id },
