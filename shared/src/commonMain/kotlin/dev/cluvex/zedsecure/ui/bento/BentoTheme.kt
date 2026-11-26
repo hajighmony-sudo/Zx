@@ -29,7 +29,8 @@ object Bento {
         @Composable @ReadOnlyComposable get() = LocalBentoStyle.current.latin
 
     val active: Boolean
-        @Composable @ReadOnlyComposable get() = LocalAppDesign.current == AppDesign.Bento
+        @Composable @ReadOnlyComposable get() =
+            LocalAppDesign.current == AppDesign.Bento || LocalAppDesign.current == AppDesign.Zx
 }
 
 fun bentoColorScheme(c: BentoColors): ColorScheme {
