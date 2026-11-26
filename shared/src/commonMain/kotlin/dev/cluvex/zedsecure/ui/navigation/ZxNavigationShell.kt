@@ -128,20 +128,35 @@ fun ZxTopBar(
 
 @Composable
 private fun ZxHamburgerGlyph(open: Boolean) {
-    val progress = animateFloatAsState(if (open) 1f else 0f, label = "zx-menu-morph").value
+    val progress = animateFloatAsState(
+        targetValue = if (open) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium,
+        ),
+        label = "zx-menu-morph",
+    ).value
     val lineColor = MaterialTheme.colorScheme.onSurface
     Canvas(Modifier.size(24.dp)) {
         val stroke = 2.2.dp.toPx()
+        val cx = size.width * 0.5f
         val left = size.width * 0.18f
         val right = size.width * 0.82f
         val topY = size.height * 0.29f
         val midY = size.height * 0.50f
         val bottomY = size.height * 0.71f
-        val inset = size.width * 0.17f * progress
+        val halfLength = size.width * 0.32f
+        val angle = progress * 0.7853982f
+        val dx = kotlin.math.cos(angle.toDouble()).toFloat() * halfLength
+        val dy = kotlin.math.sin(angle.toDouble()).toFloat() * halfLength
+        val topCenterY = topY + (midY - topY) * progress
+        val bottomCenterY = bottomY - (bottomY - midY) * progress
+
+        // The two outer strokes travel inward and rotate into a crisp close glyph.
         drawLine(
             lineColor,
-            androidx.compose.ui.geometry.Offset(left + inset, topY + (midY - topY) * progress),
-            androidx.compose.ui.geometry.Offset(right - inset, topY + (midY - topY) * progress),
+            androidx.compose.ui.geometry.Offset(cx - dx, topCenterY - dy),
+            androidx.compose.ui.geometry.Offset(cx + dx, topCenterY + dy),
             strokeWidth = stroke,
             cap = StrokeCap.Round,
         )
@@ -156,14 +171,13 @@ private fun ZxHamburgerGlyph(open: Boolean) {
         }
         drawLine(
             lineColor,
-            androidx.compose.ui.geometry.Offset(left + inset, bottomY - (bottomY - midY) * progress),
-            androidx.compose.ui.geometry.Offset(right - inset, bottomY - (bottomY - midY) * progress),
+            androidx.compose.ui.geometry.Offset(cx - dx, bottomCenterY + dy),
+            androidx.compose.ui.geometry.Offset(cx + dx, bottomCenterY - dy),
             strokeWidth = stroke,
             cap = StrokeCap.Round,
         )
     }
 }
-
 @Composable
 fun ZxNavigationDrawer(
     current: TopDestination,
@@ -258,36 +272,61 @@ fun ZxNavigationDrawer(
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold,
             )
-            TopDestination.entries.forEach { destination ->
-                NavigationDrawerItem(
-                    label = {
-                        Text(
-                            stringResource(destination.labelRes),
-                            style = MaterialTheme.typography.labelLarge,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                    selected = current == destination,
-                    onClick = { onSelect(destination) },
-                    icon = {
-                        Icon(
-                            painterResource(destination.icon),
-                            contentDescription = null,
-                            modifier = Modifier.size(21.dp),
-                        )
-                    },
-                    shape = RoundedCornerShape(18.dp),
-                    colors = NavigationDrawerItemDefaults.colors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
-                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                        unselectedContainerColor = Color.Transparent,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurface,
-                    ),
-                    modifier = Modifier.padding(vertical = 2.dp),
+            val navigationSections = listOf(
+                "CORE" to listOf(TopDestination.Home),
+                "NETWORK" to listOf(
+                    TopDestination.Servers,
+                    TopDestination.Subscriptions,
+                    TopDestination.Vault,
+                ),
+                "TOOLS" to listOf(
+                    TopDestination.SpeedTest,
+                    TopDestination.Map,
+                    TopDestination.Logs,
+                    TopDestination.Routing,
+                    TopDestination.Apps,
+                ),
+                "SYSTEM" to listOf(TopDestination.Settings),
+            )
+            navigationSections.forEach { (sectionTitle, destinations) ->
+                Text(
+                    sectionTitle,
+                    modifier = Modifier.padding(start = 12.dp, top = 10.dp, bottom = 7.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    fontWeight = FontWeight.Bold,
                 )
+                destinations.forEach { destination ->
+                    NavigationDrawerItem(
+                        label = {
+                            Text(
+                                stringResource(destination.labelRes),
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        },
+                        selected = current == destination,
+                        onClick = { onSelect(destination) },
+                        icon = {
+                            Icon(
+                                painterResource(destination.icon),
+                                contentDescription = null,
+                                modifier = Modifier.size(21.dp),
+                            )
+                        },
+                        shape = RoundedCornerShape(18.dp),
+                        colors = NavigationDrawerItemDefaults.colors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            unselectedContainerColor = Color.Transparent,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurface,
+                        ),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    )
+                }
             }
             Spacer(Modifier.weight(1f))
             Surface(
@@ -347,7 +386,13 @@ fun ZxBottomBar(
                     val selected = current == destination
                     Surface(
                         onClick = { onSelect(destination) },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .border(
+                                width = if (selected) 1.dp else 0.dp,
+                                brush = borderBrush,
+                                shape = RoundedCornerShape(22.dp),
+                            ),
                         shape = RoundedCornerShape(22.dp),
                         color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else Color.Transparent,
                         contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
