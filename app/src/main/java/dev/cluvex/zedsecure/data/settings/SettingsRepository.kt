@@ -61,6 +61,7 @@ class SettingsRepository(context: Context) {
             colorStyle = prefs.enum("color_style", d.colorStyle),
             colorContrast = prefs.enum("color_contrast", d.colorContrast),
             appDesign = prefs.enum("app_design", d.appDesign),
+            launcherIcon = prefs.getString("launcher_icon", d.launcherIcon) ?: d.launcherIcon,
             zxAnim = prefs.enum("zx_anim", d.zxAnim),
             zxPs = prefs.getString("zx_ps_prefs", null)
                 ?.let { runCatching { aiJson.decodeFromString(ZxPsPrefs.serializer(), it) }.getOrNull() }
@@ -302,6 +303,7 @@ class SettingsRepository(context: Context) {
             putString("color_style", s.colorStyle.name)
             putString("color_contrast", s.colorContrast.name)
             putString("app_design", s.appDesign.name)
+            putString("launcher_icon", s.launcherIcon)
             putString("zx_anim", s.zxAnim.name)
             putString("zx_ps_prefs", aiJson.encodeToString(ZxPsPrefs.serializer(), s.zxPs))
             putString("ghost_settings", aiJson.encodeToString(GhostSettings.serializer(), s.ghost))
