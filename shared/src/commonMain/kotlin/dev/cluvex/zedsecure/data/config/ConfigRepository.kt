@@ -1574,10 +1574,8 @@ class ConfigRepository(private val store: KeyValueStore) {
         val imported = bundleEntries.mapIndexed { index, entry ->
             val (entryName, originalPayload) = entry
             val portable = VpnProfile.fromLockedSharePayload(originalPayload)
-            val configPayload = if (portable == null) {
-                originalPayload // Backward compatibility with existing URI/raw .ZX files.
-            } else {
-                val remappedSource = when (val source = portable.source) {
+            val portableProfile = portable?.let { original ->
+                val remappedSource = when (val source = original.source) {
                     is ProfileSource.ProxyChain -> {
                         require(source.memberIds.all { it in importedIds }) {
                             "بسته ناقص است؛ اعضای زنجیره داخل بسته وجود ندارند."
@@ -1601,13 +1599,20 @@ class ConfigRepository(private val store: KeyValueStore) {
                     )
                     else -> source
                 }
-                portable.copy(
-                    id = importedIds.getValue(portable.id),
-                    name = entryName.ifBlank { portable.name },
+                original.copy(
+                    id = importedIds.getValue(original.id),
+                    name = entryName.ifBlank { original.name },
                     source = remappedSource,
                     isLocked = false,
-                ).lockedSharePayload()
+                    subscriptionId = "",
+                    lastPingMs = null,
+                    bytesDown = 0L,
+                    bytesUp = 0L,
+                    note = null,
+                    dnsAutoManaged = false,
+                )
             }
+            val configPayload = portableProfile?.lockedSharePayload() ?: originalPayload
             val source = VpnProfile.sourceOfPayload(configPayload)
                 ?: throw ConfigParseException("This locked config holds a format ZedSecure cannot run")
             val name = entryName.ifBlank {
@@ -1626,7 +1631,7 @@ class ConfigRepository(private val store: KeyValueStore) {
             )
             val profile = VpnProfile(
                 // The inner profile ID is already remapped for dependent chain references.
-                id = portable?.let { importedIds.getValue(it.id) } ?: newId(),
+                id = portableProfile?.id ?: newId(),
                 name = name,
                 protocol = "LOCKED",
                 address = "•••",
@@ -1637,11 +1642,15 @@ class ConfigRepository(private val store: KeyValueStore) {
                 isLocked = true,
                 note = meta.note.takeIf { it.isNotBlank() },
             )
+            // Validate executable Xray/sing-box payloads on the restored profile itself.
+            // A portable wrapper is not a raw Xray JSON document and must not be fed to
+            // configJsonFromPayload through the outer sealed-card metadata.
+            val validationProfile = portableProfile ?: profile
             when (source) {
-                is ProfileSource.Link, is ProfileSource.SingBox -> profile.toXrayConfigJson()
+                is ProfileSource.Link, is ProfileSource.SingBox -> validationProfile.toXrayConfigJson()
                 is ProfileSource.RawJson -> {
                     if (dev.cluvex.zedsecure.domain.config.AetherProfile.decode(configPayload) == null) {
-                        profile.toXrayConfigJson()
+                        validationProfile.toXrayConfigJson()
                     }
                 }
                 else -> Unit
