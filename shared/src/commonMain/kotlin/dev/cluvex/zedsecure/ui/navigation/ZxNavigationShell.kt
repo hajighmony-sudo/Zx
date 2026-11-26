@@ -38,6 +38,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import org.jetbrains.compose.resources.painterResource
@@ -80,7 +82,9 @@ fun ZxTopBar(
             ) {
                 Surface(
                     onClick = onMenuClick,
-                    modifier = Modifier.size(42.dp),
+                    modifier = Modifier.size(42.dp).semantics {
+                        contentDescription = if (drawerOpen) "Close navigation menu" else "Open navigation menu"
+                    },
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
                     contentColor = MaterialTheme.colorScheme.primary,
