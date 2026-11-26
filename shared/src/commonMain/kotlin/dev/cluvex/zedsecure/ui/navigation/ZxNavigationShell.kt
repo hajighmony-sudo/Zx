@@ -55,6 +55,7 @@ fun ZxTopBar(
     current: TopDestination,
     drawerOpen: Boolean,
     connectionState: ConnectionState = ConnectionState.Idle,
+    reduceMotion: Boolean = false,
     onMenuClick: () -> Unit,
 ) {
     val connectionTone = when {
@@ -108,7 +109,7 @@ fun ZxTopBar(
                     contentColor = MaterialTheme.colorScheme.primary,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        ZxHamburgerGlyph(open = drawerOpen)
+                        ZxHamburgerGlyph(open = drawerOpen, reduceMotion = reduceMotion)
                     }
                 }
                 Spacer(Modifier.width(12.dp))
@@ -151,10 +152,11 @@ fun ZxTopBar(
 }
 
 @Composable
-private fun ZxHamburgerGlyph(open: Boolean) {
+private fun ZxHamburgerGlyph(open: Boolean, reduceMotion: Boolean) {
     val progress = animateFloatAsState(
         targetValue = if (open) 1f else 0f,
-        animationSpec = androidx.compose.animation.core.spring(
+        animationSpec = if (reduceMotion) androidx.compose.animation.core.snap()
+        else androidx.compose.animation.core.spring(
             dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
             stiffness = androidx.compose.animation.core.Spring.StiffnessMedium,
         ),
@@ -461,6 +463,7 @@ fun ZxBottomBar(
     tabs: List<TopDestination>,
     current: TopDestination,
     onSelect: (TopDestination) -> Unit,
+    reduceMotion: Boolean = false,
 ) {
     val shape = RoundedCornerShape(30.dp)
     val borderBrush = Brush.linearGradient(
@@ -495,14 +498,17 @@ fun ZxBottomBar(
                     val selected = current == destination
                     val container by androidx.compose.animation.animateColorAsState(
                         targetValue = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f) else Color.Transparent,
+                        animationSpec = if (reduceMotion) androidx.compose.animation.core.snap() else androidx.compose.animation.core.tween(180),
                         label = "zx-nav-container-${destination.name}",
                     )
                     val content by androidx.compose.animation.animateColorAsState(
                         targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        animationSpec = if (reduceMotion) androidx.compose.animation.core.snap() else androidx.compose.animation.core.tween(180),
                         label = "zx-nav-content-${destination.name}",
                     )
                     val scale by animateFloatAsState(
                         targetValue = if (selected) 1.06f else 1f,
+                        animationSpec = if (reduceMotion) androidx.compose.animation.core.snap() else androidx.compose.animation.core.spring(),
                         label = "zx-nav-scale-${destination.name}",
                     )
                     Surface(
