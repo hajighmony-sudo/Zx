@@ -54,17 +54,19 @@ import org.jetbrains.compose.resources.stringResource
 fun ZxTopBar(
     current: TopDestination,
     drawerOpen: Boolean,
-    connectionState: ConnectionState = ConnectionState.Disconnected,
+    connectionState: ConnectionState = ConnectionState.Idle,
     onMenuClick: () -> Unit,
 ) {
     val connectionTone = when {
         connectionState == ConnectionState.Connected -> Color(0xFF45D6AD)
         connectionState == ConnectionState.Error -> MaterialTheme.colorScheme.error
+        connectionState.isTransitioning -> MaterialTheme.colorScheme.tertiary
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     val connectionLabel = when {
         connectionState == ConnectionState.Connected -> "متصل"
         connectionState == ConnectionState.Error -> "خطا"
+        connectionState.isTransitioning -> "در حال اتصال"
         else -> "آفلاین"
     }
     val shape = RoundedCornerShape(24.dp)
