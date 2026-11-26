@@ -71,6 +71,8 @@ import androidx.compose.ui.unit.sp
 import dev.cluvex.zedsecure.core.ConnectionFault
 import dev.cluvex.zedsecure.data.net.NetworkInfo
 import dev.cluvex.zedsecure.domain.model.ConnectionState
+import dev.cluvex.zedsecure.domain.model.AppDesign
+import dev.cluvex.zedsecure.ui.theme.LocalAppDesign
 import dev.cluvex.zedsecure.shared.resources.Res
 import dev.cluvex.zedsecure.shared.resources.action_retry
 import dev.cluvex.zedsecure.shared.resources.app_name
@@ -178,7 +180,11 @@ internal fun BentoHome(
     var titleTaps by remember { mutableIntStateOf(0) }
     var titleLast by remember { mutableLongStateOf(0L) }
 
-    Box(modifier.fillMaxSize().background(c.ground)) {
+    Box(
+        modifier.fillMaxSize().background(
+            if (LocalAppDesign.current == AppDesign.Zx) Color.Transparent else c.ground,
+        ),
+    ) {
         Column(Modifier.fillMaxSize().padding(contentPadding)) {
             Column(
                 Modifier
@@ -187,23 +193,27 @@ internal fun BentoHome(
                     .appVerticalScroll(scroll),
                 verticalArrangement = Arrangement.spacedBy(BentoMetrics.gap() + 2.dp),
             ) {
-                BentoTopBar(
-                    title = stringResource(Res.string.app_name),
-                    onTitleClick = {
-                        val now = dev.cluvex.zedsecure.platform.currentTimeMillis()
-                        titleTaps = if (now - titleLast < TAP_WINDOW_MS) titleTaps + 1 else 1
-                        titleLast = now
-                        if (titleTaps >= TITLE_TAPS) {
-                            titleTaps = 0
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onSecretUnlocked()
-                        } else if (titleTaps > 1) {
-                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            if (titleTaps == BURST_TAPS) onBurst()
-                        }
-                    },
-                ) {
-                    BentoIconButton(Res.drawable.ic_description, stringResource(Res.string.logs_title), onShowLogs)
+                if (LocalAppDesign.current != AppDesign.Zx) {
+                    BentoTopBar(
+                        title = stringResource(Res.string.app_name),
+                        onTitleClick = {
+                            val now = dev.cluvex.zedsecure.platform.currentTimeMillis()
+                            titleTaps = if (now - titleLast < TAP_WINDOW_MS) titleTaps + 1 else 1
+                            titleLast = now
+                            if (titleTaps >= TITLE_TAPS) {
+                                titleTaps = 0
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onSecretUnlocked()
+                            } else if (titleTaps > 1) {
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                if (titleTaps == BURST_TAPS) onBurst()
+                            }
+                        },
+                    ) {
+                        BentoIconButton(Res.drawable.ic_description, stringResource(Res.string.logs_title), onShowLogs)
+                    }
+                } else {
+                    Spacer(Modifier.height(4.dp))
                 }
 
                 Column(
