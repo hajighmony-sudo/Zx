@@ -727,7 +727,6 @@ private fun CreateLockedSheet(
     if (showPreview) {
         val chosen = sources.filter { it.id in selected }
         val days = expiryDays.toIntOrNull() ?: 0
-        val expiresAt = if (days > 0) System.currentTimeMillis() + days * 86_400_000L else null
         val finalName = displayName.trim().ifBlank { chosen.firstOrNull()?.name.orEmpty() }
         AlertDialog(
             onDismissRequest = { showPreview = false },
@@ -741,7 +740,7 @@ private fun CreateLockedSheet(
                     }
                     Text(if (pack && chosen.size > 1) "خروجی: یک فایل چندکانفیگی" else if (combine && chosen.size > 1) "خروجی: یک کانفیگ Auto Select" else "خروجی: فایل جداگانه برای هر کانفیگ")
                     Text(if (password.isBlank()) "محافظت با رمز عبور: غیرفعال" else "محافظت با رمز عبور: فعال")
-                    Text(if (expiresAt == null) "انقضا: بدون محدودیت زمانی" else "انقضا: ${days} روز پس از ساخت")
+                    Text(if (days <= 0) "انقضا: بدون محدودیت زمانی" else "انقضا: ${days} روز پس از ساخت")
                     if (note.isNotBlank()) Text("یادداشت: $note")
                     Text(
                         "پس از بازکردن فایل، گیرنده باید رمز را وارد کند (در صورت فعال‌بودن) و کانفیگ‌ها به فهرست او افزوده می‌شوند.",
@@ -759,7 +758,7 @@ private fun CreateLockedSheet(
                             nameEn = displayName.trim(),
                             nameFa = displayName.trim(),
                             note = note,
-                            expiresAt = expiresAt,
+                            expiresAt = if (days > 0) System.currentTimeMillis() + days * 86_400_000L else null,
                             password = password.ifBlank { null },
                         )
                         showPreview = false
