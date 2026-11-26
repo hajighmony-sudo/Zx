@@ -55,13 +55,14 @@ fun ZedNavBar(
     tabs: List<TopDestination>,
     current: TopDestination,
     onSelect: (TopDestination) -> Unit,
+    reduceMotion: Boolean = false,
 ) {
     if (LocalAppDesign.current == AppDesign.ZxPs) {
         dev.cluvex.zedsecure.ui.zxps.ZxPsNavBar(tabs, current, onSelect)
         return
     }
     if (LocalAppDesign.current == AppDesign.Zx) {
-        ZxBottomBar(tabs, current, onSelect)
+        ZxBottomBar(tabs, current, onSelect, reduceMotion)
         return
     }
     // ZX Reimagined uses the same adaptive Material 3 pill navigation as the
