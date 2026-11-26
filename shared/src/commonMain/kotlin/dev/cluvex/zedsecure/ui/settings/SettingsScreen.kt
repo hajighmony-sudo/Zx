@@ -1228,6 +1228,7 @@ private fun UiPage(
     onLanguage: (AppLanguage) -> Unit,
     onOpen: (SettingsPage) -> Unit,
 ) {
+    val platform = LocalPlatform.current
     SettingsPageScaffold(
         title = stringResource(Res.string.title_ui_settings),
         art = SettingsArts.Appearance,
@@ -1250,7 +1251,7 @@ private fun UiPage(
             }
         }
 
-        if (LocalPlatform.current.supportsLauncherIconSelection) {
+        if (platform.supportsLauncherIconSelection) {
             SettingsGroup(title = "آیکون‌ها") {
                 SettingsInfoRow(
                     title = "شخصی‌سازی آیکون برنامه",
@@ -1268,9 +1269,9 @@ private fun UiPage(
                     ),
                     selected = s.launcherIcon,
                     onSelected = { id ->
-                        if (LocalPlatform.current.setLauncherIcon(id)) {
+                        if (platform.setLauncherIcon(id)) {
                             onUpdate { it.copy(launcherIcon = id) }
-                            LocalPlatform.current.toast("آیکون برنامه تغییر کرد")
+                            platform.toast("آیکون برنامه تغییر کرد")
                         } else {
                             LocalPlatform.current.toast("تغییر آیکون در این لانچر انجام نشد")
                         }
