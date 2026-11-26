@@ -6,4 +6,5 @@
     <color name="icon_bg_zx_white">#151515</color>
     <color name="icon_bg_zx_silver">#24272B</color>
     <color name="icon_bg_zx_distressed">#080808</color>
+    <color name="icon_bg_zx_original">#000000</color>
 </resources>
