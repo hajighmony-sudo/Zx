@@ -32,6 +32,39 @@ class AndroidPlatform(
 
     private val imagePicker: suspend () -> ByteArray? = { null },
 ) : Platform {
+    override val supportsLauncherIconSelection: Boolean get() = true
+
+    override fun setLauncherIcon(iconId: String): Boolean {
+        val aliases = mapOf(
+            "zx_orange" to "$"+"{context.packageName}.LauncherZxOrange",
+            "zx_steel" to "$"+"{context.packageName}.LauncherZxSteel",
+            "zx_blade" to "$"+"{context.packageName}.LauncherZxBlade",
+            "zx_white" to "$"+"{context.packageName}.LauncherZxWhite",
+            "zx_silver" to "$"+"{context.packageName}.LauncherZxSilver",
+            "zx_distressed" to "$"+"{context.packageName}.LauncherZxDistressed",
+        )
+        val selected = aliases[iconId] ?: return false
+        return runCatching {
+            val pm = context.packageManager
+            aliases.values.forEach { componentName ->
+                if (componentName == selected) {
+                    pm.setComponentEnabledSetting(
+                        android.content.ComponentName.unflattenFromString(componentName)!!,
+                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                        PackageManager.DONT_KILL_APP,
+                    )
+                }
+            }
+            aliases.values.filter { it != selected }.forEach { componentName ->
+                pm.setComponentEnabledSetting(
+                    android.content.ComponentName.unflattenFromString(componentName)!!,
+                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                    PackageManager.DONT_KILL_APP,
+                )
+            }
+            true
+        }.getOrDefault(false)
+    }
     override fun scanQrCode(onResult: (String?) -> Unit) = qrScanner(onResult)
 
     override fun liveStats(): dev.cluvex.zedsecure.ui.platform.LiveStats {
