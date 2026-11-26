@@ -155,7 +155,7 @@ private fun ZxHamburgerGlyph(open: Boolean) {
             )
         }
         drawLine(
-            MaterialTheme.colorScheme.onSurface,
+            lineColor,
             androidx.compose.ui.geometry.Offset(left + inset, bottomY - (bottomY - midY) * progress),
             androidx.compose.ui.geometry.Offset(right - inset, bottomY - (bottomY - midY) * progress),
             strokeWidth = stroke,
