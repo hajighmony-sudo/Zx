@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import dev.cluvex.zedsecure.domain.model.ConnectionState
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -53,8 +54,19 @@ import org.jetbrains.compose.resources.stringResource
 fun ZxTopBar(
     current: TopDestination,
     drawerOpen: Boolean,
+    connectionState: ConnectionState = ConnectionState.Disconnected,
     onMenuClick: () -> Unit,
 ) {
+    val connectionTone = when {
+        connectionState == ConnectionState.Connected -> Color(0xFF45D6AD)
+        connectionState == ConnectionState.Error -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val connectionLabel = when {
+        connectionState == ConnectionState.Connected -> "متصل"
+        connectionState == ConnectionState.Error -> "خطا"
+        else -> "آفلاین"
+    }
     val shape = RoundedCornerShape(24.dp)
     val borderBrush = Brush.linearGradient(
         listOf(
@@ -115,15 +127,21 @@ fun ZxTopBar(
                 }
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f),
-                    contentColor = MaterialTheme.colorScheme.tertiary,
+                    color = connectionTone.copy(alpha = 0.13f),
+                    contentColor = connectionTone,
                 ) {
-                    Text(
-                        "UI / XU",
-                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                    )
+                    Row(
+                        Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Box(Modifier.size(7.dp).background(connectionTone, CircleShape))
+                        Text(
+                            connectionLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
             }
         }
