@@ -2,7 +2,6 @@
 
 package dev.cluvex.zedsecure.ui.settings
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -24,19 +23,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.cluvex.zedsecure.shared.resources.Res
 import dev.cluvex.zedsecure.shared.resources.*
-import dev.cluvex.zedsecure.ui.platform.LocalPlatform
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-private const val POLICY_URL = "https://cluvexstudio.github.io/ZedSecure-PrivacyPolicy/"
 
 @Composable
 fun PrivacyPage(
     contentPadding: PaddingValues,
     modifier: Modifier,
 ) {
-    val platform = LocalPlatform.current
-
     SettingsPageScaffold(
         title = stringResource(Res.string.privacy_title),
         subtitle = stringResource(Res.string.privacy_subtitle),
@@ -106,35 +101,26 @@ fun PrivacyPage(
 
         Spacer(Modifier.height(14.dp))
 
-        Surface(
-            shape = MaterialTheme.shapes.largeIncreased,
-            color = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .clickable { platform.openUri(POLICY_URL) },
-        ) {
-            Row(
-                Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(painterResource(Res.drawable.ic_description), contentDescription = null)
-                Spacer(Modifier.width(14.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        stringResource(Res.string.privacy_read_full),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        stringResource(Res.string.privacy_read_full_sub),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                Icon(painterResource(Res.drawable.ic_chevron_right), contentDescription = null)
-            }
-        }
+        Section(
+            "دستیار هوش مصنوعی و ارسال داده",
+            "اگر دستیار هوش مصنوعی را فعال کنید، متن پیام‌ها، زمینه‌ای که برای پاسخ لازم است و اطلاعاتی که خودتان وارد می‌کنید برای پردازش به ارائه‌دهنده‌ای که انتخاب کرده‌اید ارسال می‌شود. کلید API برای همان ارائه‌دهنده استفاده می‌شود. اطلاعات محرمانه، رمزها و داده‌های حساس را در گفتگو وارد نکنید؛ نگهداری و استفاده از داده‌ها تابع سیاست همان ارائه‌دهنده است."
+        )
+        Section(
+            "اتصال‌های بیرونی و نشانی IP",
+            "برای برقراری VPN یا پراکسی، دستگاه مستقیماً به سرور یا سرویس انتخابی شما متصل می‌شود. ارائه‌دهنده اینترنت، سرور مقصد، سرویس DNS، سرویس تست سرعت و منابعی مانند مخزن قوانین یا سرویس بررسی نسخه ممکن است نشانی IP و فراداده‌های لازم برای پاسخ‌گویی درخواست را مشاهده کنند. این ارتباط‌ها به معنی ارسال همه داده‌ها به سازنده برنامه نیست."
+        )
+        Section(
+            "مجوزها و دسترسی‌ها",
+            "مجوز VPN برای ساخت تونل شبکه، اعلان برای نمایش وضعیت اتصال و دسترسی فایل برای واردکردن یا ذخیره‌کردن مواردی که خودتان انتخاب می‌کنید به کار می‌رود. فهرست برنامه‌های نصب‌شده در قابلیت پراکسی برنامه‌ای برای انتخاب محلی استفاده می‌شود. دسترسی‌های اختیاری را می‌توانید از تنظیمات اندروید مدیریت کنید."
+        )
+        Section(
+            "پشتیبان‌گیری، حذف و مسئولیت کاربر",
+            "تنظیمات و پیکربندی‌ها ممکن است در پشتیبان‌گیری سیستم‌عامل قرار بگیرند؛ رفتار آن به تنظیمات Android و سازنده دستگاه بستگی دارد. حذف برنامه داده‌های خصوصی محلی را پاک می‌کند، اما داده‌هایی را که قبلاً به سرویس‌های ثالث فرستاده شده‌اند حذف نمی‌کند. پیش از اشتراک‌گذاری فایل کانفیگ یا گزارش خطا، اطلاعات شناسایی‌کننده و کلیدها را بررسی و حذف کنید."
+        )
+        Section(
+            "محدودیت‌های امنیت و ناشناس‌ماندن",
+            "VPN جای خروج ترافیک را تغییر می‌دهد و به‌تنهایی ناشناس‌بودن، امنیت کامل یا جلوگیری از ردیابی توسط وب‌سایت‌ها و برنامه‌ها را تضمین نمی‌کند. امنیت نهایی به سرور، ارائه‌دهنده، DNS، دستگاه، نسخه سیستم‌عامل و تنظیمات شما وابسته است. از سرورهای ناشناس و کانفیگ‌هایی که به آن‌ها اعتماد ندارید استفاده نکنید."
+        )
 
         Spacer(Modifier.height(16.dp))
     }
