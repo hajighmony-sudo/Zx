@@ -52,6 +52,7 @@ fun VaultImportHost(repository: ConfigRepository, onImported: () -> Unit) {
             name = p.metadata.nameEn.ifBlank { p.metadata.nameFa },
             note = p.metadata.note,
             passwordProtected = p.metadata.passwordProtected,
+            configCount = p.metadata.configCount,
             onDismiss = { VaultImportBus.clear() },
             onUnlock = { password ->
                 scope.launch {
@@ -87,6 +88,7 @@ internal fun VaultUnlockDialog(
     name: String,
     note: String,
     passwordProtected: Boolean,
+    configCount: Int = 1,
     onDismiss: () -> Unit,
     onUnlock: (String?) -> Unit,
 ) {
@@ -99,6 +101,11 @@ internal fun VaultUnlockDialog(
         title = { Text(name.ifBlank { stringResource(Res.string.vault_unlock_title) }) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    if (configCount > 1) "تعداد کانفیگ‌ها: $configCount" else "یک کانفیگ قفل‌شده",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 if (note.isNotBlank()) {
                     NoteText(
                         text = note,
