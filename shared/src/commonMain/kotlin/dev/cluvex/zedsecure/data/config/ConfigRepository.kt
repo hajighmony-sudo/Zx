@@ -1479,7 +1479,7 @@ class ConfigRepository(private val store: KeyValueStore) {
             profile.name to payload
         }
         if (pack && entries.size > 1) {
-            val name = form.nameEn.ifBlank { "ZX Pack" }
+            val name = form.nameEn.ifBlank { chosen.first().name }
             val bundle = buildJsonObject {
                 put("format", "zx_locked_bundle_v1")
                 put("configs", JsonArray(entries.map { (configName, payload) ->
