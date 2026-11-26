@@ -127,6 +127,7 @@ fun MainScaffold(
         }
     }
     val connectionVm: ConnectionViewModel = viewModel { ConnectionViewModel() }
+    val connectionUi by connectionVm.ui.collectAsStateWithLifecycle()
     val homeVm: dev.cluvex.zedsecure.ui.home.HomeViewModel = viewModel { dev.cluvex.zedsecure.ui.home.HomeViewModel() }
     val effectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
 
@@ -242,6 +243,7 @@ fun MainScaffold(
                 dev.cluvex.zedsecure.ui.navigation.ZxTopBar(
                     current = current,
                     drawerOpen = drawerState.isOpen,
+                    connectionState = connectionUi.state,
                     onMenuClick = {
                         drawerScope.launch {
                             if (drawerState.isOpen) drawerState.close() else drawerState.open()
