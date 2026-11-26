@@ -576,6 +576,22 @@ private fun CreateLockedSheet(
     var passwordVisible by remember { mutableStateOf(false) }
     var expiryDays by remember { mutableStateOf("0") }
 
+    val chosenProfiles = remember(sources, selected) { sources.filter { it.id in selected } }
+    val chosenIds = remember(chosenProfiles) { chosenProfiles.mapTo(hashSetOf()) { it.id } }
+    val missingChainMembers = remember(chosenProfiles, chosenIds) {
+        chosenProfiles.any { profile ->
+            when (val source = profile.source) {
+                is ProfileSource.ProxyChain -> source.memberIds.any { it !in chosenIds }
+                is ProfileSource.CrossChain -> source.innerId !in chosenIds || source.outerId !in chosenIds
+                else -> false
+            }
+        }
+    }
+    val chainRequiresPack = chosenProfiles.any {
+        it.isProxyChain || it.isCrossChain
+    } && !pack
+    val canCreate = chosenProfiles.isNotEmpty() && !missingChainMembers && !chainRequiresPack
+
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberAppSheetState()) {
         Column(
             Modifier
@@ -768,6 +784,32 @@ private fun CreateLockedSheet(
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (password.isNotBlank()) {
+                val strength = remember(password) {
+                    var score = 0
+                    if (password.length >= 8) score++
+                    if (password.length >= 12) score++
+                    if (password.any(Char::isLowerCase) && password.any(Char::isUpperCase)) score++
+                    if (password.any(Char::isDigit)) score++
+                    if (password.any { !it.isLetterOrDigit() }) score++
+                    score.coerceIn(0, 5)
+                }
+                val label = when {
+                    strength <= 2 -> "ضعیف"
+                    strength <= 4 -> "متوسط"
+                    else -> "قوی"
+                }
+                Text(
+                    "قدرت تقریبی رمز: $label · $strength از ۵",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    "برای محافظت بهتر، رمز طولانی و منحصربه‌فرد انتخاب کن.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             OutlinedTextField(
                 value = expiryDays,
                 onValueChange = { expiryDays = it.filter(Char::isDigit).take(4) },
@@ -777,9 +819,20 @@ private fun CreateLockedSheet(
                 modifier = Modifier.fillMaxWidth(),
             )
 
+            if (missingChainMembers || chainRequiresPack) {
+                Text(
+                    if (missingChainMembers) {
+                        "برای اشتراک زنجیره باید تمام اعضای وابسته را هم انتخاب کنی."
+                    } else {
+                        "برای انتقال Proxy Chain و Cross Chain، حالت «یک فایل شامل همه کانفیگ‌ها» را فعال کن."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             Button(
                 onClick = { showPreview = true },
-                enabled = !sealing && selected.isNotEmpty(),
+                enabled = !sealing && canCreate,
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth().height(54.dp),
             ) {
@@ -793,25 +846,73 @@ private fun CreateLockedSheet(
     }
 
     if (showPreview) {
-        val chosen = sources.filter { it.id in selected }
+        val chosen = chosenProfiles
         val days = expiryDays.toIntOrNull() ?: 0
         val finalName = displayName.trim().ifBlank { chosen.firstOrNull()?.name.orEmpty() }
+        val strength = listOf(
+            password.length >= 8,
+            password.length >= 12,
+            password.any(Char::isLowerCase) && password.any(Char::isUpperCase),
+            password.any(Char::isDigit),
+            password.any { !it.isLetterOrDigit() },
+        ).count { it }
         AlertDialog(
             onDismissRequest = { showPreview = false },
-            title = { Text("پیش‌نمایش بسته") },
+            title = { Text("پیش‌نمایش نهایی · ZX Secure Vault") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(finalName.ifBlank { "کانفیگ قفل‌شده" }, fontWeight = FontWeight.Bold)
-                    Text("تعداد کانفیگ‌ها: ${chosen.size}")
-                    chosen.forEach { profile ->
-                        Text("• ${profile.name}", style = MaterialTheme.typography.bodySmall)
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("نمای گیرنده", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                            Text(finalName.ifBlank { "کانفیگ قفل‌شده" }, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Text(
+                                if (pack && chosen.size > 1) "بسته امن · ${chosen.size} کانفیگ"
+                                else if (combine && chosen.size > 1) "Auto Select · ${chosen.size} عضو"
+                                else if (chosen.size > 1) "${chosen.size} فایل قفل‌شده"
+                                else "یک کانفیگ قفل‌شده",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            chosen.forEach { profile ->
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(painterResource(Res.drawable.ic_encrypted), null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                                    Spacer(Modifier.width(8.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(profile.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        Text(profile.transportLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                            }
+                            if (note.isNotBlank()) {
+                                Text(note, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
                     }
-                    Text(if (pack && chosen.size > 1) "خروجی: یک فایل چندکانفیگی" else if (combine && chosen.size > 1) "خروجی: یک کانفیگ Auto Select" else "خروجی: فایل جداگانه برای هر کانفیگ")
-                    Text(if (password.isBlank()) "محافظت با رمز عبور: غیرفعال" else "محافظت با رمز عبور: فعال")
-                    Text(if (days <= 0) "انقضا: بدون محدودیت زمانی" else "انقضا: ${days} روز پس از ساخت")
-                    if (note.isNotBlank()) Text("یادداشت: $note")
                     Text(
-                        "پس از بازکردن فایل، گیرنده باید رمز را وارد کند (در صورت فعال‌بودن) و کانفیگ‌ها به فهرست او افزوده می‌شوند.",
+                        if (password.isBlank()) {
+                            "رمز اختصاصی: خاموش · این بسته برای اطلاعات محرمانه توصیه نمی‌شود."
+                        } else {
+                            "رمز اختصاصی: روشن · AES-256-GCM و کلید مشتق‌شده با Argon2id · قدرت تقریبی $strength/5"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (password.isBlank()) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        if (days <= 0) "انقضا: بدون محدودیت زمانی" else "انقضا: $days روز پس از تأیید ساخت",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    Text(
+                        if (pack && chosen.size > 1) {
+                            "گیرنده یک فایل دریافت می‌کند؛ پس از بازکردن موفق، تمام کانفیگ‌های بسته به فهرست اضافه می‌شوند."
+                        } else if (combine && chosen.size > 1) {
+                            "گیرنده یک پروفایل Auto Select دریافت می‌کند."
+                        } else {
+                            "برای هر کانفیگ یک فایل جداگانه ساخته و از منوی اشتراک‌گذاری ارسال می‌شود."
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -819,7 +920,7 @@ private fun CreateLockedSheet(
             },
             confirmButton = {
                 TextButton(
-                    enabled = !sealing && chosen.isNotEmpty(),
+                    enabled = !sealing && canCreate,
                     onClick = {
                         val form = ZsxSealRequest(
                             configPayload = "",
