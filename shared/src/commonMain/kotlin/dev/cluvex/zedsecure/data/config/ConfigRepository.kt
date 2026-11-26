@@ -1552,8 +1552,7 @@ class ConfigRepository(private val store: KeyValueStore) {
                 note = meta.note.takeIf { it.isNotBlank() },
             )
             when (source) {
-                is ProfileSource.Link, is ProfileSource.RawJson, is ProfileSource.SingBox,
-                is ProfileSource.SingBoxConfig -> profile.toXrayConfigJson()
+                is ProfileSource.Link, is ProfileSource.RawJson, is ProfileSource.SingBox -> profile.toXrayConfigJson()
                 else -> Unit
             }
             profile
