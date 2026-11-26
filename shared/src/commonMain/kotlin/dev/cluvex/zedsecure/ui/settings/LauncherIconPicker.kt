@@ -1,5 +1,6 @@
 package dev.cluvex.zedsecure.ui.settings
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,32 +21,37 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
+import dev.cluvex.zedsecure.shared.resources.Res
+import dev.cluvex.zedsecure.shared.resources.zx_blade
+import dev.cluvex.zedsecure.shared.resources.zx_distressed
+import dev.cluvex.zedsecure.shared.resources.zx_orange
+import dev.cluvex.zedsecure.shared.resources.zx_silver
+import dev.cluvex.zedsecure.shared.resources.zx_steel
+import dev.cluvex.zedsecure.shared.resources.zx_white
 
 private data class LauncherIconOption(
     val id: String,
     val title: String,
-    val background: List<Color>,
-    val accent: Color = Color.White,
-    val finish: IconFinish = IconFinish.Clean,
+    val image: DrawableResource,
 )
-
-private enum class IconFinish { Clean, Steel, Blade, Silver, Distressed }
 
 private val launcherIconOptions = listOf(
-    LauncherIconOption("zx_orange", "نارنجی", listOf(Color(0xFF090909), Color(0xFF24201A)), Color(0xFFFF8A00)),
-    LauncherIconOption("zx_steel", "فلزی", listOf(Color(0xFF08090B), Color(0xFF34383D)), Color(0xFFE1E4E8), IconFinish.Steel),
-    LauncherIconOption("zx_blade", "تیغه‌ای", listOf(Color(0xFF050505), Color(0xFF17191D)), Color(0xFFF2F2F2), IconFinish.Blade),
-    LauncherIconOption("zx_white", "سفید", listOf(Color(0xFF050505), Color(0xFF202020))),
-    LauncherIconOption("zx_silver", "نقره‌ای", listOf(Color(0xFF111315), Color(0xFF4A4D50)), Color(0xFFD5D8DC), IconFinish.Silver),
-    LauncherIconOption("zx_distressed", "فرسوده", listOf(Color(0xFF050505), Color(0xFF252525)), Color(0xFFE5E2DC), IconFinish.Distressed),
+    LauncherIconOption("zx_orange", "نارنجی", Res.drawable.zx_orange),
+    LauncherIconOption("zx_steel", "خراش‌خورده", Res.drawable.zx_steel),
+    LauncherIconOption("zx_blade", "فرمی", Res.drawable.zx_blade),
+    LauncherIconOption("zx_white", "سفید", Res.drawable.zx_white),
+    LauncherIconOption("zx_silver", "فلزی", Res.drawable.zx_silver),
+    LauncherIconOption("zx_distressed", "مخملی", Res.drawable.zx_distressed),
 )
 
-/** Large, high-contrast previews make the launcher artwork easy to compare before applying it. */
+/** Displays the exact supplied artwork at full resolution instead of redrawing the ZX letters. */
 @Composable
 fun LauncherIconPicker(
     selected: String,
@@ -54,7 +60,7 @@ fun LauncherIconPicker(
     Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
         Text("انتخاب آیکون", style = MaterialTheme.typography.titleMedium)
         Text(
-            "پیش‌نمایش طرح‌ها · با انتخاب هر طرح، آیکون صفحه اصلی تغییر می‌کند",
+            "پیش‌نمایش تصویر اصلی · با انتخاب هر طرح، آیکون صفحه اصلی تغییر می‌کند",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -74,9 +80,9 @@ fun LauncherIconPicker(
                 ) {
                     Box(
                         Modifier
-                            .size(104.dp)
+                            .size(112.dp)
                             .clip(RoundedCornerShape(25.dp))
-                            .background(Brush.linearGradient(option.background))
+                            .background(Color.Black)
                             .border(
                                 width = if (isSelected) 3.dp else 1.dp,
                                 color = if (isSelected) MaterialTheme.colorScheme.primary
@@ -85,53 +91,14 @@ fun LauncherIconPicker(
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
-                        if (option.finish == IconFinish.Steel || option.finish == IconFinish.Silver) {
-                            Box(
-                                Modifier
-                                    .size(88.dp)
-                                    .clip(RoundedCornerShape(21.dp))
-                                    .background(
-                                        Brush.linearGradient(
-                                            listOf(Color.White.copy(alpha = 0.08f), Color.Transparent, Color.Black.copy(alpha = 0.22f))
-                                        )
-                                    )
-                            )
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "Z",
-                                color = option.accent,
-                                fontSize = 39.sp,
-                                lineHeight = 40.sp,
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = (-5).sp,
-                            )
-                            Text(
-                                "X",
-                                color = option.accent,
-                                fontSize = 39.sp,
-                                lineHeight = 40.sp,
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = (-4).sp,
-                            )
-                        }
-                        if (option.finish == IconFinish.Blade) {
-                            Box(
-                                Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(10.dp)
-                                    .size(width = 31.dp, height = 2.dp)
-                                    .background(Color.White.copy(alpha = 0.75f))
-                            )
-                        }
-                        if (option.finish == IconFinish.Distressed) {
-                            Text(
-                                "✦",
-                                modifier = Modifier.align(Alignment.TopEnd).padding(9.dp),
-                                color = Color.White.copy(alpha = 0.42f),
-                                fontSize = 10.sp,
-                            )
-                        }
+                        Image(
+                            painter = painterResource(option.image),
+                            contentDescription = option.title,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(108.dp)
+                                .clip(RoundedCornerShape(23.dp)),
+                        )
                         if (isSelected) {
                             Box(
                                 Modifier

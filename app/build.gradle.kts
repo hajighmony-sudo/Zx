@@ -175,3 +175,32 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.rules)
 }
+
+val zxLauncherArtwork = mapOf(
+        "zx_distressed" to "https://gcdn.picsart.com/picsart-mcp/cb632ab8-5804-4525-8dda-2f63e1e2509a.png",
+        "zx_white" to "https://gcdn.picsart.com/picsart-mcp/0392c8f8-2bfb-44de-a1a8-6d4c912d4917.png",
+        "zx_blade" to "https://gcdn.picsart.com/picsart-mcp/30e5a57e-c421-4944-a3b9-d3f4f00570f4.png",
+        "zx_steel" to "https://gcdn.picsart.com/picsart-mcp/2991afb5-d4d6-4a8b-af0f-de8f2034dfe8.png",
+        "zx_silver" to "https://gcdn.picsart.com/picsart-mcp/76ee4f2d-a85a-4e98-9ad7-683cb0a7799b.png",
+        "zx_orange" to "https://gcdn.picsart.com/picsart-mcp/568668a6-5e76-48d4-bf4b-4f3fbfe4b973.png",
+)
+
+val downloadZxLauncherArtwork = tasks.register("downloadZxLauncherArtwork") {
+    val outputDir = layout.projectDirectory.dir("src/main/res/drawable-nodpi")
+    outputs.files(zxLauncherArtwork.keys.map { outputDir.file("$it.png") })
+    doLast {
+        outputDir.asFile.mkdirs()
+        zxLauncherArtwork.forEach { (name, url) ->
+            val target = outputDir.file("$name.png").asFile
+            if (!target.exists() || target.length() == 0L) {
+                java.net.URL(url).openStream().use { input ->
+                    target.outputStream().use { output -> input.copyTo(output) }
+                }
+            }
+        }
+    }
+}
+
+tasks.matching { it.name == "preBuild" }.configureEach {
+    dependsOn(downloadZxLauncherArtwork)
+}
