@@ -9,6 +9,7 @@ data class ZsxMetadata(
     val note: String,
     val createdAt: Long,
     val expiresAt: Long?,
+    val configCount: Int = 1,
 ) {
     val isExpired: Boolean
         get() = expiresAt != null && currentTimeMillis() > expiresAt
@@ -21,6 +22,7 @@ data class ZsxSealRequest(
     val note: String,
     val expiresAt: Long?,
     val password: String?,
+    val configCount: Int = 1,
 )
 
 sealed class ZsxException(message: String) : Exception(message)
