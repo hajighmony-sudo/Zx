@@ -59,6 +59,7 @@ actual object ZsxCrypto {
             note = request.note,
             createdAt = System.currentTimeMillis(),
             expiresAt = request.expiresAt,
+            configCount = request.configCount.coerceAtLeast(1),
             kdf = kdf,
             cfgNonce = Base64.encode(cfgNonce),
             cfgCipher = Base64.encode(cfgCipher),
@@ -79,6 +80,7 @@ actual object ZsxCrypto {
             note = inner.note,
             createdAt = inner.createdAt,
             expiresAt = inner.expiresAt,
+            configCount = inner.configCount.coerceAtLeast(1),
         )
     }
 
@@ -173,6 +175,7 @@ private data class ZsxInner(
     val note: String,
     val createdAt: Long,
     val expiresAt: Long? = null,
+    val configCount: Int = 1,
     val kdf: ZsxKdf? = null,
     val cfgNonce: String,
     val cfgCipher: String,
