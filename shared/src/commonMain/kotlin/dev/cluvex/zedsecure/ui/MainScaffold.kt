@@ -61,6 +61,7 @@ import dev.cluvex.zedsecure.ui.settings.SettingsScreen
 import dev.cluvex.zedsecure.ui.update.NudgeHost
 import dev.cluvex.zedsecure.ui.vault.VaultImportHost
 import dev.cluvex.zedsecure.ui.vault.VaultScreen
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -103,6 +104,11 @@ fun MainScaffold(
     fun orderOf(destination: TopDestination): Int = tabs.indexOf(destination).takeIf { it >= 0 } ?: (tabs.size + destination.ordinal)
     val barStyle = if (bento) settings.bento.navStyle else settings.navBarStyle
     val dock = bento && barStyle == dev.cluvex.zedsecure.domain.model.NavBarStyle.Dock
+    val isZxUi = settings.appDesign == dev.cluvex.zedsecure.domain.model.AppDesign.Zx
+    val drawerState = androidx.compose.material3.rememberDrawerState(
+        initialValue = androidx.compose.material3.DrawerValue.Closed,
+    )
+    val drawerScope = androidx.compose.runtime.rememberCoroutineScope()
     var dockShown by rememberSaveable { mutableStateOf(true) }
     androidx.compose.runtime.LaunchedEffect(current) { dockShown = true }
     val autoHide = settings.bento.dockAutoHide
@@ -206,8 +212,39 @@ fun MainScaffold(
         dev.cluvex.zedsecure.domain.config.AutoSelectIds.of(sub.id) to stringResource(Res.string.auto_title_for, sub.name)
     }
 
+    androidx.compose.material3.ModalNavigationDrawer(
+        drawerState = drawerState,
+        gesturesEnabled = isZxUi,
+        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.42f),
+        drawerContent = {
+            if (isZxUi) {
+                dev.cluvex.zedsecure.ui.navigation.ZxNavigationDrawer(
+                    current = current,
+                    onSelect = { destination ->
+                        current = destination
+                        drawerScope.launch { drawerState.close() }
+                    },
+                )
+            } else {
+                androidx.compose.material3.ModalDrawerSheet { }
+            }
+        },
+    ) {
     Box(Modifier.fillMaxSize()) {
     Scaffold(
+        topBar = {
+            if (isZxUi) {
+                dev.cluvex.zedsecure.ui.navigation.ZxTopBar(
+                    current = current,
+                    drawerOpen = drawerState.isOpen,
+                    onMenuClick = {
+                        drawerScope.launch {
+                            if (drawerState.isOpen) drawerState.close() else drawerState.open()
+                        }
+                    },
+                )
+            }
+        },
         bottomBar = {
             if (!dock) {
                 dev.cluvex.zedsecure.ui.navigation.ZedNavBar(
@@ -548,6 +585,7 @@ fun MainScaffold(
 
             onTargetMissing = advance,
         )
+    }
     }
     }
 }
