@@ -244,6 +244,7 @@ fun MainScaffold(
                     current = current,
                     drawerOpen = drawerState.isOpen,
                     connectionState = connectionUi.state,
+                    reduceMotion = settings.reduceMotion,
                     onMenuClick = {
                         drawerScope.launch {
                             if (drawerState.isOpen) drawerState.close() else drawerState.open()
@@ -259,6 +260,7 @@ fun MainScaffold(
                     tabs = tabs,
                     current = current,
                     onSelect = { current = it },
+                    reduceMotion = settings.reduceMotion,
                 )
             }
         },
