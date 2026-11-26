@@ -18,7 +18,7 @@ on:
 # Every run checks out the newest commit on GP.
 concurrency:
   group: build-latest-gp-apk
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
