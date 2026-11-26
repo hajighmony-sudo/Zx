@@ -102,12 +102,25 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-fun BentoLookSection(settings: AppSettings, onUpdate: ((AppSettings) -> AppSettings) -> Unit) {
+fun BentoLookSection(
+    settings: AppSettings,
+    onUpdate: ((AppSettings) -> AppSettings) -> Unit,
+    zxMode: Boolean = false,
+) {
     val prefs = settings.bento
     fun edit(change: (BentoPrefs) -> BentoPrefs) = onUpdate { it.copy(bento = change(it.bento)) }
 
     SettingsGroup(stringResource(Res.string.bento_group_look)) {
-        PalettePicker(settings, prefs.palette) { p -> edit { it.copy(palette = p) } }
+        if (zxMode) {
+            Text(
+                "ZX Future OS uses its dedicated adaptive glass and holographic palette. Appearance changes below control the shape, density, motion, and dashboard layout without changing the core ZX color language.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            )
+        } else {
+            PalettePicker(settings, prefs.palette) { p -> edit { it.copy(palette = p) } }
+        }
         SettingsChoiceRow(
             title = stringResource(Res.string.bento_corners_title),
             summary = null,
