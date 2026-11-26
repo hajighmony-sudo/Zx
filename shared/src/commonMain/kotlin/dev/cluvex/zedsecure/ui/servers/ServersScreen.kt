@@ -151,7 +151,8 @@ fun ServersScreen(
     val scope = rememberCoroutineScope()
     val entranceStart = remember { System.currentTimeMillis() }
     val design = dev.cluvex.zedsecure.ui.theme.LocalAppDesign.current
-    val bento = design == dev.cluvex.zedsecure.domain.model.AppDesign.Bento
+    val zxFuture = design == dev.cluvex.zedsecure.domain.model.AppDesign.Zx
+    val bento = design == dev.cluvex.zedsecure.domain.model.AppDesign.Bento || zxFuture
     val springIn = !reduceMotion && (design == dev.cluvex.zedsecure.domain.model.AppDesign.Pixel || design == dev.cluvex.zedsecure.domain.model.AppDesign.ZxPs || bento)
     var query by rememberSaveable { mutableStateOf("") }
     val lockedCannotShare = stringResource(Res.string.locked_cannot_share)
@@ -624,7 +625,85 @@ fun ServersScreen(
     Box(modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(top = contentPadding.calculateTopPadding())) {
             Spacer(Modifier.height(8.dp))
-            if (bento) {
+            if (zxFuture) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box {
+                        dev.cluvex.zedsecure.ui.bento.BentoIconButton(
+                            if (testing) Res.drawable.ic_close else Res.drawable.ic_speed,
+                            stringResource(if (testing) Res.string.ping_stop else Res.string.ping_test),
+                            { if (testing) PingCoordinator.cancel() else pingMenu = true },
+                            modifier = Modifier.tourTarget(TourTargets.SERVERS_PING),
+                        )
+                        DropdownMenu(
+                            expanded = pingMenu,
+                            onDismissRequest = { pingMenu = false },
+                            shape = MaterialTheme.shapes.largeIncreased,
+                        ) { pingMenuItems() }
+                    }
+                    if (openSubscription != null) {
+                        if (updatingSubId == openSubscription.id) {
+                            Box(Modifier.size(46.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                            }
+                        } else {
+                            dev.cluvex.zedsecure.ui.bento.BentoIconButton(
+                                Res.drawable.ic_sync,
+                                stringResource(Res.string.subs_update),
+                                { updateSubscription(openSubscription) },
+                                enabled = updatingSubId == null,
+                            )
+                        }
+                    } else {
+                        dev.cluvex.zedsecure.ui.bento.BentoIconButton(
+                            Res.drawable.ic_info,
+                            stringResource(Res.string.real_delay_note_title),
+                            { showRealDelayNote = true },
+                        )
+                    }
+                    dev.cluvex.zedsecure.ui.bento.BentoIconButton(
+                        Res.drawable.ic_add_link,
+                        stringResource(Res.string.subs_title),
+                        { showSubs = true },
+                        modifier = Modifier.tourTarget(TourTargets.SERVERS_SUBS),
+                    )
+                    Box {
+                        dev.cluvex.zedsecure.ui.bento.BentoIconButton(
+                            Res.drawable.ic_more_vert,
+                            stringResource(Res.string.servers_actions),
+                            { overflowOpen = true },
+                            modifier = Modifier.tourTarget(TourTargets.SERVERS_MORE),
+                        )
+                        DropdownMenu(
+                            expanded = overflowOpen,
+                            onDismissRequest = { overflowOpen = false },
+                            shape = MaterialTheme.shapes.largeIncreased,
+                        ) { overflowItems() }
+                    }
+                    Spacer(Modifier.weight(1f))
+                    dev.cluvex.zedsecure.ui.bento.MotifButton(
+                        shape = androidx.compose.material3.MaterialShapes.Clover4Leaf,
+                        container = dev.cluvex.zedsecure.ui.bento.Bento.colors.lime,
+                        content = dev.cluvex.zedsecure.ui.bento.Bento.colors.onLime,
+                        icon = Res.drawable.ic_add,
+                        label = stringResource(Res.string.servers_add),
+                        onClick = { showAddSheet = true },
+                        onLongClick = { importFromClipboard() },
+                        modifier = Modifier.tourTarget(TourTargets.SERVERS_ADD),
+                    )
+                }
+                if (servers.isNotEmpty()) {
+                    dev.cluvex.zedsecure.ui.bento.BentoSearchField(
+                        value = query,
+                        onValueChange = { query = it },
+                        placeholder = stringResource(Res.string.bento_search_servers),
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp),
+                    )
+                }
+            } else if (bento) {
                 dev.cluvex.zedsecure.ui.bento.BentoTopBar(title = stringResource(Res.string.nav_servers)) {
                     Box {
                         if (testing) {
