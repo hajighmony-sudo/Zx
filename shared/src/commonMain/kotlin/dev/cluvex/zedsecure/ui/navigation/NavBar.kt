@@ -60,6 +60,10 @@ fun ZedNavBar(
         dev.cluvex.zedsecure.ui.zxps.ZxPsNavBar(tabs, current, onSelect)
         return
     }
+    if (LocalAppDesign.current == AppDesign.Zx) {
+        ZxBottomBar(tabs, current, onSelect)
+        return
+    }
     // ZX Reimagined uses the same adaptive Material 3 pill navigation as the
     // rest of the app, rather than the retired neon HUD navigation.
     when (style) {
