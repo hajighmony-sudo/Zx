@@ -234,19 +234,25 @@ fun VaultScreen(
             sources = sources,
             sealing = sealing,
             onDismiss = { showCreate = false },
-            onCreate = { chosen, form, combine ->
+            onCreate = { chosen, form, combine, pack ->
                 sealing = true
                 sealScope.launch {
-                    val files = runCatching {
+                    val result = runCatching {
                         withContext(Dispatchers.Default) {
-                            repository.lockedRequests(chosen, form, combine)
+                            repository.lockedRequests(chosen, form, combine, pack)
                                 .map { (request, fileName) -> fileName to repository.createLockedZsx(request) }
                         }
-                    }.getOrNull()
+                    }
                     sealing = false
-                    if (files != null) {
-                        platform.shareFiles(files)
-                        showCreate = false
+                    result.onSuccess { files ->
+                        if (files.isNotEmpty()) {
+                            platform.shareFiles(files)
+                            showCreate = false
+                        } else {
+                            platform.toast("هیچ فایل قابل اشتراکی ساخته نشد")
+                        }
+                    }.onFailure { error ->
+                        platform.toast(error.message?.takeIf { it.isNotBlank() } ?: "ساخت فایل قفل‌شده ناموفق بود")
                     }
                 }
             },
@@ -551,10 +557,12 @@ private fun CreateLockedSheet(
     sources: List<VpnProfile>,
     sealing: Boolean,
     onDismiss: () -> Unit,
-    onCreate: (List<VpnProfile>, ZsxSealRequest, Boolean) -> Unit,
+    onCreate: (List<VpnProfile>, ZsxSealRequest, Boolean, Boolean) -> Unit,
 ) {
     var selected by remember { mutableStateOf(sources.take(1).map { it.id }.toSet()) }
     var combine by remember { mutableStateOf(false) }
+    var pack by remember { mutableStateOf(false) }
+    var showPreview by remember { mutableStateOf(false) }
     var displayName by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -630,8 +638,25 @@ private fun CreateLockedSheet(
             }
             if (selected.size > 1) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = combine, onCheckedChange = { combine = it })
+                    Checkbox(checked = combine, onCheckedChange = {
+                        combine = it
+                        if (it) pack = false
+                    })
                     Text(stringResource(Res.string.vault_combine_one), style = MaterialTheme.typography.bodyMedium)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = pack, onCheckedChange = {
+                        pack = it
+                        if (it) combine = false
+                    })
+                    Column {
+                        Text("یک فایل شامل همه کانفیگ‌ها", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "گیرنده با یک‌بار بازکردن، همه موارد را دریافت می‌کند",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
 
@@ -685,25 +710,7 @@ private fun CreateLockedSheet(
             )
 
             Button(
-                onClick = {
-                    val chosen = sources.filter { it.id in selected }
-                    val days = expiryDays.toIntOrNull() ?: 0
-                    val expiresAt = if (days > 0) {
-                        System.currentTimeMillis() + days * 86_400_000L
-                    } else {
-                        null
-                    }
-                    val form = ZsxSealRequest(
-                        configPayload = "",
-                        nameEn = displayName.trim(),
-                        nameFa = displayName.trim(),
-                        note = note,
-                        expiresAt = expiresAt,
-                        password = password.ifBlank { null },
-                    )
-                    onCreate(chosen, form, combine && chosen.size > 1)
-                },
-
+                onClick = { showPreview = true },
                 enabled = !sealing && selected.isNotEmpty(),
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth().height(54.dp),
@@ -711,12 +718,58 @@ private fun CreateLockedSheet(
                 if (sealing) {
                     CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.5.dp)
                 } else {
-                    Text(
-                        stringResource(Res.string.vault_create_and_share),
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                    Text("پیش‌نمایش و ساخت فایل قفل‌شده", fontWeight = FontWeight.SemiBold)
                 }
             }
         }
+    }
+
+    if (showPreview) {
+        val chosen = sources.filter { it.id in selected }
+        val days = expiryDays.toIntOrNull() ?: 0
+        val expiresAt = if (days > 0) System.currentTimeMillis() + days * 86_400_000L else null
+        val finalName = displayName.trim().ifBlank { chosen.firstOrNull()?.name.orEmpty() }
+        AlertDialog(
+            onDismissRequest = { showPreview = false },
+            title = { Text("پیش‌نمایش بسته") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(finalName.ifBlank { "کانفیگ قفل‌شده" }, fontWeight = FontWeight.Bold)
+                    Text("تعداد کانفیگ‌ها: ${chosen.size}")
+                    chosen.forEach { profile ->
+                        Text("• ${profile.name}", style = MaterialTheme.typography.bodySmall)
+                    }
+                    Text(if (pack && chosen.size > 1) "خروجی: یک فایل چندکانفیگی" else if (combine && chosen.size > 1) "خروجی: یک کانفیگ Auto Select" else "خروجی: فایل جداگانه برای هر کانفیگ")
+                    Text(if (password.isBlank()) "محافظت با رمز عبور: غیرفعال" else "محافظت با رمز عبور: فعال")
+                    Text(if (expiresAt == null) "انقضا: بدون محدودیت زمانی" else "انقضا: ${days} روز پس از ساخت")
+                    if (note.isNotBlank()) Text("یادداشت: $note")
+                    Text(
+                        "پس از بازکردن فایل، گیرنده باید رمز را وارد کند (در صورت فعال‌بودن) و کانفیگ‌ها به فهرست او افزوده می‌شوند.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !sealing && chosen.isNotEmpty(),
+                    onClick = {
+                        val form = ZsxSealRequest(
+                            configPayload = "",
+                            nameEn = displayName.trim(),
+                            nameFa = displayName.trim(),
+                            note = note,
+                            expiresAt = expiresAt,
+                            password = password.ifBlank { null },
+                        )
+                        showPreview = false
+                        onCreate(chosen, form, combine && chosen.size > 1, pack && chosen.size > 1)
+                    },
+                ) { Text("تأیید و اشتراک‌گذاری") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPreview = false }) { Text("ویرایش") }
+            },
+        )
     }
 }
