@@ -33,6 +33,9 @@ import dev.cluvex.zedsecure.shared.resources.*
 import dev.cluvex.zedsecure.core.VaultImportBus
 import dev.cluvex.zedsecure.crypto.ZsxExpiredException
 import dev.cluvex.zedsecure.crypto.ZsxLegacyException
+import dev.cluvex.zedsecure.crypto.ZsxWrongPasswordException
+import dev.cluvex.zedsecure.crypto.ZsxPasswordRequiredException
+import dev.cluvex.zedsecure.crypto.ZsxTamperException
 import dev.cluvex.zedsecure.ui.platform.LocalPlatform
 import dev.cluvex.zedsecure.data.config.ConfigRepository
 import dev.cluvex.zedsecure.ui.components.NoteText
@@ -66,14 +69,20 @@ fun VaultImportHost(repository: ConfigRepository, onImported: () -> Unit) {
                     }
                         .onFailure { e ->
 
-                            platform.toast(
-                                when (e) {
-                                    is ZsxLegacyException -> legacyMsg
-                                    is ZsxExpiredException -> expiredMsg
-                                    else -> wrongPwdMsg
-                                },
-                            )
-                            if (e is ZsxLegacyException || e is ZsxExpiredException) {
+                            val message = when (e) {
+                                is ZsxLegacyException -> legacyMsg
+                                is ZsxExpiredException -> expiredMsg
+                                is ZsxWrongPasswordException -> wrongPwdMsg
+                                is ZsxPasswordRequiredException -> "برای بازکردن این فایل باید رمز عبور را وارد کنید."
+                                is ZsxTamperException -> "فایل ZX خراب است یا محتوای آن تغییر کرده است."
+                                else -> e.message?.takeIf { it.isNotBlank() } ?: "واردکردن بسته ZX ناموفق بود."
+                            }
+                            platform.toast(message)
+                            if (
+                                e is ZsxLegacyException ||
+                                e is ZsxExpiredException ||
+                                e is ZsxTamperException
+                            ) {
                                 VaultImportBus.clear()
                             }
                         }
