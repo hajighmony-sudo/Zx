@@ -204,6 +204,7 @@ data class AppSettings(
     val customConfigCardColor: Long? = null,
     val customConfigCardTextColor: Long? = null,
     val appDesign: AppDesign = AppDesign.ZxPs,
+    val launcherIcon: String = "zx_orange",
     val zxAnim: ZxAnim = ZxAnim.Auto,
     val zxPs: ZxPsPrefs = ZxPsPrefs(),
     val bento: BentoPrefs = BentoPrefs(),
