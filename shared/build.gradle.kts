@@ -1,3 +1,5 @@
+import java.net.URL
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.kmp.library)
@@ -109,7 +111,7 @@ val downloadZxComposeArtwork = tasks.register("downloadZxComposeArtwork") {
         zxComposeArtwork.forEach { (name, url) ->
             val target = outputDir.file("$name.png").asFile
             if (!target.exists() || target.length() == 0L) {
-                java.net.URL(url).openStream().use { input ->
+                URL(url).openStream().use { input ->
                     target.outputStream().use { output -> input.copyTo(output) }
                 }
             }

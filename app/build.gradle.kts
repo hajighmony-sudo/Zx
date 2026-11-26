@@ -1,4 +1,5 @@
 import java.io.FileInputStream
+import java.net.URL
 import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -193,7 +194,7 @@ val downloadZxLauncherArtwork = tasks.register("downloadZxLauncherArtwork") {
         zxLauncherArtwork.forEach { (name, url) ->
             val target = outputDir.file("$name.png").asFile
             if (!target.exists() || target.length() == 0L) {
-                java.net.URL(url).openStream().use { input ->
+                URL(url).openStream().use { input ->
                     target.outputStream().use { output -> input.copyTo(output) }
                 }
             }

@@ -128,14 +128,33 @@ fun AiAssistantPage(
         Spacer(Modifier.height(16.dp))
         Text(stringResource(Res.string.ai_provider), style = MaterialTheme.typography.titleSmall)
         Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AiProvider.entries.forEach { p ->
-                FilterChip(
-                    selected = settings.provider == p,
-                    onClick = { onUpdate(settings.copy(provider = p)) },
-                    label = { Text(p.label) },
-                )
+        // Keep provider choices aligned in a compact two-column grid.
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            AiProvider.entries.chunked(2).forEach { providerRow ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    providerRow.forEach { p ->
+                        FilterChip(
+                            modifier = Modifier.weight(1f),
+                            selected = settings.provider == p,
+                            onClick = { onUpdate(settings.copy(provider = p)) },
+                            label = { Text(p.label, maxLines = 1) },
+                        )
+                    }
+                    if (providerRow.size == 1) {
+                        Spacer(Modifier.weight(1f))
+                    }
+                }
             }
+        }
+        if (settings.provider == AiProvider.DEEPSEEK) {
+            Text(
+                "DeepSeek API · https://api.deepseek.com · کلید API و مدل را از پنل DeepSeek تنظیم کن",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         Spacer(Modifier.height(16.dp))
