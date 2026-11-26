@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import dev.cluvex.zedsecure.MainActivity
 import android.net.Uri
 import android.os.PowerManager
 import android.provider.Settings as AndroidSettings
@@ -35,33 +36,41 @@ class AndroidPlatform(
     override val supportsLauncherIconSelection: Boolean get() = true
 
     override fun setLauncherIcon(iconId: String): Boolean {
+        // Activity-alias class names are resolved against the app namespace, which is
+        // intentionally different from applicationId (and gains ".debug" in debug builds).
+        val namespace = MainActivity::class.java.packageName
         val aliases = mapOf(
-            "zx_orange" to "$"+"{context.packageName}.LauncherZxOrange",
-            "zx_steel" to "$"+"{context.packageName}.LauncherZxSteel",
-            "zx_blade" to "$"+"{context.packageName}.LauncherZxBlade",
-            "zx_white" to "$"+"{context.packageName}.LauncherZxWhite",
-            "zx_silver" to "$"+"{context.packageName}.LauncherZxSilver",
-            "zx_distressed" to "$"+"{context.packageName}.LauncherZxDistressed",
+            "zx_original" to "$"+"namespace.LauncherZxOriginal",
+            "zx_orange" to "$"+"namespace.LauncherZxOrange",
+            "zx_steel" to "$"+"namespace.LauncherZxSteel",
+            "zx_blade" to "$"+"namespace.LauncherZxBlade",
+            "zx_white" to "$"+"namespace.LauncherZxWhite",
+            "zx_silver" to "$"+"namespace.LauncherZxSilver",
+            "zx_distressed" to "$"+"namespace.LauncherZxDistressed",
         )
         val selected = aliases[iconId] ?: return false
+        val pm = context.packageManager
+        val components = aliases.mapValues { (_, className) ->
+            android.content.ComponentName(context.packageName, className)
+        }
         return runCatching {
-            val pm = context.packageManager
-            // Disable the other launcher entries first, then enable exactly one alias.
-            // Use the same ComponentName constructor for both operations; unflattenFromString
-            // expects a "package/class" value and cannot parse the package.class strings above.
-            aliases.values.filter { it != selected }.forEach { componentName ->
+            // Enable the requested launcher entry first, then disable the others. This avoids
+            // leaving the app with no launcher entry if a launcher rejects an alias update.
+            pm.setComponentEnabledSetting(
+                components.getValue(iconId),
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                PackageManager.DONT_KILL_APP,
+            )
+            components.filterKeys { it != iconId }.values.forEach { component ->
                 pm.setComponentEnabledSetting(
-                    android.content.ComponentName(context, componentName),
+                    component,
                     PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                     PackageManager.DONT_KILL_APP,
                 )
             }
-            pm.setComponentEnabledSetting(
-                android.content.ComponentName(context, selected),
-                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                PackageManager.DONT_KILL_APP,
-            )
             true
+        }.onFailure {
+            android.util.Log.e("AndroidPlatform", "Unable to switch launcher icon to $iconId", it)
         }.getOrDefault(false)
     }
     override fun scanQrCode(onResult: (String?) -> Unit) = qrScanner(onResult)
