@@ -49,7 +49,7 @@ class AndroidPlatform(
             aliases.values.forEach { componentName ->
                 if (componentName == selected) {
                     pm.setComponentEnabledSetting(
-                        android.content.ComponentName.unflattenFromString(componentName)!!,
+                        android.content.ComponentName(context, componentName),
                         PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
                         PackageManager.DONT_KILL_APP,
                     )
