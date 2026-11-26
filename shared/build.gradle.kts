@@ -122,3 +122,10 @@ val downloadZxComposeArtwork = tasks.register("downloadZxComposeArtwork") {
 tasks.matching { it.name == "prepareComposeResourcesTaskForCommonMain" }.configureEach {
     dependsOn(downloadZxComposeArtwork)
 }
+
+// The Android resource copier reads the downloaded PNGs directly from the
+// commonMain source resource directory. Declare that dependency explicitly
+// so Gradle 9 can schedule validation and copying in the correct order.
+tasks.matching { it.name == "copyNonXmlValueResourcesForCommonMain" }.configureEach {
+    dependsOn(downloadZxComposeArtwork)
+}
