@@ -55,12 +55,14 @@ fun VaultImportHost(repository: ConfigRepository, onImported: () -> Unit) {
             onDismiss = { VaultImportBus.clear() },
             onUnlock = { password ->
                 scope.launch {
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { repository.importLocked(p.bytes, password) }
-                        .onSuccess {
-                            platform.toast(importedMsg)
-                            VaultImportBus.clear()
-                            onImported()
-                        }
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                        repository.importLockedBundle(p.bytes, password)
+                    }.onSuccess { imported ->
+                        val countMessage = if (imported.size > 1) "$importedMsg (${imported.size})" else importedMsg
+                        platform.toast(countMessage)
+                        VaultImportBus.clear()
+                        onImported()
+                    }
                         .onFailure { e ->
 
                             platform.toast(
