@@ -40,15 +40,15 @@ class AndroidPlatform(
         // intentionally different from applicationId (and gains ".debug" in debug builds).
         val namespace = MainActivity::class.java.packageName
         val aliases = mapOf(
-            "zx_original" to "$"+"namespace.LauncherZxOriginal",
-            "zx_orange" to "$"+"namespace.LauncherZxOrange",
-            "zx_steel" to "$"+"namespace.LauncherZxSteel",
-            "zx_blade" to "$"+"namespace.LauncherZxBlade",
-            "zx_white" to "$"+"namespace.LauncherZxWhite",
-            "zx_silver" to "$"+"namespace.LauncherZxSilver",
-            "zx_distressed" to "$"+"namespace.LauncherZxDistressed",
+            "zx_original" to namespace + ".LauncherZxOriginal",
+            "zx_orange" to namespace + ".LauncherZxOrange",
+            "zx_steel" to namespace + ".LauncherZxSteel",
+            "zx_blade" to namespace + ".LauncherZxBlade",
+            "zx_white" to namespace + ".LauncherZxWhite",
+            "zx_silver" to namespace + ".LauncherZxSilver",
+            "zx_distressed" to namespace + ".LauncherZxDistressed",
         )
-        val selected = aliases[iconId] ?: return false
+        if (iconId !in aliases) return false
         val pm = context.packageManager
         val components = aliases.mapValues { (_, className) ->
             android.content.ComponentName(context.packageName, className)
