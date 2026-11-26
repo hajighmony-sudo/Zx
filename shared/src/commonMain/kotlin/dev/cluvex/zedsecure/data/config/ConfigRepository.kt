@@ -1553,7 +1553,12 @@ class ConfigRepository(private val store: KeyValueStore) {
                 note = meta.note.takeIf { it.isNotBlank() },
             )
             when (source) {
-                is ProfileSource.Link, is ProfileSource.RawJson, is ProfileSource.SingBox -> profile.toXrayConfigJson()
+                is ProfileSource.Link, is ProfileSource.SingBox -> profile.toXrayConfigJson()
+                is ProfileSource.RawJson -> {
+                    if (dev.cluvex.zedsecure.domain.config.AetherProfile.decode(configPayload) == null) {
+                        profile.toXrayConfigJson()
+                    }
+                }
                 else -> Unit
             }
             profile
