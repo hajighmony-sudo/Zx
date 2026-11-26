@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import dev.cluvex.zedsecure.shared.resources.Res
+import dev.cluvex.zedsecure.shared.resources.zx_original
 import dev.cluvex.zedsecure.shared.resources.zx_blade
 import dev.cluvex.zedsecure.shared.resources.zx_distressed
 import dev.cluvex.zedsecure.shared.resources.zx_orange
@@ -43,6 +44,7 @@ private data class LauncherIconOption(
 )
 
 private val launcherIconOptions = listOf(
+    LauncherIconOption("zx_original", "اصلی", Res.drawable.zx_original),
     LauncherIconOption("zx_orange", "نارنجی", Res.drawable.zx_orange),
     LauncherIconOption("zx_steel", "خراش‌خورده", Res.drawable.zx_steel),
     LauncherIconOption("zx_blade", "فرمی", Res.drawable.zx_blade),
