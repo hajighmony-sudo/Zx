@@ -30,6 +30,10 @@ data class LiveStats(
 )
 
 interface Platform {
+    /** Switches the Android launcher activity alias to the selected icon pack. */
+    fun setLauncherIcon(iconId: String): Boolean = false
+    val supportsLauncherIconSelection: Boolean get() = false
+
     fun copyToClipboard(text: String)
     fun readClipboard(): String?
     fun shareText(text: String)
