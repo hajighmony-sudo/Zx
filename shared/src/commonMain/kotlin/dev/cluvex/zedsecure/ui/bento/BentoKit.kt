@@ -48,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
@@ -70,10 +71,12 @@ import androidx.graphics.shapes.RoundedPolygon
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
+import dev.cluvex.zedsecure.domain.model.AppDesign
 import dev.cluvex.zedsecure.domain.model.BentoCorners
 import dev.cluvex.zedsecure.domain.model.BentoDensity
 import dev.cluvex.zedsecure.domain.model.BentoTitle
 import dev.cluvex.zedsecure.shared.resources.Res
+import dev.cluvex.zedsecure.ui.theme.LocalAppDesign
 import dev.cluvex.zedsecure.shared.resources.action_clear
 import dev.cluvex.zedsecure.shared.resources.action_back
 import dev.cluvex.zedsecure.shared.resources.ic_arrow_back
@@ -243,6 +246,14 @@ fun BentoCard(
         spring(dampingRatio = 0.62f, stiffness = Spring.StiffnessMedium),
         label = "bento-card-press",
     )
+    val zxGlass = LocalAppDesign.current == AppDesign.Zx
+    val glassBorder = Brush.linearGradient(
+        listOf(
+            tone.content.copy(alpha = 0.36f),
+            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.20f),
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.38f),
+        ),
+    )
     Box(
         modifier
             .graphicsLayer {
@@ -250,7 +261,20 @@ fun BentoCard(
                 scaleY = scale
             }
             .clip(shape)
-            .background(tone.container)
+            .background(
+                if (zxGlass) {
+                    Brush.linearGradient(
+                        listOf(
+                            tone.container.copy(alpha = 0.88f),
+                            Bento.colors.surface.copy(alpha = 0.78f),
+                            tone.container.copy(alpha = 0.68f),
+                        ),
+                    )
+                } else {
+                    androidx.compose.ui.graphics.SolidColor(tone.container)
+                },
+            )
+            .then(if (zxGlass) Modifier.border(0.9.dp, glassBorder, shape) else Modifier)
             .bentoMotif(motif ?: NoMotif, tone.content, motifSize, motifRotation, enabled = motif != null && Bento.prefs.motifs)
             .then(
                 if (onClick != null) {
