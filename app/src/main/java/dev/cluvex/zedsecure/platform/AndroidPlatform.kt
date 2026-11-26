@@ -46,22 +46,21 @@ class AndroidPlatform(
         val selected = aliases[iconId] ?: return false
         return runCatching {
             val pm = context.packageManager
-            aliases.values.forEach { componentName ->
-                if (componentName == selected) {
-                    pm.setComponentEnabledSetting(
-                        android.content.ComponentName(context, componentName),
-                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                        PackageManager.DONT_KILL_APP,
-                    )
-                }
-            }
+            // Disable the other launcher entries first, then enable exactly one alias.
+            // Use the same ComponentName constructor for both operations; unflattenFromString
+            // expects a "package/class" value and cannot parse the package.class strings above.
             aliases.values.filter { it != selected }.forEach { componentName ->
                 pm.setComponentEnabledSetting(
-                    android.content.ComponentName.unflattenFromString(componentName)!!,
+                    android.content.ComponentName(context, componentName),
                     PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
                     PackageManager.DONT_KILL_APP,
                 )
             }
+            pm.setComponentEnabledSetting(
+                android.content.ComponentName(context, selected),
+                PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                PackageManager.DONT_KILL_APP,
+            )
             true
         }.getOrDefault(false)
     }
