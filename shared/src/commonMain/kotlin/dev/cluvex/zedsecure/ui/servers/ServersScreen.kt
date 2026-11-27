@@ -152,8 +152,8 @@ fun ServersScreen(
     val entranceStart = remember { System.currentTimeMillis() }
     val design = dev.cluvex.zedsecure.ui.theme.LocalAppDesign.current
     val zxFuture = design == dev.cluvex.zedsecure.domain.model.AppDesign.Zx
-    val bento = design == dev.cluvex.zedsecure.domain.model.AppDesign.Bento || zxFuture
-    val springIn = !reduceMotion && (design == dev.cluvex.zedsecure.domain.model.AppDesign.Pixel || design == dev.cluvex.zedsecure.domain.model.AppDesign.ZxPs || bento)
+    val bento = design == dev.cluvex.zedsecure.domain.model.AppDesign.Bento
+    val springIn = !reduceMotion && (design == dev.cluvex.zedsecure.domain.model.AppDesign.Pixel || design == dev.cluvex.zedsecure.domain.model.AppDesign.ZxPs || design == dev.cluvex.zedsecure.domain.model.AppDesign.Zx || bento)
     var query by rememberSaveable { mutableStateOf("") }
     val lockedCannotShare = stringResource(Res.string.locked_cannot_share)
 
