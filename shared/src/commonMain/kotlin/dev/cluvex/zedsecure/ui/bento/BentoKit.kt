@@ -248,7 +248,7 @@ fun BentoCard(
         label = "bento-card-press",
     )
     val zxGlass = LocalAppDesign.current == AppDesign.Zx
-    val surfaceShape = if (zxGlass) RoundedCornerShape(12.dp, 26.dp, 12.dp, 26.dp) else shape
+    val surfaceShape = if (zxGlass) RoundedCornerShape(8.dp, 22.dp, 8.dp, 22.dp) else shape
     val glassBorder = Brush.linearGradient(
         listOf(
             Color.White.copy(alpha = 0.62f),
@@ -270,8 +270,8 @@ fun BentoCard(
                 if (zxGlass) {
                     Brush.linearGradient(
                         listOf(
-                            Bento.colors.surface.copy(alpha = 0.98f),
-                            Bento.colors.surface2.copy(alpha = 0.96f),
+                            MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.98f),
+                            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.98f),
                         ),
                     )
                 } else {
@@ -298,7 +298,7 @@ fun BentoCard(
                 if (onClick != null) {
                     Modifier.combinedClickable(
                         interactionSource = source,
-                        indication = ripple(color = tone.content),
+                        indication = ripple(color = if (zxGlass) MaterialTheme.colorScheme.primary else tone.content),
                         role = Role.Button,
                         onClickLabel = onClickLabel,
                         onLongClick = onLongClick,
@@ -309,7 +309,7 @@ fun BentoCard(
                 },
             ),
     ) {
-        CompositionLocalProvider(LocalContentColor provides tone.content) {
+        CompositionLocalProvider(LocalContentColor provides if (zxGlass) MaterialTheme.colorScheme.onSurface else tone.content) {
             Column(Modifier.fillMaxWidth().padding(contentPadding), verticalArrangement = verticalArrangement, content = content)
         }
     }
