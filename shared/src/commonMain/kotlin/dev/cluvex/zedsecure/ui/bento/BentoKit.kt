@@ -251,11 +251,9 @@ fun BentoCard(
     val surfaceShape = if (zxGlass) RoundedCornerShape(8.dp, 22.dp, 8.dp, 22.dp) else shape
     val glassBorder = Brush.linearGradient(
         listOf(
-            Color.White.copy(alpha = 0.62f),
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.48f),
-            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.38f),
-            MaterialTheme.colorScheme.secondary.copy(alpha = 0.22f),
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f),
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.88f),
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
+            MaterialTheme.colorScheme.outline.copy(alpha = 0.58f),
         ),
     )
     Box(
@@ -387,22 +385,26 @@ fun BentoIconButton(
 ) {
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
-    val squash by animateFloatAsState(if (pressed) 0.9f else 1f, spring(dampingRatio = 0.55f), label = "icon-squash")
+    val zx = LocalAppDesign.current == AppDesign.Zx
+    val shape = if (zx) RoundedCornerShape(8.dp, 15.dp, 8.dp, 15.dp) else CircleShape
+    val fill = if (zx) MaterialTheme.colorScheme.surfaceContainerHigh else container
+    val ink = if (zx) MaterialTheme.colorScheme.onSurface else content
     Box(
         modifier
             .size(size)
             .graphicsLayer {
-                scaleX = squash
-                scaleY = squash
+                scaleX = if (zx) 1f else if (pressed) 0.9f else 1f
+                scaleY = if (zx) 1f else if (pressed) 0.9f else 1f
                 alpha = if (enabled) 1f else 0.45f
             }
-            .clip(CircleShape)
-            .background(container)
+            .clip(shape)
+            .background(fill)
+            .then(if (zx) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape) else Modifier)
             .semantics { contentDescription = label }
-            .clickable(source, ripple(color = content), enabled = enabled, role = Role.Button, onClick = onClick),
+            .clickable(source, ripple(color = ink), enabled = enabled, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(painterResource(icon), contentDescription = null, tint = content, modifier = Modifier.size(size * 0.48f))
+        Icon(painterResource(icon), contentDescription = null, tint = ink, modifier = Modifier.size(size * 0.46f))
     }
 }
 
