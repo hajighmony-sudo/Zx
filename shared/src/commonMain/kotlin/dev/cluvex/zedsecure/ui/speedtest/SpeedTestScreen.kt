@@ -95,7 +95,7 @@ fun SpeedTestScreen(
         }
     }
 
-    if (dev.cluvex.zedsecure.ui.bento.Bento.active) {
+    if (dev.cluvex.zedsecure.ui.theme.LocalAppDesign.current == dev.cluvex.zedsecure.domain.model.AppDesign.Bento) {
         BentoSpeedTestLayout(
             st = st,
             contentPadding = contentPadding,
