@@ -26,9 +26,8 @@ import dev.cluvex.zedsecure.ui.theme.LocalMotionBudget
 import dev.cluvex.zedsecure.ui.theme.MotionBudget
 
 /**
- * ZX Reimagined: a clean hybrid interface built on the shared Bento dashboard
- * and Material 3 navigation patterns. Kept as an adapter so the app shell and
- * all existing connection actions remain unchanged.
+ * ZX Reimagined: liquid-glass hybrid interface built on the shared Bento dashboard
+ * and Material 3 navigation patterns. Adapter only — connection actions unchanged.
  */
 @Composable
 internal fun ZxHome(
@@ -78,74 +77,73 @@ internal fun ZxHome(
     )
 }
 
-/** Preview tile used by the appearance picker for the new hybrid ZX design. */
+/** Preview tile used by the appearance picker for the liquid-glass ZX design. */
 @Composable
 internal fun ZxDesignPreview() {
+    val cs = androidx.compose.material3.MaterialTheme.colorScheme
     androidx.compose.foundation.layout.Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(androidx.compose.material3.MaterialTheme.colorScheme.background)
+            .background(cs.background)
             .padding(8.dp),
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
     ) {
-        androidx.compose.foundation.layout.Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(5.dp),
-        ) {
-            androidx.compose.material3.Surface(
-                Modifier.weight(1f).height(14.dp),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                color = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh,
-            ) {}
-            androidx.compose.material3.Surface(
-                Modifier.size(width = 24.dp, height = 14.dp),
-                shape = androidx.compose.foundation.shape.CircleShape,
-                color = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
-            ) {}
-        }
+        // Glass top bar hint
+        androidx.compose.material3.Surface(
+            Modifier.fillMaxWidth().height(16.dp),
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+            color = cs.surfaceContainer.copy(alpha = 0.72f),
+            shadowElevation = 2.dp,
+        ) {}
+        // Hero connect blob
         androidx.compose.material3.Surface(
             modifier = Modifier.fillMaxWidth().weight(1f),
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(15.dp),
-            color = androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp),
+            color = cs.surfaceContainer.copy(alpha = 0.70f),
+            shadowElevation = 4.dp,
         ) {
             androidx.compose.foundation.layout.Column(
-                Modifier.padding(7.dp),
+                Modifier.padding(8.dp),
                 horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
                 verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
             ) {
                 androidx.compose.material3.Surface(
-                    Modifier.size(34.dp),
+                    Modifier.size(36.dp),
                     shape = androidx.compose.foundation.shape.CircleShape,
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                    color = cs.primary.copy(alpha = 0.90f),
+                    shadowElevation = 3.dp,
                 ) {}
                 androidx.compose.foundation.layout.Spacer(Modifier.height(6.dp))
                 androidx.compose.material3.Surface(
-                    Modifier.fillMaxWidth(0.58f).height(5.dp),
+                    Modifier.fillMaxWidth(0.55f).height(5.dp),
                     shape = androidx.compose.foundation.shape.CircleShape,
-                    color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface.copy(alpha = 0.22f),
+                    color = cs.onSurface.copy(alpha = 0.18f),
                 ) {}
             }
         }
+        // Clay chips row
         androidx.compose.foundation.layout.Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(5.dp),
         ) {
             androidx.compose.material3.Surface(
                 Modifier.weight(1f).height(16.dp),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(7.dp),
-                color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer,
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                color = cs.secondaryContainer.copy(alpha = 0.85f),
             ) {}
             androidx.compose.material3.Surface(
                 Modifier.weight(1f).height(16.dp),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(7.dp),
-                color = androidx.compose.material3.MaterialTheme.colorScheme.secondaryContainer,
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                color = cs.tertiaryContainer.copy(alpha = 0.85f),
             ) {}
         }
+        // Floating glass dock
         androidx.compose.material3.Surface(
             Modifier.fillMaxWidth().height(14.dp),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
-            color = androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer,
+            color = cs.surfaceContainer.copy(alpha = 0.68f),
+            shadowElevation = 3.dp,
         ) {}
     }
 }
