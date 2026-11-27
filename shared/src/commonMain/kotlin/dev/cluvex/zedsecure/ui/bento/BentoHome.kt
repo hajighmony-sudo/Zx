@@ -466,34 +466,38 @@ private fun SpeedTile(
     modifier: Modifier = Modifier,
 ) {
     val (value, unit) = formatRate(bps)
+    val zx = LocalAppDesign.current == AppDesign.Zx
+    val tileInk = if (zx) MaterialTheme.colorScheme.onSurface else tone.content
+    val tileFill = if (zx) MaterialTheme.colorScheme.surfaceContainerHigh else tone.container
     Column(
         modifier
             .height(122.dp)
-            .clip(BentoShapes.block())
-            .background(tone.container)
+            .clip(if (zx) RoundedCornerShape(10.dp, 22.dp, 10.dp, 22.dp) else BentoShapes.block())
+            .background(tileFill)
+            .then(if (zx) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f), RoundedCornerShape(10.dp, 22.dp, 10.dp, 22.dp)) else Modifier)
             .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 10.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Icon(painterResource(icon), contentDescription = null, tint = tone.content, modifier = Modifier.size(16.dp))
-            Text(label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = tone.content, maxLines = 1)
+            Icon(painterResource(icon), contentDescription = null, tint = tileInk, modifier = Modifier.size(16.dp))
+            Text(label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold), color = tileInk, maxLines = 1)
         }
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 value,
                 style = BentoType.number(36.sp),
-                color = tone.content.copy(alpha = if (live) 1f else 0.6f),
+                color = tileInk.copy(alpha = if (live) 1f else 0.65f),
                 maxLines = 1,
                 modifier = Modifier.alignByBaseline(),
             )
             Text(
                 unit,
                 style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-                color = tone.content.copy(alpha = 0.8f),
+                color = tileInk.copy(alpha = 0.78f),
                 modifier = Modifier.alignByBaseline(),
             )
         }
-        Sparkline(history, tone.content, Modifier.fillMaxWidth().height(22.dp))
+        Sparkline(history, if (zx) MaterialTheme.colorScheme.primary else tone.content, Modifier.fillMaxWidth().height(22.dp))
     }
 }
 
@@ -541,11 +545,14 @@ private fun FactTile(
     tone: BentoTone? = null,
 ) {
     val c = Bento.colors
+    val zx = LocalAppDesign.current == AppDesign.Zx
+    val factShape = if (zx) RoundedCornerShape(10.dp, 20.dp, 10.dp, 20.dp) else BentoShapes.small()
     Column(
         modifier
             .height(70.dp)
-            .clip(BentoShapes.small())
-            .background(tone?.container ?: c.surface)
+            .clip(factShape)
+            .background(if (zx) MaterialTheme.colorScheme.surfaceContainerHigh else tone?.container ?: c.surface)
+            .then(if (zx) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f), factShape) else Modifier)
             .then(
                 if (onClick != null) {
                     Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
@@ -556,8 +563,8 @@ private fun FactTile(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(label, style = BentoType.body().copy(fontSize = 12.5.sp), color = tone?.content?.copy(alpha = 0.8f) ?: c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(ltrIsolate(value), style = BentoType.number(20.sp), color = tone?.content ?: c.ink, maxLines = 1)
+        Text(label, style = BentoType.body().copy(fontSize = 12.5.sp), color = if (zx) MaterialTheme.colorScheme.onSurfaceVariant else tone?.content?.copy(alpha = 0.8f) ?: c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(ltrIsolate(value), style = BentoType.number(20.sp), color = if (zx) MaterialTheme.colorScheme.onSurface else tone?.content ?: c.ink, maxLines = 1)
     }
 }
 
@@ -569,12 +576,15 @@ private fun ActionChip(
     tone: BentoTone? = null,
 ) {
     val c = Bento.colors
-    val ink = tone?.content ?: c.ink
+    val zx = LocalAppDesign.current == AppDesign.Zx
+    val ink = if (zx) MaterialTheme.colorScheme.onSurface else tone?.content ?: c.ink
+    val chipShape = if (zx) RoundedCornerShape(9.dp, 18.dp, 9.dp, 18.dp) else RoundedCornerShape(20.dp)
     Row(
         Modifier
             .height(40.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(tone?.container ?: c.surface)
+            .clip(chipShape)
+            .background(if (zx) MaterialTheme.colorScheme.surfaceContainerHigh else tone?.container ?: c.surface)
+            .then(if (zx) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f), chipShape) else Modifier)
             .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
