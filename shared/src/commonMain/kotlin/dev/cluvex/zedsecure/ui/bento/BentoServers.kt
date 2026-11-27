@@ -3,6 +3,7 @@
 package dev.cluvex.zedsecure.ui.bento
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -98,18 +99,27 @@ fun BentoServerRow(
     val rowFill = if (zxGlass) {
         if (highlight) {
             Brush.linearGradient(
-                listOf(c.selected.copy(alpha = 0.94f), c.violet.container.copy(alpha = 0.74f), c.cyan.container.copy(alpha = 0.66f)),
+                listOf(
+                    c.selected.copy(alpha = 0.88f),
+                    c.violet.container.copy(alpha = 0.70f),
+                    c.cyan.container.copy(alpha = 0.58f),
+                ),
             )
         } else {
-            Brush.linearGradient(listOf(c.surface.copy(alpha = 0.88f), c.surface2.copy(alpha = 0.60f)))
+            Brush.linearGradient(
+                listOf(
+                    c.surface.copy(alpha = 0.78f),
+                    c.surface2.copy(alpha = 0.55f),
+                ),
+            )
         }
     } else SolidColor(if (highlight) c.selected else c.surface)
     val rowRim = Brush.linearGradient(
         listOf(
-            Color.White.copy(alpha = if (highlight) 0.48f else 0.24f),
-            MaterialTheme.colorScheme.primary.copy(alpha = if (highlight) 0.46f else 0.20f),
-            MaterialTheme.colorScheme.tertiary.copy(alpha = if (highlight) 0.38f else 0.16f),
-            c.line.copy(alpha = 0.34f),
+            Color.White.copy(alpha = if (highlight) 0.58f else 0.32f),
+            MaterialTheme.colorScheme.primary.copy(alpha = if (highlight) 0.52f else 0.24f),
+            MaterialTheme.colorScheme.tertiary.copy(alpha = if (highlight) 0.40f else 0.18f),
+            c.line.copy(alpha = 0.30f),
         ),
     )
     var menuOpen by remember { mutableStateOf(false) }
@@ -117,10 +127,18 @@ fun BentoServerRow(
         modifier
             .fillMaxWidth()
             .heightIn(min = maxOf(48.dp, BentoMetrics.rowMin()))
-            .then(if (zxGlass) Modifier.shadow(if (highlight) 10.dp else 5.dp, shape, clip = false) else Modifier)
+            .then(
+                if (zxGlass) Modifier.shadow(
+                    if (highlight) 12.dp else 6.dp,
+                    shape,
+                    clip = false,
+                    ambientColor = Color.Black.copy(alpha = 0.22f),
+                    spotColor = if (highlight) MaterialTheme.colorScheme.primary.copy(alpha = 0.20f) else Color.Black.copy(alpha = 0.12f),
+                ) else Modifier,
+            )
             .clip(shape)
             .background(rowFill, shape)
-            .then(if (zxGlass) Modifier.border(if (highlight) 1.dp else 0.7.dp, rowRim, shape) else Modifier)
+            .then(if (zxGlass) Modifier.border(if (highlight) 1.15.dp else 0.8.dp, rowRim, shape) else Modifier)
             .clickable(role = Role.Button, onClick = onClick)
             .padding(start = 14.dp, end = 2.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
