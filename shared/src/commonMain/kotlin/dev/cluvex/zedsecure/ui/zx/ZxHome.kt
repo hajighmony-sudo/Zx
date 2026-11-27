@@ -100,6 +100,13 @@ internal fun ZxHome(
     modifier: Modifier = Modifier,
 ) {
     val cs = MaterialTheme.colorScheme
+    val prefs = dev.cluvex.zedsecure.ui.bento.Bento.prefs
+    val panelShape = when (prefs.corners) {
+        dev.cluvex.zedsecure.domain.model.BentoCorners.Leaf -> RoundedCornerShape(8.dp, 28.dp, 8.dp, 28.dp)
+        dev.cluvex.zedsecure.domain.model.BentoCorners.Round -> RoundedCornerShape(24.dp)
+        dev.cluvex.zedsecure.domain.model.BentoCorners.Soft -> RoundedCornerShape(13.dp)
+    }
+    val compact = prefs.density == dev.cluvex.zedsecure.domain.model.BentoDensity.Compact
     val connected = ui.state == ConnectionState.Connected
     val transitioning = ui.state.isTransitioning
     val stateText = when {
@@ -121,7 +128,7 @@ internal fun ZxHome(
         modifier.fillMaxSize().verticalScroll(rememberScrollState())
             .padding(top = contentPadding.calculateTopPadding(), bottom = contentPadding.calculateBottomPadding() + 18.dp)
             .padding(horizontal = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(if (compact) 9.dp else 14.dp),
     ) {
         Row(
             Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 2.dp)
@@ -130,7 +137,7 @@ internal fun ZxHome(
         ) {
             Column(Modifier.weight(1f)) {
                 Text("ZX / CONTROL CENTER", style = MaterialTheme.typography.labelSmall, color = cs.primary, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-                Text("ZedSecure", style = MaterialTheme.typography.headlineSmall, color = cs.onSurface, fontWeight = FontWeight.ExtraBold)
+                Text("ZedSecure", style = MaterialTheme.typography.headlineSmall.copy(fontSize = when (prefs.title) { dev.cluvex.zedsecure.domain.model.BentoTitle.Huge -> 31.sp; dev.cluvex.zedsecure.domain.model.BentoTitle.Large -> 26.sp; dev.cluvex.zedsecure.domain.model.BentoTitle.Compact -> 22.sp }), color = cs.onSurface, fontWeight = FontWeight.ExtraBold)
             }
             Surface(
                 onClick = onRefreshInfo,
@@ -145,7 +152,7 @@ internal fun ZxHome(
         // The connection console is deliberately a single strong surface, not a grid of Bento tiles.
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(topStart = 8.dp, topEnd = 30.dp, bottomEnd = 8.dp, bottomStart = 30.dp),
+            shape = panelShape,
             color = cs.surfaceContainer,
             border = androidx.compose.foundation.BorderStroke(1.dp, cs.outlineVariant),
             shadowElevation = 5.dp,
@@ -209,12 +216,12 @@ internal fun ZxHome(
             }
         }
 
-        if (showConnectionInfo) {
+        if (showConnectionInfo && prefs.homeSpeed) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 ZxMetricCard(Modifier.weight(1f), stringResource(Res.string.home_download), down.first, down.second, Res.drawable.ic_download, cs.primary)
                 ZxMetricCard(Modifier.weight(1f), stringResource(Res.string.home_upload), up.first, up.second, Res.drawable.ic_upload, cs.tertiary)
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (prefs.homeSession) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 ZxMetricCard(Modifier.weight(1f), stringResource(Res.string.bento_data_session), formatBytes(ui.totalDownload + ui.totalUpload), "", Res.drawable.ic_description, cs.secondary)
                 ZxMetricCard(Modifier.weight(1f), stringResource(Res.string.bento_connected_for), if (connected) formatElapsed(ui.elapsedSeconds) else "—", "", Res.drawable.ic_fill_power, cs.primary)
             }
@@ -222,7 +229,7 @@ internal fun ZxHome(
 
         Surface(
             modifier = Modifier.fillMaxWidth().clickable(onClick = onBrowseConfigs),
-            shape = RoundedCornerShape(8.dp, 20.dp, 8.dp, 20.dp),
+            shape = panelShape,
             color = cs.surfaceContainerHigh,
             border = androidx.compose.foundation.BorderStroke(1.dp, cs.outlineVariant),
         ) {
@@ -235,7 +242,7 @@ internal fun ZxHome(
             }
         }
 
-        if (picks.isNotEmpty()) {
+        if (prefs.homeChips && picks.isNotEmpty()) {
             Text(stringResource(Res.string.bento_fastest), style = MaterialTheme.typography.titleMedium, color = cs.onSurface, fontWeight = FontWeight.Bold)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 picks.take(3).forEach { pick ->
@@ -261,7 +268,7 @@ internal fun ZxHome(
             Text("${stringResource(Res.string.home_local_proxy)}: $localProxyAddress", color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        if (prefs.homeQuick) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             if (onOpenSpeedTest != null) ZxQuickAction(Modifier.weight(1f), stringResource(Res.string.title_speedtest), Res.drawable.ic_fill_speed, onOpenSpeedTest)
             if (onOpenMap != null) ZxQuickAction(Modifier.weight(1f), stringResource(Res.string.map_title), Res.drawable.ic_fill_map, onOpenMap)
             ZxQuickAction(Modifier.weight(1f), stringResource(Res.string.logs_title), Res.drawable.ic_description, onShowLogs)
