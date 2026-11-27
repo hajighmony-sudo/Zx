@@ -364,23 +364,15 @@ fun ZxNavigationDrawer(
                         onClick = { onSelect(destinations.first()) },
                     )
                 } else {
-                    destinations.chunked(2).forEach { pair ->
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            pair.forEach { destination ->
-                                ZxDrawerTile(
-                                    destination = destination,
-                                    selected = current == destination,
-                                    modifier = Modifier.weight(1f).heightIn(min = 88.dp),
-                                    onClick = { onSelect(destination) },
-                                )
-                            }
-                            if (pair.size == 1) Spacer(Modifier.weight(1f))
-                        }
-                        Spacer(Modifier.height(8.dp))
-                    }
+                    destinations.forEach { destination ->
+                    ZxDrawerTile(
+                        destination = destination,
+                        selected = current == destination,
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { onSelect(destination) },
+                    )
+                    Spacer(Modifier.height(7.dp))
+                }
                 }
                 Spacer(Modifier.height(2.dp))
             }
@@ -392,13 +384,13 @@ fun ZxNavigationDrawer(
             ) {
                 Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
                     Text(
-                        "GLASS  ·  LIQUID  ·  HOLOGRAPHIC",
+                        "ZX  ·  SIGNATURE INTERFACE",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        "A calmer, adaptive ZX experience",
+                        "Precision layout. Clear navigation. Built for focus.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                     )
@@ -416,48 +408,37 @@ private fun ZxDrawerTile(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(20.dp)
-    val border = Brush.linearGradient(
+    val shape = RoundedCornerShape(14.dp)
+    val edge = Brush.linearGradient(
         listOf(
-            MaterialTheme.colorScheme.primary.copy(alpha = if (selected) 0.75f else 0.28f),
-            MaterialTheme.colorScheme.tertiary.copy(alpha = if (selected) 0.52f else 0.18f),
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+            MaterialTheme.colorScheme.primary.copy(alpha = if (selected) 0.85f else 0.24f),
+            MaterialTheme.colorScheme.tertiary.copy(alpha = if (selected) 0.48f else 0.12f),
         ),
     )
     Surface(
         onClick = onClick,
-        modifier = modifier.border(if (selected) 1.3.dp else 0.8.dp, border, shape),
+        modifier = modifier.fillMaxWidth().heightIn(min = 62.dp).border(if (selected) 1.dp else 0.6.dp, edge, shape),
         shape = shape,
-        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-        else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.38f),
+        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        else MaterialTheme.colorScheme.surface.copy(alpha = 0.18f),
         contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-        shadowElevation = if (selected) 8.dp else 2.dp,
-        tonalElevation = if (selected) 2.dp else 0.dp,
+        shadowElevation = 0.dp,
+        tonalElevation = 0.dp,
     ) {
-        Row(
-            Modifier.padding(horizontal = 11.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(
-                shape = RoundedCornerShape(13.dp),
-                color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.20f)
-                else MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f),
-                contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
-                modifier = Modifier.size(38.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(painterResource(destination.icon), null, Modifier.size(20.dp))
-                }
-            }
-            Spacer(Modifier.width(9.dp))
+        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(painterResource(destination.icon), contentDescription = stringResource(destination.labelRes), modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(14.dp))
             Text(
                 stringResource(destination.labelRes),
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.titleSmall,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                maxLines = 2,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
+            if (selected) {
+                Box(Modifier.size(width = 4.dp, height = 24.dp).clip(RoundedCornerShape(4.dp)).background(MaterialTheme.colorScheme.primary))
+            }
         }
     }
 }
@@ -599,22 +580,14 @@ fun ZxNavigationMenuSheet(
                     color = MaterialTheme.colorScheme.tertiary,
                     fontWeight = FontWeight.Bold,
                 )
-                destinations.chunked(2).forEach { pair ->
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        pair.forEach { destination ->
-                            ZxDrawerTile(
-                                destination = destination,
-                                selected = current == destination,
-                                modifier = Modifier.weight(1f).heightIn(min = 88.dp),
-                                onClick = { onSelect(destination) },
-                            )
-                        }
-                        if (pair.size == 1) Spacer(Modifier.weight(1f))
-                    }
-                    Spacer(Modifier.height(8.dp))
+                destinations.forEach { destination ->
+                    ZxDrawerTile(
+                        destination = destination,
+                        selected = current == destination,
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { onSelect(destination) },
+                    )
+                    Spacer(Modifier.height(7.dp))
                 }
             }
             Spacer(Modifier.height(10.dp))
@@ -649,7 +622,7 @@ fun ZxBottomBar(
     onSelect: (TopDestination) -> Unit,
     reduceMotion: Boolean = false,
 ) {
-    val shape = RoundedCornerShape(30.dp)
+    val shape = RoundedCornerShape(18.dp)
     val borderBrush = Brush.linearGradient(
         listOf(
             Color.White.copy(alpha = 0.50f),
@@ -668,9 +641,9 @@ fun ZxBottomBar(
     ) {
         Surface(
             shape = shape,
-            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.70f),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
             tonalElevation = 0.dp,
-            shadowElevation = 22.dp,
+            shadowElevation = 8.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .border(1.dp, borderBrush, shape),
