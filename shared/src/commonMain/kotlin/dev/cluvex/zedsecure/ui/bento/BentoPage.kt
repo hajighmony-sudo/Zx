@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.cluvex.zedsecure.domain.model.AppDesign
 import dev.cluvex.zedsecure.ui.theme.LocalAppDesign
-import dev.cluvex.zedsecure.ui.components.LocalPageBack
+import dev.cluvex.zedsecure.ui.settings.LocalPageBack
 import dev.cluvex.zedsecure.ui.settings.SettingsArt
 import dev.cluvex.zedsecure.ui.settings.sharedArt
 
@@ -63,24 +62,33 @@ fun BentoPageHeader(
         val heroFill = if (zxGlass) {
             Brush.linearGradient(
                 listOf(
-                    tone.container.copy(alpha = 0.94f),
-                    Bento.colors.surface.copy(alpha = 0.76f),
-                    tone.container.copy(alpha = 0.78f),
+                    tone.container.copy(alpha = 0.86f),
+                    Bento.colors.surface.copy(alpha = 0.68f),
+                    tone.container.copy(alpha = 0.72f),
                 ),
             )
         } else SolidColor(tone.container)
         val heroRim = Brush.linearGradient(
             listOf(
-                androidx.compose.ui.graphics.Color.White.copy(alpha = 0.48f),
-                tone.content.copy(alpha = 0.34f),
-                androidx.compose.material3.MaterialTheme.colorScheme.tertiary.copy(alpha = 0.34f),
+                androidx.compose.ui.graphics.Color.White.copy(alpha = 0.58f),
+                tone.content.copy(alpha = 0.40f),
+                androidx.compose.material3.MaterialTheme.colorScheme.primary.copy(alpha = 0.32f),
+                androidx.compose.material3.MaterialTheme.colorScheme.tertiary.copy(alpha = 0.28f),
             ),
         )
         Box(
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = 148.dp)
-                .then(if (zxGlass) Modifier.shadow(16.dp, heroShape, clip = false) else Modifier)
+                .then(
+                    if (zxGlass) Modifier.shadow(
+                        20.dp,
+                        heroShape,
+                        clip = false,
+                        ambientColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.26f),
+                        spotColor = tone.content.copy(alpha = 0.18f),
+                    ) else Modifier,
+                )
                 .clip(heroShape)
                 .background(heroFill, heroShape)
                 .then(
@@ -88,11 +96,15 @@ fun BentoPageHeader(
                         Modifier
                             .background(
                                 Brush.verticalGradient(
-                                    listOf(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.13f), androidx.compose.ui.graphics.Color.Transparent),
+                                    listOf(
+                                        androidx.compose.ui.graphics.Color.White.copy(alpha = 0.16f),
+                                        androidx.compose.ui.graphics.Color.Transparent,
+                                        androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.03f),
+                                    ),
                                 ),
                                 heroShape,
                             )
-                            .border(1.dp, heroRim, heroShape)
+                            .border(1.15.dp, heroRim, heroShape)
                     } else Modifier,
                 )
                 .bentoMotif(art.shape, tone.content, 170.dp, 18f + spin, enabled = Bento.prefs.motifs, alpha = 0.1f, bleedX = 36.dp, bleedY = 44.dp),
