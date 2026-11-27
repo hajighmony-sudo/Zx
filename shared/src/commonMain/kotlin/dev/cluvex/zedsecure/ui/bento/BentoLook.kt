@@ -111,14 +111,7 @@ fun BentoLookSection(
     fun edit(change: (BentoPrefs) -> BentoPrefs) = onUpdate { it.copy(bento = change(it.bento)) }
 
     SettingsGroup(stringResource(Res.string.bento_group_look)) {
-        if (zxMode) {
-            Text(
-                "ZX Future OS uses its dedicated adaptive glass and holographic palette. Appearance changes below control the shape, density, motion, and dashboard layout without changing the core ZX color language.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-            )
-        } else {
+        if (!zxMode) {
             PalettePicker(settings, prefs.palette) { p -> edit { it.copy(palette = p) } }
         }
         SettingsChoiceRow(
@@ -153,13 +146,13 @@ fun BentoLookSection(
             selected = prefs.density,
             onSelected = { v -> edit { it.copy(density = v) } },
         )
-        SettingsSwitchRow(
+        if (!zxMode) SettingsSwitchRow(
             title = stringResource(Res.string.bento_motifs),
             summary = stringResource(Res.string.bento_motifs_sum),
             checked = prefs.motifs,
             onCheckedChange = { v -> edit { it.copy(motifs = v) } },
         )
-        SettingsSwitchRow(
+        if (!zxMode) SettingsSwitchRow(
             title = stringResource(Res.string.bento_playful),
             summary = stringResource(Res.string.bento_playful_sum),
             checked = prefs.playfulTouch,
@@ -168,13 +161,13 @@ fun BentoLookSection(
     }
 
     SettingsGroup(stringResource(Res.string.bento_group_board)) {
-        SettingsSwitchRow(
+        if (!zxMode) SettingsSwitchRow(
             title = stringResource(Res.string.bento_indexes),
             summary = stringResource(Res.string.bento_indexes_sum),
             checked = prefs.indexes,
             onCheckedChange = { v -> edit { it.copy(indexes = v) } },
         )
-        SettingsSwitchRow(
+        if (!zxMode) SettingsSwitchRow(
             title = stringResource(Res.string.bento_live_tiles),
             summary = stringResource(Res.string.bento_live_tiles_sum),
             checked = prefs.liveTiles,
@@ -184,7 +177,7 @@ fun BentoLookSection(
     }
 
     SettingsGroup(stringResource(Res.string.bento_group_home)) {
-        SettingsListRow(
+        if (!zxMode) SettingsListRow(
             title = stringResource(Res.string.bento_connect_title),
             options = listOf(
                 BentoConnect.Slide to stringResource(Res.string.bento_connect_slide),
@@ -197,7 +190,7 @@ fun BentoLookSection(
             selected = prefs.connect,
             onSelected = { v -> edit { it.copy(connect = v) } },
         )
-        if (prefs.connect == BentoConnect.Slide) {
+        if (!zxMode && prefs.connect == BentoConnect.Slide) {
             SettingsSwitchRow(
                 title = stringResource(Res.string.bento_wave),
                 summary = stringResource(Res.string.bento_wave_sum),
