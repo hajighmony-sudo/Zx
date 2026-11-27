@@ -116,15 +116,33 @@ fun BentoPageHeader(
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
                         if (!zxGlass && Bento.prefs.indexes) BentoIndex(BentoTiles.ordinalOf(art.key), tone.content)
                         Spacer(Modifier.weight(1f))
-                        BentoBadge(
-                            shape = art.shape,
-                            container = accent,
-                            content = accentInk,
-                            icon = art.icon,
-                            size = 48.dp,
-                            rotation = 12f + spin,
-                            modifier = Modifier.sharedArt(art),
-                        )
+                        if (zxGlass) {
+                            Box(
+                                Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(8.dp, 16.dp, 8.dp, 16.dp))
+                                    .background(androidx.compose.material3.MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                                    .border(1.dp, androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp, 16.dp, 8.dp, 16.dp)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    painterResource(art.icon),
+                                    contentDescription = null,
+                                    tint = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                            }
+                        } else {
+                            BentoBadge(
+                                shape = art.shape,
+                                container = accent,
+                                content = accentInk,
+                                icon = art.icon,
+                                size = 48.dp,
+                                rotation = 12f + spin,
+                                modifier = Modifier.sharedArt(art),
+                            )
+                        }
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text(
