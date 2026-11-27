@@ -58,12 +58,12 @@ fun BentoPageHeader(
         val accentInk = if (prominent) c.onLime else tone.container
         val spin = (scroll?.value ?: 0) * 0.12f
         val zxGlass = LocalAppDesign.current == AppDesign.Zx
-        val heroShape = if (zxGlass) RoundedCornerShape(12.dp, 30.dp, 12.dp, 30.dp) else BentoShapes.hero()
+        val heroShape = if (zxGlass) RoundedCornerShape(8.dp, 22.dp, 8.dp, 22.dp) else BentoShapes.hero()
         val heroFill = if (zxGlass) {
             Brush.linearGradient(
                 listOf(
-                    Bento.colors.surface.copy(alpha = 0.99f),
-                    Bento.colors.surface2.copy(alpha = 0.96f),
+                    androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.99f),
+                    androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.98f),
                 ),
             )
         } else SolidColor(tone.container)
@@ -108,13 +108,13 @@ fun BentoPageHeader(
                 )
                 .bentoMotif(art.shape, tone.content, 170.dp, 18f + spin, enabled = !zxGlass && Bento.prefs.motifs, alpha = 0.1f, bleedX = 36.dp, bleedY = 44.dp),
         ) {
-            CompositionLocalProvider(LocalContentColor provides tone.content) {
+            CompositionLocalProvider(LocalContentColor provides if (zxGlass) androidx.compose.material3.MaterialTheme.colorScheme.onSurface else tone.content) {
                 Column(
                     Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-                        if (Bento.prefs.indexes) BentoIndex(BentoTiles.ordinalOf(art.key), tone.content)
+                        if (!zxGlass && Bento.prefs.indexes) BentoIndex(BentoTiles.ordinalOf(art.key), tone.content)
                         Spacer(Modifier.weight(1f))
                         BentoBadge(
                             shape = art.shape,
@@ -130,7 +130,7 @@ fun BentoPageHeader(
                         Text(
                             title,
                             style = BentoType.title(if (title.length > 18) 28.sp else 36.sp),
-                            color = tone.content,
+                            color = if (zxGlass) androidx.compose.material3.MaterialTheme.colorScheme.onSurface else tone.content,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
