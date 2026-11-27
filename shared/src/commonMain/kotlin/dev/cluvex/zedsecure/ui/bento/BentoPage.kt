@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,6 +32,7 @@ import dev.cluvex.zedsecure.ui.theme.LocalAppDesign
 import dev.cluvex.zedsecure.ui.components.LocalPageBack
 import dev.cluvex.zedsecure.ui.settings.SettingsArt
 import dev.cluvex.zedsecure.ui.settings.sharedArt
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun BentoPageHeader(
@@ -40,15 +44,16 @@ fun BentoPageHeader(
 ) {
     val c = Bento.colors
     val back = LocalPageBack.current
+    val zxDesign = LocalAppDesign.current == AppDesign.Zx
     Column(
         modifier.fillMaxWidth().padding(horizontal = BentoMetrics.gutter),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         if (back != null) BentoBackButton(back)
         if (art == null) {
-            Text(title, style = BentoType.display(), color = c.ink, modifier = Modifier.padding(horizontal = 4.dp))
+            Text(title, style = BentoType.display(), color = if (zxDesign) androidx.compose.material3.MaterialTheme.colorScheme.onSurface else c.ink, modifier = Modifier.padding(horizontal = 4.dp))
             if (!subtitle.isNullOrBlank()) {
-                Text(subtitle, style = BentoType.body(), color = c.muted, modifier = Modifier.padding(horizontal = 4.dp))
+                Text(subtitle, style = BentoType.body(), color = if (zxDesign) androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant else c.muted, modifier = Modifier.padding(horizontal = 4.dp))
             }
             return@Column
         }
@@ -57,7 +62,7 @@ fun BentoPageHeader(
         val accent = if (prominent) c.lime else tone.content
         val accentInk = if (prominent) c.onLime else tone.container
         val spin = (scroll?.value ?: 0) * 0.12f
-        val zxGlass = LocalAppDesign.current == AppDesign.Zx
+        val zxGlass = zxDesign
         val heroShape = if (zxGlass) RoundedCornerShape(8.dp, 22.dp, 8.dp, 22.dp) else BentoShapes.hero()
         val heroFill = if (zxGlass) {
             Brush.linearGradient(
@@ -69,10 +74,9 @@ fun BentoPageHeader(
         } else SolidColor(tone.container)
         val heroRim = Brush.linearGradient(
             listOf(
-                androidx.compose.ui.graphics.Color.White.copy(alpha = 0.58f),
-                tone.content.copy(alpha = 0.40f),
-                androidx.compose.material3.MaterialTheme.colorScheme.primary.copy(alpha = 0.32f),
-                androidx.compose.material3.MaterialTheme.colorScheme.tertiary.copy(alpha = 0.28f),
+                androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.82f),
+                androidx.compose.material3.MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
+                androidx.compose.material3.MaterialTheme.colorScheme.outline.copy(alpha = 0.62f),
             ),
         )
         Box(
@@ -85,7 +89,7 @@ fun BentoPageHeader(
                         heroShape,
                         clip = false,
                         ambientColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.26f),
-                        spotColor = tone.content.copy(alpha = 0.18f),
+                        spotColor = androidx.compose.material3.MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
                     ) else Modifier,
                 )
                 .clip(heroShape)
