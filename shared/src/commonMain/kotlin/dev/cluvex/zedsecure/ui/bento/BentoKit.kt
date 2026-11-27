@@ -45,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -249,9 +250,11 @@ fun BentoCard(
     val zxGlass = LocalAppDesign.current == AppDesign.Zx
     val glassBorder = Brush.linearGradient(
         listOf(
-            tone.content.copy(alpha = 0.36f),
-            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.20f),
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.38f),
+            Color.White.copy(alpha = 0.54f),
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.52f),
+            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.42f),
+            MaterialTheme.colorScheme.secondary.copy(alpha = 0.28f),
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.34f),
         ),
     )
     Box(
@@ -260,21 +263,32 @@ fun BentoCard(
                 scaleX = scale
                 scaleY = scale
             }
+            .shadow(if (zxGlass) 14.dp else 0.dp, shape, clip = false)
             .clip(shape)
             .background(
                 if (zxGlass) {
                     Brush.linearGradient(
                         listOf(
-                            tone.container.copy(alpha = 0.88f),
+                            tone.container.copy(alpha = 0.90f),
                             Bento.colors.surface.copy(alpha = 0.78f),
-                            tone.container.copy(alpha = 0.68f),
+                            tone.container.copy(alpha = 0.70f),
                         ),
                     )
                 } else {
                     androidx.compose.ui.graphics.SolidColor(tone.container)
                 },
             )
-            .then(if (zxGlass) Modifier.border(0.9.dp, glassBorder, shape) else Modifier)
+            .then(
+                if (zxGlass) {
+                    Modifier.background(
+                        Brush.verticalGradient(
+                            listOf(Color.White.copy(alpha = 0.13f), Color.Transparent, Color.Black.copy(alpha = 0.025f)),
+                        ),
+                        shape,
+                    )
+                } else Modifier,
+            )
+            .then(if (zxGlass) Modifier.border(1.dp, glassBorder, shape) else Modifier)
             .bentoMotif(motif ?: NoMotif, tone.content, motifSize, motifRotation, enabled = motif != null && Bento.prefs.motifs)
             .then(
                 if (onClick != null) {
@@ -449,13 +463,23 @@ fun BentoSearchField(
     modifier: Modifier = Modifier,
 ) {
     val c = Bento.colors
+    val zxGlass = LocalAppDesign.current == AppDesign.Zx
+    val shape = RoundedCornerShape(26.dp)
     val style = MaterialTheme.typography.bodyLarge.copy(color = c.ink)
+    val fill = if (zxGlass) {
+        Brush.linearGradient(listOf(c.surface.copy(alpha = 0.86f), c.surface2.copy(alpha = 0.66f)))
+    } else androidx.compose.ui.graphics.SolidColor(c.surface)
+    val rim = Brush.linearGradient(
+        listOf(Color.White.copy(alpha = 0.46f), MaterialTheme.colorScheme.primary.copy(alpha = 0.36f), MaterialTheme.colorScheme.tertiary.copy(alpha = 0.28f)),
+    )
     Row(
         modifier
             .fillMaxWidth()
             .height(52.dp)
-            .clip(RoundedCornerShape(26.dp))
-            .background(c.surface)
+            .shadow(if (zxGlass) 8.dp else 0.dp, shape, clip = false)
+            .clip(shape)
+            .background(fill, shape)
+            .then(if (zxGlass) Modifier.border(1.dp, rim, shape) else Modifier)
             .padding(start = 18.dp, end = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -498,14 +522,26 @@ fun BentoChip(
 ) {
     val c = Bento.colors
     val shape = BentoShapes.chip()
+    val zxGlass = LocalAppDesign.current == AppDesign.Zx
     val bg = if (selected) c.lime else Color.Transparent
     val fg = if (selected) c.onLime else c.ink
+    val chipFill = when {
+        zxGlass && selected -> Brush.linearGradient(
+            listOf(c.lime, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.88f), MaterialTheme.colorScheme.primary.copy(alpha = 0.78f)),
+        )
+        zxGlass -> Brush.linearGradient(listOf(c.surface.copy(alpha = 0.78f), c.surface2.copy(alpha = 0.62f)))
+        else -> androidx.compose.ui.graphics.SolidColor(bg)
+    }
+    val chipRim = Brush.linearGradient(
+        listOf(Color.White.copy(alpha = if (selected) 0.54f else 0.28f), MaterialTheme.colorScheme.primary.copy(alpha = 0.30f), c.line.copy(alpha = 0.65f)),
+    )
     Row(
         modifier
             .heightIn(min = 40.dp)
+            .shadow(if (zxGlass) 4.dp else 0.dp, shape, clip = false)
             .clip(shape)
-            .background(bg)
-            .then(if (selected) Modifier else Modifier.border(1.dp, c.line, shape))
+            .background(chipFill, shape)
+            .then(if (selected && !zxGlass) Modifier else Modifier.border(1.dp, if (zxGlass) chipRim else androidx.compose.ui.graphics.SolidColor(c.line), shape))
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple(color = fg),
