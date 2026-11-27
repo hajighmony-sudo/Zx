@@ -58,13 +58,12 @@ fun BentoPageHeader(
         val accentInk = if (prominent) c.onLime else tone.container
         val spin = (scroll?.value ?: 0) * 0.12f
         val zxGlass = LocalAppDesign.current == AppDesign.Zx
-        val heroShape = BentoShapes.hero()
+        val heroShape = if (zxGlass) RoundedCornerShape(12.dp, 30.dp, 12.dp, 30.dp) else BentoShapes.hero()
         val heroFill = if (zxGlass) {
             Brush.linearGradient(
                 listOf(
-                    tone.container.copy(alpha = 0.86f),
-                    Bento.colors.surface.copy(alpha = 0.68f),
-                    tone.container.copy(alpha = 0.72f),
+                    Bento.colors.surface.copy(alpha = 0.99f),
+                    Bento.colors.surface2.copy(alpha = 0.96f),
                 ),
             )
         } else SolidColor(tone.container)
@@ -107,7 +106,7 @@ fun BentoPageHeader(
                             .border(1.15.dp, heroRim, heroShape)
                     } else Modifier,
                 )
-                .bentoMotif(art.shape, tone.content, 170.dp, 18f + spin, enabled = Bento.prefs.motifs, alpha = 0.1f, bleedX = 36.dp, bleedY = 44.dp),
+                .bentoMotif(art.shape, tone.content, 170.dp, 18f + spin, enabled = !zxGlass && Bento.prefs.motifs, alpha = 0.1f, bleedX = 36.dp, bleedY = 44.dp),
         ) {
             CompositionLocalProvider(LocalContentColor provides tone.content) {
                 Column(
@@ -139,7 +138,7 @@ fun BentoPageHeader(
                             Text(
                                 subtitle,
                                 style = BentoType.body(),
-                                color = tone.content.copy(alpha = 0.82f),
+                                color = if (zxGlass) androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant else tone.content.copy(alpha = 0.82f),
                                 maxLines = 3,
                                 overflow = TextOverflow.Ellipsis,
                             )
