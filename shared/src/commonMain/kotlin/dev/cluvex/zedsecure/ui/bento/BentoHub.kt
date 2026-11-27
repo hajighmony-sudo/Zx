@@ -341,7 +341,7 @@ private fun TileBoard(
         val zx = LocalAppDesign.current == AppDesign.Zx
         val columns = if (zx) 1 else if (maxWidth >= 600.dp) 4 else 2
         val gap = if (zx) 8.dp else BentoMetrics.gap()
-        val rowHeight = if (zx) 96.dp else BentoMetrics.tileRow()
+        val rowHeight = if (zx) 104.dp else BentoMetrics.tileRow()
         val gapPx = with(density) { gap.toPx() }
         val rowPx = with(density) { rowHeight.toPx() }
         val colPx = (with(density) { maxWidth.toPx() } - gapPx * (columns - 1)) / columns
@@ -360,7 +360,19 @@ private fun TileBoard(
         var dragPos by remember { mutableStateOf(Offset.Zero) }
 
         fun originOf(p: BentoPlaced) = Offset(unitX * p.col, unitY * p.row)
-        fun sizeOf(p: BentoPlaced) = Offset(colPx * p.cols + gapPx * (p.cols - 1), rowPx * p.rows + gapPx * (p.rows - 1))
+        fun sizeOf(p: BentoPlaced): Offset {
+            val width = colPx * p.cols + gapPx * (p.cols - 1)
+            if (!zx) return Offset(width, rowPx * p.rows + gapPx * (p.rows - 1))
+            val originalSize = layoutNow.visible.firstOrNull { it.key == p.slot.key }?.size ?: BentoTileSize.Small
+            val height = with(density) {
+                when (originalSize) {
+                    BentoTileSize.Small -> 88.dp.toPx()
+                    BentoTileSize.Wide -> 98.dp.toPx()
+                    BentoTileSize.Tall -> 108.dp.toPx()
+                }
+            }
+            return Offset(width, height)
+        }
 
         fun follow(key: String) {
             val me = placedNow.firstOrNull { it.slot.key == key } ?: return
