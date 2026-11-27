@@ -221,7 +221,9 @@ internal fun ZxHome(
                 ZxMetricCard(Modifier.weight(1f), stringResource(Res.string.home_download), down.first, down.second, Res.drawable.ic_download, cs.primary)
                 ZxMetricCard(Modifier.weight(1f), stringResource(Res.string.home_upload), up.first, up.second, Res.drawable.ic_upload, cs.tertiary)
             }
-            if (prefs.homeSession) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        }
+        if (showConnectionInfo && prefs.homeSession) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 ZxMetricCard(Modifier.weight(1f), stringResource(Res.string.bento_data_session), formatBytes(ui.totalDownload + ui.totalUpload), "", Res.drawable.ic_description, cs.secondary)
                 ZxMetricCard(Modifier.weight(1f), stringResource(Res.string.bento_connected_for), if (connected) formatElapsed(ui.elapsedSeconds) else "—", "", Res.drawable.ic_fill_power, cs.primary)
             }
