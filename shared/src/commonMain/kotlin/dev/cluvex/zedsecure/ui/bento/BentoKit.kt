@@ -248,13 +248,14 @@ fun BentoCard(
         label = "bento-card-press",
     )
     val zxGlass = LocalAppDesign.current == AppDesign.Zx
+    // Liquid glass + soft clay border for ZX
     val glassBorder = Brush.linearGradient(
         listOf(
-            Color.White.copy(alpha = 0.54f),
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.52f),
-            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.42f),
-            MaterialTheme.colorScheme.secondary.copy(alpha = 0.28f),
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.34f),
+            Color.White.copy(alpha = 0.62f),
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.48f),
+            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.38f),
+            MaterialTheme.colorScheme.secondary.copy(alpha = 0.22f),
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f),
         ),
     )
     Box(
@@ -263,15 +264,15 @@ fun BentoCard(
                 scaleX = scale
                 scaleY = scale
             }
-            .shadow(if (zxGlass) 14.dp else 0.dp, shape, clip = false)
+            .shadow(if (zxGlass) 18.dp else 0.dp, shape, clip = false, ambientColor = Color.Black.copy(alpha = 0.28f), spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
             .clip(shape)
             .background(
                 if (zxGlass) {
                     Brush.linearGradient(
                         listOf(
-                            tone.container.copy(alpha = 0.90f),
-                            Bento.colors.surface.copy(alpha = 0.78f),
-                            tone.container.copy(alpha = 0.70f),
+                            tone.container.copy(alpha = 0.82f),
+                            Bento.colors.surface.copy(alpha = 0.70f),
+                            tone.container.copy(alpha = 0.64f),
                         ),
                     )
                 } else {
@@ -282,13 +283,17 @@ fun BentoCard(
                 if (zxGlass) {
                     Modifier.background(
                         Brush.verticalGradient(
-                            listOf(Color.White.copy(alpha = 0.13f), Color.Transparent, Color.Black.copy(alpha = 0.025f)),
+                            listOf(
+                                Color.White.copy(alpha = 0.16f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.04f),
+                            ),
                         ),
                         shape,
                     )
                 } else Modifier,
             )
-            .then(if (zxGlass) Modifier.border(1.dp, glassBorder, shape) else Modifier)
+            .then(if (zxGlass) Modifier.border(1.15.dp, glassBorder, shape) else Modifier)
             .bentoMotif(motif ?: NoMotif, tone.content, motifSize, motifRotation, enabled = motif != null && Bento.prefs.motifs)
             .then(
                 if (onClick != null) {
@@ -467,7 +472,7 @@ fun BentoSearchField(
     val shape = RoundedCornerShape(26.dp)
     val style = MaterialTheme.typography.bodyLarge.copy(color = c.ink)
     val fill = if (zxGlass) {
-        Brush.linearGradient(listOf(c.surface.copy(alpha = 0.86f), c.surface2.copy(alpha = 0.66f)))
+        Brush.linearGradient(listOf(c.surface.copy(alpha = 0.78f), c.surface2.copy(alpha = 0.60f)))
     } else androidx.compose.ui.graphics.SolidColor(c.surface)
     val rim = Brush.linearGradient(
         listOf(Color.White.copy(alpha = 0.46f), MaterialTheme.colorScheme.primary.copy(alpha = 0.36f), MaterialTheme.colorScheme.tertiary.copy(alpha = 0.28f)),
@@ -476,7 +481,7 @@ fun BentoSearchField(
         modifier
             .fillMaxWidth()
             .height(52.dp)
-            .shadow(if (zxGlass) 8.dp else 0.dp, shape, clip = false)
+            .shadow(if (zxGlass) 10.dp else 0.dp, shape, clip = false, ambientColor = Color.Black.copy(alpha = 0.24f))
             .clip(shape)
             .background(fill, shape)
             .then(if (zxGlass) Modifier.border(1.dp, rim, shape) else Modifier)
@@ -492,21 +497,19 @@ fun BentoSearchField(
                 onValueChange = onValueChange,
                 singleLine = true,
                 textStyle = style,
-                cursorBrush = SolidColor(c.ink),
-                modifier = Modifier.fillMaxWidth().semantics { contentDescription = placeholder },
+                cursorBrush = SolidColor(c.lime),
+                modifier = Modifier.fillMaxWidth(),
             )
         }
         if (value.isNotEmpty()) {
             BentoIconButton(
-                Res.drawable.ic_close,
-                stringResource(Res.string.action_clear),
-                { onValueChange("") },
+                icon = Res.drawable.ic_close,
+                label = stringResource(Res.string.action_clear),
+                onClick = { onValueChange("") },
+                size = 40.dp,
                 container = Color.Transparent,
                 content = c.muted,
-                size = 40.dp,
             )
-        } else {
-            Spacer(Modifier.width(12.dp))
         }
     }
 }
@@ -527,44 +530,58 @@ fun BentoChip(
     val fg = if (selected) c.onLime else c.ink
     val chipFill = when {
         zxGlass && selected -> Brush.linearGradient(
-            listOf(c.lime, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.88f), MaterialTheme.colorScheme.primary.copy(alpha = 0.78f)),
+            listOf(
+                c.lime.copy(alpha = 0.95f),
+                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.82f),
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
+            ),
         )
-        zxGlass -> Brush.linearGradient(listOf(c.surface.copy(alpha = 0.78f), c.surface2.copy(alpha = 0.62f)))
+        zxGlass -> Brush.linearGradient(
+            listOf(
+                c.surface.copy(alpha = 0.72f),
+                c.surface2.copy(alpha = 0.58f),
+            ),
+        )
         else -> androidx.compose.ui.graphics.SolidColor(bg)
     }
     val chipRim = Brush.linearGradient(
-        listOf(Color.White.copy(alpha = if (selected) 0.54f else 0.28f), MaterialTheme.colorScheme.primary.copy(alpha = 0.30f), c.line.copy(alpha = 0.65f)),
+        listOf(
+            Color.White.copy(alpha = 0.50f),
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.40f),
+            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.28f),
+        ),
     )
+    val source = remember { MutableInteractionSource() }
     Row(
         modifier
             .heightIn(min = if (zxGlass) 48.dp else 40.dp)
-            .shadow(if (zxGlass) 4.dp else 0.dp, shape, clip = false)
+            .shadow(if (zxGlass) 6.dp else 0.dp, shape, clip = false, ambientColor = Color.Black.copy(alpha = 0.22f))
             .clip(shape)
             .background(chipFill, shape)
             .then(if (selected && !zxGlass) Modifier else Modifier.border(1.dp, if (zxGlass) chipRim else androidx.compose.ui.graphics.SolidColor(c.line), shape))
             .combinedClickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = source,
                 indication = ripple(color = fg),
-                role = Role.Tab,
+                role = Role.Button,
                 onLongClick = onLongClick,
                 onClick = onClick,
             )
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Text(
             label,
-            style = MaterialTheme.typography.labelLarge.copy(fontSize = 14.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium),
-            color = fg,
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold),
+            color = if (zxGlass && selected) c.onLime else fg,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
         if (trailing != null) {
             Text(
                 trailing,
-                style = BentoType.number(13.sp),
-                color = fg.copy(alpha = 0.7f),
+                style = MaterialTheme.typography.labelMedium,
+                color = if (zxGlass && selected) c.onLime.copy(alpha = 0.8f) else c.muted,
                 maxLines = 1,
             )
         }
@@ -575,17 +592,16 @@ fun BentoChip(
 fun BentoPill(text: String, container: Color, content: Color, modifier: Modifier = Modifier, dot: Color? = null, numeric: Boolean = false) {
     Row(
         modifier
-            .height(30.dp)
-            .clip(RoundedCornerShape(15.dp))
+            .clip(RoundedCornerShape(50))
             .background(container)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 10.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        if (dot != null) Box(Modifier.size(8.dp).clip(CircleShape).background(dot))
+        if (dot != null) Box(Modifier.size(7.dp).clip(CircleShape).background(dot))
         Text(
-            if (numeric) dev.cluvex.zedsecure.ui.format.ltrIsolate(text) else text,
-            style = if (numeric) BentoType.number(13.sp) else MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+            text,
+            style = if (numeric) BentoType.number(12.sp) else MaterialTheme.typography.labelMedium,
             color = content,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -595,43 +611,32 @@ fun BentoPill(text: String, container: Color, content: Color, modifier: Modifier
 
 @Composable
 fun BentoFlag(
-    countryCode: String?,
+    url: String?,
+    label: String,
     modifier: Modifier = Modifier,
-    size: Dp = 38.dp,
-    corner: Dp = 13.dp,
-    fallback: String? = null,
+    size: Dp = 22.dp,
     container: Color = Bento.colors.surface2,
-    content: Color = Bento.colors.ink,
 ) {
-    val code = countryCode?.trim()?.uppercase()?.takeIf { it.length == 2 && it.all { ch -> ch in 'A'..'Z' } }
-    var bytes by remember(code) { mutableStateOf<ByteArray?>(null) }
-    LaunchedEffect(code) {
-        bytes = code?.let { runCatching { Res.readBytes("files/flags/${it.lowercase()}.svg") }.getOrNull() }
-    }
-    val shape = RoundedCornerShape(corner)
-    val context = LocalPlatformContext.current
+    val ctx = LocalPlatformContext.current
     Box(
         modifier
             .size(size)
-            .clip(shape)
-            .background(container)
-            .border(1.dp, content.copy(alpha = 0.12f), shape),
+            .clip(CircleShape)
+            .background(container),
         contentAlignment = Alignment.Center,
     ) {
-        val data = bytes
-        if (data != null) {
+        if (!url.isNullOrBlank()) {
             AsyncImage(
-                model = remember(data) { ImageRequest.Builder(context).data(data).build() },
-                contentDescription = code,
+                model = ImageRequest.Builder(ctx).data(url).build(),
+                contentDescription = label,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.matchParentSize(),
+                modifier = Modifier.matchParentSize().clip(CircleShape),
             )
         } else {
             Text(
-                (fallback ?: code ?: "··").take(3),
-                style = MaterialTheme.typography.labelLarge.copy(fontSize = (size.value * 0.32f).sp, fontWeight = FontWeight.Bold),
-                color = content,
-                maxLines = 1,
+                label.take(2).uppercase(),
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                color = Bento.colors.ink,
             )
         }
     }
@@ -641,31 +646,27 @@ fun BentoFlag(
 fun BentoIndex(index: Int, color: Color = LocalContentColor.current, modifier: Modifier = Modifier) {
     Text(
         "%02d".format(index),
-        style = BentoType.number(12.sp, FontWeight.Medium),
-        color = color.copy(alpha = color.alpha * 0.7f),
+        style = BentoType.number(13.sp, FontWeight.Bold),
+        color = color.copy(alpha = 0.55f),
         modifier = modifier,
     )
 }
 
 @Composable
 fun BentoBadge(
-    shape: RoundedPolygon,
+    text: String,
     container: Color,
     content: Color,
-    icon: DrawableResource,
-    size: Dp,
     modifier: Modifier = Modifier,
-    rotation: Float = 10f,
 ) {
-    val clip = shape.toShape()
-    Box(modifier.size(size), contentAlignment = Alignment.Center) {
-        Box(
-            Modifier
-                .matchParentSize()
-                .graphicsLayer { rotationZ = rotation }
-                .clip(clip)
-                .background(container),
-        )
-        Icon(painterResource(icon), contentDescription = null, tint = content, modifier = Modifier.size(size * 0.5f))
-    }
+    Text(
+        text,
+        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+        color = content,
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(container)
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+        maxLines = 1,
+    )
 }
