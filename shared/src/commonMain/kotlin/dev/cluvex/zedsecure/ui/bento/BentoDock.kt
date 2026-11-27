@@ -154,8 +154,11 @@ private fun DockItem(
     onClick: () -> Unit,
 ) {
     val c = Bento.colors
-    val bg by animateColorAsState(if (active) c.lime else c.lime.copy(alpha = 0f), spring(stiffness = Spring.StiffnessMedium), label = "dock-bg")
-    val fg by animateColorAsState(if (active) c.onLime else c.muted, spring(stiffness = Spring.StiffnessMedium), label = "dock-fg")
+    val zx = LocalAppDesign.current == AppDesign.Zx
+    val activeFill = if (zx) MaterialTheme.colorScheme.primary else c.lime
+    val activeInk = if (zx) MaterialTheme.colorScheme.onPrimary else c.onLime
+    val bg by animateColorAsState(if (active) activeFill else c.lime.copy(alpha = 0f), spring(stiffness = Spring.StiffnessMedium), label = "dock-bg")
+    val fg by animateColorAsState(if (active) activeInk else if (zx) MaterialTheme.colorScheme.onSurfaceVariant else c.muted, spring(stiffness = Spring.StiffnessMedium), label = "dock-fg")
     val label = stringResource(destination.labelRes)
     Row(
         Modifier
