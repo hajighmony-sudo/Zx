@@ -24,32 +24,31 @@ import dev.cluvex.zedsecure.ui.theme.LocalAppDesign
  */
 object ZxStyle {
     val topBarHeight = 56.dp
-    val bottomBarRadius = 30.dp
-    val cardRadius = 28.dp
-    val chipRadius = 16.dp
-    val heroRadius = 32.dp
+    val bottomBarRadius = 20.dp
+    val cardRadius = 18.dp
+    val chipRadius = 10.dp
+    val heroRadius = 22.dp
 
-    /** Soft clay elevation for primary surfaces. */
-    val clayElevation = 18.dp
-    val clayElevationSoft = 10.dp
-    val clayElevationChip = 6.dp
+    /** Restrained elevation: ZX uses precise layered surfaces, not inflated clay tiles. */
+    val clayElevation = 9.dp
+    val clayElevationSoft = 5.dp
+    val clayElevationChip = 2.dp
 
     @Composable
     @ReadOnlyComposable
     fun isActive(): Boolean = LocalAppDesign.current == AppDesign.Zx
 
-    /** Holographic rim: white → primary → tertiary → outline. */
+    /** Restrained technical rim: neutral metal with a small active-accent trace. */
     @Composable
     fun holographicRim(strong: Boolean = false): Brush {
         val cs = MaterialTheme.colorScheme
-        val a = if (strong) 1f else 0.72f
+        val a = if (strong) 1f else 0.62f
         return Brush.linearGradient(
             listOf(
-                Color.White.copy(alpha = 0.55f * a),
-                cs.primary.copy(alpha = 0.48f * a),
-                cs.tertiary.copy(alpha = 0.36f * a),
-                cs.secondary.copy(alpha = 0.22f * a),
-                cs.outlineVariant.copy(alpha = 0.32f * a),
+                Color.White.copy(alpha = 0.28f * a),
+                cs.outlineVariant.copy(alpha = 0.82f * a),
+                cs.primary.copy(alpha = 0.28f * a),
+                cs.outline.copy(alpha = 0.52f * a),
             ),
         )
     }
@@ -59,9 +58,8 @@ object ZxStyle {
     fun liquidFill(base: Color, elevated: Color = MaterialTheme.colorScheme.surfaceContainer): Brush =
         Brush.linearGradient(
             listOf(
-                base.copy(alpha = 0.82f),
-                elevated.copy(alpha = 0.68f),
-                base.copy(alpha = 0.72f),
+                elevated.copy(alpha = 0.96f),
+                base.copy(alpha = 0.92f),
             ),
         )
 
