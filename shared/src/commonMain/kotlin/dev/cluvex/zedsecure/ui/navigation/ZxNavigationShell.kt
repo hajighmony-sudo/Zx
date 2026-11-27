@@ -89,12 +89,12 @@ fun ZxTopBar(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(54.dp)
+                .height(56.dp)
                 .border(1.dp, borderBrush, shape),
             shape = shape,
-            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.88f),
-            tonalElevation = 2.dp,
-            shadowElevation = 8.dp,
+            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f),
+            tonalElevation = 0.dp,
+            shadowElevation = 12.dp,
         ) {
             Row(
                 Modifier.padding(horizontal = 8.dp),
@@ -102,12 +102,13 @@ fun ZxTopBar(
             ) {
                 Surface(
                     onClick = onMenuClick,
-                    modifier = Modifier.size(48.dp).semantics {
+                    modifier = Modifier.size(46.dp).semantics {
                         contentDescription = if (drawerOpen) "Close navigation menu" else "Open navigation menu"
                     },
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
                     contentColor = MaterialTheme.colorScheme.primary,
+                    shadowElevation = 2.dp,
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         ZxHamburgerGlyph(open = drawerOpen, reduceMotion = reduceMotion)
@@ -154,32 +155,33 @@ fun ZxTopBar(
 
 @Composable
 private fun ZxHamburgerGlyph(open: Boolean, reduceMotion: Boolean) {
+    // Smooth Aras-like morph: soft spring, clean X formation
     val progress = animateFloatAsState(
         targetValue = if (open) 1f else 0f,
         animationSpec = if (reduceMotion) androidx.compose.animation.core.snap()
         else androidx.compose.animation.core.spring(
-            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioMediumBouncy,
-            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium,
+            dampingRatio = 0.72f,
+            stiffness = 380f,
         ),
         label = "zx-menu-morph",
     ).value
     val lineColor = MaterialTheme.colorScheme.onSurface
     Canvas(Modifier.size(24.dp)) {
-        val stroke = 2.2.dp.toPx()
+        val stroke = 2.35.dp.toPx()
         val cx = size.width * 0.5f
-        val left = size.width * 0.18f
-        val right = size.width * 0.82f
-        val topY = size.height * 0.29f
+        val left = size.width * 0.17f
+        val right = size.width * 0.83f
+        val topY = size.height * 0.28f
         val midY = size.height * 0.50f
-        val bottomY = size.height * 0.71f
-        val halfLength = size.width * 0.32f
-        val angle = progress * 0.7853982f
+        val bottomY = size.height * 0.72f
+        val halfLength = size.width * 0.33f
+        val angle = progress * 0.7853982f // 45°
         val dx = kotlin.math.cos(angle.toDouble()).toFloat() * halfLength
         val dy = kotlin.math.sin(angle.toDouble()).toFloat() * halfLength
         val topCenterY = topY + (midY - topY) * progress
         val bottomCenterY = bottomY - (bottomY - midY) * progress
 
-        // The two outer strokes travel inward and rotate into a crisp close glyph.
+        // Outer lines travel inward + rotate into a crisp close glyph
         drawLine(
             lineColor,
             androidx.compose.ui.geometry.Offset(cx - dx, topCenterY - dy),
@@ -187,9 +189,9 @@ private fun ZxHamburgerGlyph(open: Boolean, reduceMotion: Boolean) {
             strokeWidth = stroke,
             cap = StrokeCap.Round,
         )
-        if (progress < 0.98f) {
+        if (progress < 0.97f) {
             drawLine(
-                lineColor.copy(alpha = 1f - progress),
+                lineColor.copy(alpha = (1f - progress).coerceIn(0f, 1f)),
                 androidx.compose.ui.geometry.Offset(left, midY),
                 androidx.compose.ui.geometry.Offset(right, midY),
                 strokeWidth = stroke,
@@ -424,12 +426,13 @@ private fun ZxDrawerTile(
     )
     Surface(
         onClick = onClick,
-        modifier = modifier.border(if (selected) 1.2.dp else 0.7.dp, border, shape),
+        modifier = modifier.border(if (selected) 1.3.dp else 0.8.dp, border, shape),
         shape = shape,
-        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-        else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.42f),
+        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+        else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.38f),
         contentColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-        shadowElevation = if (selected) 5.dp else 1.dp,
+        shadowElevation = if (selected) 8.dp else 2.dp,
+        tonalElevation = if (selected) 2.dp else 0.dp,
     ) {
         Row(
             Modifier.padding(horizontal = 11.dp, vertical = 12.dp),
@@ -471,8 +474,8 @@ fun ZxNavigationMenuSheet(
     androidx.compose.material3.ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f),
-        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.48f),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.82f),
+        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f),
         dragHandle = {
             Box(
                 Modifier
@@ -599,27 +602,28 @@ fun ZxNavigationMenuSheet(
                 destinations.chunked(2).forEach { pair ->
                     Row(
                         Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(9.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         pair.forEach { destination ->
                             ZxDrawerTile(
                                 destination = destination,
                                 selected = current == destination,
-                                modifier = Modifier.weight(1f).heightIn(min = 72.dp),
+                                modifier = Modifier.weight(1f).heightIn(min = 88.dp),
                                 onClick = { onSelect(destination) },
                             )
                         }
                         if (pair.size == 1) Spacer(Modifier.weight(1f))
                     }
-                    Spacer(Modifier.size(8.dp))
+                    Spacer(Modifier.height(8.dp))
                 }
             }
+            Spacer(Modifier.height(10.dp))
             Surface(
                 shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.48f),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.54f),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Column(Modifier.padding(horizontal = 14.dp, vertical = 11.dp)) {
+                Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
                     Text(
                         "GLASS  ·  LIQUID  ·  HOLOGRAPHIC",
                         style = MaterialTheme.typography.labelSmall,
@@ -629,10 +633,11 @@ fun ZxNavigationMenuSheet(
                     Text(
                         "A calmer, adaptive ZX experience",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                     )
                 }
             }
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
@@ -663,9 +668,9 @@ fun ZxBottomBar(
     ) {
         Surface(
             shape = shape,
-            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.78f),
-            tonalElevation = 1.dp,
-            shadowElevation = 18.dp,
+            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.70f),
+            tonalElevation = 0.dp,
+            shadowElevation = 22.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .border(1.dp, borderBrush, shape),
