@@ -179,6 +179,15 @@ fun SettingsGroup(
 
 @Composable
 fun SettingsGroupLabel(title: String, modifier: Modifier = Modifier) {
+    if (dev.cluvex.zedsecure.ui.theme.LocalAppDesign.current == dev.cluvex.zedsecure.domain.model.AppDesign.Zx) {
+        Text(
+            title,
+            style = MaterialTheme.typography.labelLargeEmphasized,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = modifier.padding(start = 24.dp, end = 24.dp, top = 14.dp, bottom = 9.dp),
+        )
+        return
+    }
     if (dev.cluvex.zedsecure.ui.bento.Bento.active) {
         dev.cluvex.zedsecure.ui.bento.BentoGroupLabel(title, modifier)
         return
@@ -252,6 +261,8 @@ private fun SegmentSurface(
             label = "segment-press",
         )
     }
+    val zx = dev.cluvex.zedsecure.ui.theme.LocalAppDesign.current == dev.cluvex.zedsecure.domain.model.AppDesign.Zx
+    val zxShape = RoundedCornerShape(10.dp, 20.dp, 10.dp, 20.dp)
     Column(
         modifier
             .fillMaxWidth()
@@ -266,7 +277,8 @@ private fun SegmentSurface(
                     }
                 },
             )
-            .then(if (brush != null) Modifier.background(brush) else Modifier.background(color)),
+            .then(if (zx) Modifier.clip(zxShape).border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f), zxShape) else Modifier)
+            .then(if (brush != null) Modifier.background(brush) else Modifier.background(if (zx) MaterialTheme.colorScheme.surfaceContainerHigh else color)),
         content = content,
     )
 }
@@ -414,18 +426,20 @@ fun SettingsBannerRow(
     onClick: () -> Unit,
 ) {
     val cs = MaterialTheme.colorScheme
-    val brush = remember(cs.tertiaryContainer, cs.primaryContainer) {
-        Brush.linearGradient(listOf(cs.tertiaryContainer, cs.primaryContainer))
+    val zx = dev.cluvex.zedsecure.ui.theme.LocalAppDesign.current == dev.cluvex.zedsecure.domain.model.AppDesign.Zx
+    val brush = remember(cs.tertiaryContainer, cs.primaryContainer, cs.surfaceContainerHigh, zx) {
+        if (zx) Brush.linearGradient(listOf(cs.surfaceContainerHigh, cs.surface))
+        else Brush.linearGradient(listOf(cs.tertiaryContainer, cs.primaryContainer))
     }
     ClickableSegment(true, onClick, brush = brush) { pressed ->
         RowBody(
             title = title,
             description = subtitle,
             enabled = true,
-            leading = { PressableArtBadge(art, pressed, size = 48.dp, colors = ArtColors(cs.surface.copy(alpha = 0.55f), cs.tertiary)) },
-            trailing = { Chevron(cs.onTertiaryContainer) },
-            titleColor = cs.onTertiaryContainer,
-            descriptionColor = cs.onTertiaryContainer.copy(alpha = 0.78f),
+            leading = { PressableArtBadge(art, pressed, size = 48.dp, colors = if (zx) ArtColors(cs.primary.copy(alpha = 0.12f), cs.primary) else ArtColors(cs.surface.copy(alpha = 0.55f), cs.tertiary)) },
+            trailing = { Chevron(if (zx) cs.onSurfaceVariant else cs.onTertiaryContainer) },
+            titleColor = if (zx) cs.onSurface else cs.onTertiaryContainer,
+            descriptionColor = if (zx) cs.onSurfaceVariant else cs.onTertiaryContainer.copy(alpha = 0.78f),
         )
     }
 }
