@@ -71,12 +71,12 @@ fun ZxTopBar(
         connectionState.isTransitioning -> "در حال اتصال"
         else -> "آفلاین"
     }
-    val shape = RoundedCornerShape(24.dp)
+    val shape = RoundedCornerShape(8.dp, 22.dp, 8.dp, 22.dp)
     val borderBrush = Brush.linearGradient(
         listOf(
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
-            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.24f),
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f),
+            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f),
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
         ),
     )
     Box(
@@ -92,7 +92,7 @@ fun ZxTopBar(
                 .height(56.dp)
                 .border(1.dp, borderBrush, shape),
             shape = shape,
-            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.72f),
+            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.96f),
             tonalElevation = 0.dp,
             shadowElevation = 12.dp,
         ) {
@@ -212,7 +212,7 @@ fun ZxNavigationDrawer(
     current: TopDestination,
     onSelect: (TopDestination) -> Unit,
 ) {
-    val shape = RoundedCornerShape(topEnd = 32.dp, bottomEnd = 32.dp)
+    val shape = RoundedCornerShape(topEnd = 22.dp, bottomEnd = 22.dp)
     ModalDrawerSheet(
         modifier = Modifier
             .fillMaxHeight()
@@ -229,7 +229,7 @@ fun ZxNavigationDrawer(
                 shape,
             ),
         drawerShape = shape,
-        drawerContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f),
+        drawerContainerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.98f),
         drawerContentColor = MaterialTheme.colorScheme.onSurface,
         drawerTonalElevation = 0.dp,
     ) {
@@ -252,8 +252,8 @@ fun ZxNavigationDrawer(
         ) {
             Spacer(Modifier.height(16.dp))
             Surface(
-                shape = RoundedCornerShape(26.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.72f),
+                shape = RoundedCornerShape(8.dp, 22.dp, 8.dp, 22.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.98f),
                 tonalElevation = 2.dp,
                 shadowElevation = 9.dp,
                 modifier = Modifier
@@ -303,8 +303,8 @@ fun ZxNavigationDrawer(
             }
             Spacer(Modifier.height(18.dp))
             Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.50f),
+                shape = RoundedCornerShape(7.dp, 16.dp, 7.dp, 16.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.96f),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Row(
@@ -379,7 +379,7 @@ fun ZxNavigationDrawer(
             Spacer(Modifier.height(10.dp))
             Surface(
                 shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.54f),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
@@ -408,7 +408,7 @@ private fun ZxDrawerTile(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    val shape = RoundedCornerShape(14.dp)
+    val shape = RoundedCornerShape(7.dp, 14.dp, 7.dp, 14.dp)
     val edge = Brush.linearGradient(
         listOf(
             MaterialTheme.colorScheme.primary.copy(alpha = if (selected) 0.85f else 0.24f),
@@ -455,7 +455,7 @@ fun ZxNavigationMenuSheet(
     androidx.compose.material3.ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.82f),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.98f),
         scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f),
         dragHandle = {
             Box(
@@ -478,7 +478,7 @@ fun ZxNavigationMenuSheet(
         ) {
             Surface(
                 shape = RoundedCornerShape(26.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.76f),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.98f),
                 tonalElevation = 1.dp,
                 shadowElevation = 10.dp,
                 modifier = Modifier
