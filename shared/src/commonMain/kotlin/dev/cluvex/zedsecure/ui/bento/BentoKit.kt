@@ -418,6 +418,7 @@ fun BentoTopBar(
     onTitleClick: (() -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
+    val zx = LocalAppDesign.current == AppDesign.Zx
     Row(
         modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 6.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -425,8 +426,8 @@ fun BentoTopBar(
     ) {
         Text(
             title,
-            style = BentoType.display(),
-            color = Bento.colors.ink,
+            style = if (zx) MaterialTheme.typography.headlineSmall else BentoType.display(),
+            color = if (zx) MaterialTheme.colorScheme.onSurface else Bento.colors.ink,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
@@ -448,11 +449,12 @@ fun BentoTopBar(
 }
 
 @Composable
-fun BentoCaption(text: String, modifier: Modifier = Modifier, color: Color = Bento.colors.muted) {
+fun BentoCaption(text: String, modifier: Modifier = Modifier, color: Color? = null) {
+    val zx = LocalAppDesign.current == AppDesign.Zx
     Text(
         text.uppercase(),
         style = BentoType.caption(),
-        color = color,
+        color = color ?: if (zx) MaterialTheme.colorScheme.onSurfaceVariant else Bento.colors.muted,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         modifier = modifier.padding(start = 6.dp, end = 6.dp, top = 8.dp, bottom = 2.dp),
@@ -468,13 +470,13 @@ fun BentoSearchField(
 ) {
     val c = Bento.colors
     val zxGlass = LocalAppDesign.current == AppDesign.Zx
-    val shape = RoundedCornerShape(26.dp)
-    val style = MaterialTheme.typography.bodyLarge.copy(color = c.ink)
+    val shape = if (zxGlass) RoundedCornerShape(8.dp, 18.dp, 8.dp, 18.dp) else RoundedCornerShape(26.dp)
+    val style = MaterialTheme.typography.bodyLarge.copy(color = if (zxGlass) MaterialTheme.colorScheme.onSurface else c.ink)
     val fill = if (zxGlass) {
-        Brush.linearGradient(listOf(c.surface.copy(alpha = 0.78f), c.surface2.copy(alpha = 0.60f)))
+        Brush.linearGradient(listOf(MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.98f), MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.98f)))
     } else androidx.compose.ui.graphics.SolidColor(c.surface)
     val rim = Brush.linearGradient(
-        listOf(Color.White.copy(alpha = 0.46f), MaterialTheme.colorScheme.primary.copy(alpha = 0.36f), MaterialTheme.colorScheme.tertiary.copy(alpha = 0.28f)),
+        listOf(MaterialTheme.colorScheme.outlineVariant, MaterialTheme.colorScheme.primary.copy(alpha = 0.22f), MaterialTheme.colorScheme.outline),
     )
     Row(
         modifier
@@ -487,16 +489,16 @@ fun BentoSearchField(
             .padding(start = 18.dp, end = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(painterResource(Res.drawable.ic_search), contentDescription = null, tint = c.muted, modifier = Modifier.size(22.dp))
+        Icon(painterResource(Res.drawable.ic_search), contentDescription = null, tint = if (zxGlass) MaterialTheme.colorScheme.onSurfaceVariant else c.muted, modifier = Modifier.size(22.dp))
         Spacer(Modifier.width(12.dp))
         Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-            if (value.isEmpty()) Text(placeholder, style = style, color = c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (value.isEmpty()) Text(placeholder, style = style, color = if (zxGlass) MaterialTheme.colorScheme.onSurfaceVariant else c.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
                 singleLine = true,
                 textStyle = style,
-                cursorBrush = SolidColor(c.lime),
+                cursorBrush = SolidColor(if (zxGlass) MaterialTheme.colorScheme.primary else c.lime),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -523,44 +525,33 @@ fun BentoChip(
     trailing: String? = null,
 ) {
     val c = Bento.colors
-    val shape = BentoShapes.chip()
+    val shape = if (zxGlass) RoundedCornerShape(8.dp, 14.dp, 8.dp, 14.dp) else BentoShapes.chip()
     val zxGlass = LocalAppDesign.current == AppDesign.Zx
     val bg = if (selected) c.lime else Color.Transparent
-    val fg = if (selected) c.onLime else c.ink
+    val fg = if (zxGlass) if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface else if (selected) c.onLime else c.ink
     val chipFill = when {
-        zxGlass && selected -> Brush.linearGradient(
-            listOf(
-                c.lime.copy(alpha = 0.95f),
-                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.82f),
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
-            ),
-        )
-        zxGlass -> Brush.linearGradient(
-            listOf(
-                c.surface.copy(alpha = 0.72f),
-                c.surface2.copy(alpha = 0.58f),
-            ),
-        )
+        zxGlass && selected -> androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary)
+        zxGlass -> androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.surfaceContainerHigh)
         else -> androidx.compose.ui.graphics.SolidColor(bg)
     }
     val chipRim = Brush.linearGradient(
         listOf(
-            Color.White.copy(alpha = 0.50f),
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.40f),
-            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.28f),
+            MaterialTheme.colorScheme.outlineVariant,
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
+            MaterialTheme.colorScheme.outline,
         ),
     )
     val source = remember { MutableInteractionSource() }
     Row(
         modifier
             .heightIn(min = if (zxGlass) 48.dp else 40.dp)
-            .shadow(if (zxGlass) 6.dp else 0.dp, shape, clip = false, ambientColor = Color.Black.copy(alpha = 0.22f))
+             .shadow(if (zxGlass) 1.dp else 0.dp, shape, clip = false, ambientColor = Color.Black.copy(alpha = 0.10f))
             .clip(shape)
             .background(chipFill, shape)
             .then(if (selected && !zxGlass) Modifier else Modifier.border(1.dp, if (zxGlass) chipRim else androidx.compose.ui.graphics.SolidColor(c.line), shape))
             .combinedClickable(
                 interactionSource = source,
-                indication = ripple(color = fg),
+                indication = ripple(color = if (zxGlass) MaterialTheme.colorScheme.primary else fg),
                 role = Role.Button,
                 onLongClick = onLongClick,
                 onClick = onClick,
