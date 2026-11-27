@@ -537,7 +537,7 @@ fun BentoChip(
     )
     Row(
         modifier
-            .heightIn(min = 40.dp)
+            .heightIn(min = if (zxGlass) 48.dp else 40.dp)
             .shadow(if (zxGlass) 4.dp else 0.dp, shape, clip = false)
             .clip(shape)
             .background(chipFill, shape)
