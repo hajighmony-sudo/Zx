@@ -5,72 +5,98 @@ import dev.cluvex.zedsecure.ui.bento.BentoColors
 import dev.cluvex.zedsecure.ui.bento.BentoTone
 
 /**
- * Dedicated visual language for AppDesign.Zx.
+ * Dedicated visual language for AppDesign.Zx — redesigned for a liquid-glass,
+ * claymorphism and subtle holographic feel while remaining compatible with
+ * the existing BentoColors contract.
  *
- * The rest of the app keeps its own palettes; this palette is intentionally
- * scoped to ZX so the redesign does not leak into other appearance modes.
+ * Goals:
+ *  - Deep, soft atmospheric ground (not flat black)
+ *  - Translucent surfaces that feel like frosted / liquid glass
+ *  - Soft clay depth on cards and chips
+ *  - Holographic-leaning accents (cyan ↔ violet)
+ *  - Apple-HIG inspired clarity and calm hierarchy
+ *
+ * Scoped only to ZX so other themes stay untouched.
  */
 fun zxFutureColors(dark: Boolean, amoled: Boolean = false): BentoColors {
     if (dark) {
-        val ground = if (amoled) Color.Black else Color(0xFF080B18)
+        // Deep atmospheric ground with a tiny blue-violet bias
+        val ground = if (amoled) Color(0xFF02040A) else Color(0xFF070B16)
+
         return BentoColors(
             dark = true,
             ground = ground,
-            surface = Color(0xFF121B31),
-            surface2 = Color(0xFF202D4A),
-            line = Color(0xFF435477),
-            ink = Color(0xFFF2F4FF),
-            muted = Color(0xFFAAB5D2),
-            stage = Color(0xFF2B2863),
-            onStage = Color(0xFFF1ECFF),
-            chipOnStage = Color(0x24FFFFFF),
-            goodOnStage = Color(0xFF9CF3D6),
-            lime = Color(0xFF8CEAF0),
-            onLime = Color(0xFF002B36),
-            blue = BentoTone(Color(0xFF16385B), Color(0xFFD8EEFF)),
-            violet = BentoTone(Color(0xFF30235F), Color(0xFFE9D9FF)),
-            cyan = BentoTone(Color(0xFF124653), Color(0xFFC4F5FA)),
-            pink = BentoTone(Color(0xFF48233F), Color(0xFFFFD0EE)),
-            coral = BentoTone(Color(0xFF482B36), Color(0xFFFFD8E5)),
-            good = Color(0xFF60DDB7),
-            mid = Color(0xFFFFC878),
-            bad = Color(0xFFFF8DA8),
-            selected = Color(0xFF292451),
-            dock = Color(0xFF121A30),
-            dockLine = Color(0x45FFFFFF),
-            danger = Color(0xFFFFB4C6),
-            onDanger = Color(0xFF5C102C),
+            // Frosted glass surfaces
+            surface = Color(0xFF111827).copy(alpha = 0.92f),
+            surface2 = Color(0xFF1A2438),
+            line = Color(0xFF3D4F73).copy(alpha = 0.65f),
+            ink = Color(0xFFF4F6FF),
+            muted = Color(0xFF9AA8C7),
+
+            // Stage / primary elevated area – soft violet glass
+            stage = Color(0xFF25204A),
+            onStage = Color(0xFFF2EEFF),
+            chipOnStage = Color(0x28FFFFFF),
+            goodOnStage = Color(0xFF8EF5D4),
+
+            // Accent lime → soft cyan-glass
+            lime = Color(0xFF7DE8F0),
+            onLime = Color(0xFF002A32),
+
+            // Tonal families – more holographic range
+            blue = BentoTone(Color(0xFF132F4D), Color(0xFFD4EBFF)),
+            violet = BentoTone(Color(0xFF2A2158), Color(0xFFE8D9FF)),
+            cyan = BentoTone(Color(0xFF0F3C47), Color(0xFFB8F2F8)),
+            pink = BentoTone(Color(0xFF3F1F3A), Color(0xFFFFD4EF)),
+            coral = BentoTone(Color(0xFF3F2530), Color(0xFFFFD6E4)),
+
+            // Semantic
+            good = Color(0xFF5CDCB4),
+            mid = Color(0xFFFFC46B),
+            bad = Color(0xFFFF8BA3),
+
+            selected = Color(0xFF25204A),
+            dock = Color(0xFF0E1528),
+            dockLine = Color(0x55FFFFFF),
+            danger = Color(0xFFFFB4C8),
+            onDanger = Color(0xFF4F0E28),
             colorful = true,
         )
     }
 
+    // Light mode – clean, soft clay + liquid glass
     return BentoColors(
         dark = false,
-        ground = Color(0xFFF2F5FC),
+        ground = Color(0xFFF3F5FB),
         surface = Color(0xFFFCFDFF),
-        surface2 = Color(0xFFE9EDF8),
-        line = Color(0xFFC5D0E8),
-        ink = Color(0xFF151A31),
-        muted = Color(0xFF5B6685),
-        stage = Color(0xFFE6E0FF),
-        onStage = Color(0xFF30226B),
+        surface2 = Color(0xFFE8EDF7),
+        line = Color(0xFFC0CCE4),
+        ink = Color(0xFF141A2E),
+        muted = Color(0xFF5A6584),
+
+        stage = Color(0xFFE4DEFF),
+        onStage = Color(0xFF2C2168),
         chipOnStage = Color(0x1AFFFFFF),
-        goodOnStage = Color(0xFF075D48),
-        lime = Color(0xFFB4E9EF),
-        onLime = Color(0xFF00313A),
-        blue = BentoTone(Color(0xFFDCEAFF), Color(0xFF174273)),
-        violet = BentoTone(Color(0xFFE8E0FF), Color(0xFF44318C)),
-        cyan = BentoTone(Color(0xFFD4F2F5), Color(0xFF155665)),
-        pink = BentoTone(Color(0xFFFFE0F1), Color(0xFF76365F)),
-        coral = BentoTone(Color(0xFFFFE1E9), Color(0xFF7A3D52)),
-        good = Color(0xFF087C66),
-        mid = Color(0xFF865700),
-        bad = Color(0xFFB32655),
-        selected = Color(0xFFE0E7FF),
-        dock = Color(0xFFFDFEFF),
-        dockLine = Color(0x26151A31),
-        danger = Color(0xFFFFD9E2),
-        onDanger = Color(0xFF650D33),
+        goodOnStage = Color(0xFF066B54),
+
+        lime = Color(0xFFA8E4EC),
+        onLime = Color(0xFF002F38),
+
+        blue = BentoTone(Color(0xFFD8E9FF), Color(0xFF163E6E)),
+        violet = BentoTone(Color(0xFFE6E0FF), Color(0xFF3F2F82)),
+        cyan = BentoTone(Color(0xFFCFF0F4), Color(0xFF134E5C)),
+        pink = BentoTone(Color(0xFFFFDCEF), Color(0xFF6E2F58)),
+        coral = BentoTone(Color(0xFFFFDEE7), Color(0xFF72384C)),
+
+        good = Color(0xFF077A64),
+        mid = Color(0xFF7D5200),
+        bad = Color(0xFFA81F48),
+
+        selected = Color(0xFFDDE4FF),
+        dock = Color(0xFFFCFDFF),
+        dockLine = Color(0x22141A2E),
+        danger = Color(0xFFFFD6E0),
+        onDanger = Color(0xFF5C0C2E),
         colorful = true,
     )
 }
