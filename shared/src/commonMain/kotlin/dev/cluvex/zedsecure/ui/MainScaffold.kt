@@ -105,10 +105,7 @@ fun MainScaffold(
     val barStyle = if (bento) settings.bento.navStyle else settings.navBarStyle
     val dock = bento && barStyle == dev.cluvex.zedsecure.domain.model.NavBarStyle.Dock
     val isZxUi = settings.appDesign == dev.cluvex.zedsecure.domain.model.AppDesign.Zx
-    val drawerState = androidx.compose.material3.rememberDrawerState(
-        initialValue = androidx.compose.material3.DrawerValue.Closed,
-    )
-    val drawerScope = androidx.compose.runtime.rememberCoroutineScope()
+    var menuVisible by rememberSaveable { mutableStateOf(false) }
     var dockShown by rememberSaveable { mutableStateOf(true) }
     androidx.compose.runtime.LaunchedEffect(current) { dockShown = true }
     val autoHide = settings.bento.dockAutoHide
@@ -213,24 +210,6 @@ fun MainScaffold(
         dev.cluvex.zedsecure.domain.config.AutoSelectIds.of(sub.id) to stringResource(Res.string.auto_title_for, sub.name)
     }
 
-    androidx.compose.material3.ModalNavigationDrawer(
-        drawerState = drawerState,
-        gesturesEnabled = isZxUi,
-        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.42f),
-        drawerContent = {
-            if (isZxUi) {
-                dev.cluvex.zedsecure.ui.navigation.ZxNavigationDrawer(
-                    current = current,
-                    onSelect = { destination ->
-                        current = destination
-                        drawerScope.launch { drawerState.close() }
-                    },
-                )
-            } else {
-                androidx.compose.material3.ModalDrawerSheet { }
-            }
-        },
-    ) {
     Box(Modifier.fillMaxSize()) {
     if (isZxUi) {
         dev.cluvex.zedsecure.ui.navigation.ZxAmbientBackdrop(Modifier.fillMaxSize())
@@ -242,14 +221,10 @@ fun MainScaffold(
             if (isZxUi) {
                 dev.cluvex.zedsecure.ui.navigation.ZxTopBar(
                     current = current,
-                    drawerOpen = drawerState.isOpen,
+                    drawerOpen = menuVisible,
                     connectionState = connectionUi.state,
                     reduceMotion = settings.reduceMotion,
-                    onMenuClick = {
-                        drawerScope.launch {
-                            if (drawerState.isOpen) drawerState.close() else drawerState.open()
-                        }
-                    },
+                    onMenuClick = { menuVisible = true },
                 )
             }
         },
@@ -563,6 +538,17 @@ fun MainScaffold(
         )
     }
 
+    if (isZxUi && menuVisible) {
+        dev.cluvex.zedsecure.ui.navigation.ZxNavigationMenuSheet(
+            current = current,
+            onSelect = { destination ->
+                current = destination
+                menuVisible = false
+            },
+            onDismiss = { menuVisible = false },
+        )
+    }
+
     val tourSteps = dev.cluvex.zedsecure.ui.onboarding.rememberTourSteps()
     if (tourStep in tourSteps.indices) {
         val step = tourSteps[tourStep]
@@ -594,7 +580,6 @@ fun MainScaffold(
 
             onTargetMissing = advance,
         )
-    }
     }
     }
 }
