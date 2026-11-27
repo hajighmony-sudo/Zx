@@ -77,9 +77,9 @@ fun ZedSecureTheme(
     val zxPsColors = remember(zxPs.palette, darkTheme) { ZxPsPalettes.of(zxPs.palette, darkTheme) }
     val scheme = if (design == AppDesign.ZxPs) {
         remember(zxPsColors) { zxPsColorScheme(zxPsColors) }
-    } else if (design == AppDesign.Zx || design == AppDesign.Bento) {
-        // ZX Reimagined shares the calmer Bento palette system; the neon HUD
-        // palette is intentionally retired from the active design path.
+    } else if (design == AppDesign.Zx) {
+        remember(bentoColors) { zxAccessibleColorScheme(bentoColors) }
+    } else if (design == AppDesign.Bento) {
         remember(bentoColors) { bentoColorScheme(bentoColors) }
     } else {
         (system ?: rememberZedColorScheme(darkTheme, accentColor, colorStyle, colorContrast))
@@ -116,6 +116,21 @@ fun ZedSecureTheme(
             content = content,
         )
     }
+}
+
+
+private fun zxAccessibleColorScheme(colors: dev.cluvex.zedsecure.ui.bento.BentoColors): ColorScheme {
+    val base = bentoColorScheme(colors)
+    val strongAccent = if (colors.dark) colors.lime else colors.violet.content
+    val accentOn = if (colors.dark) colors.onLime else Color.White
+    return base.copy(
+        primary = strongAccent,
+        onPrimary = accentOn,
+        primaryContainer = colors.violet.container,
+        onPrimaryContainer = colors.violet.content,
+        onSurfaceVariant = if (colors.dark) colors.muted else colors.ink.copy(alpha = 0.78f),
+        outline = if (colors.dark) colors.line else colors.ink.copy(alpha = 0.38f),
+    )
 }
 
 @Composable
