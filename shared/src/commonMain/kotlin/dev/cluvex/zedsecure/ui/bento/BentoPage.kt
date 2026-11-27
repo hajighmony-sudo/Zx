@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.cluvex.zedsecure.domain.model.AppDesign
 import dev.cluvex.zedsecure.ui.theme.LocalAppDesign
-import dev.cluvex.zedsecure.ui.settings.LocalPageBack
+import dev.cluvex.zedsecure.ui.components.LocalPageBack
 import dev.cluvex.zedsecure.ui.settings.SettingsArt
 import dev.cluvex.zedsecure.ui.settings.sharedArt
 
