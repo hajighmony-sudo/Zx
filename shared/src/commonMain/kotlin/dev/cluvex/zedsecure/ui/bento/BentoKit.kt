@@ -525,8 +525,8 @@ fun BentoChip(
     trailing: String? = null,
 ) {
     val c = Bento.colors
-    val shape = if (zxGlass) RoundedCornerShape(8.dp, 14.dp, 8.dp, 14.dp) else BentoShapes.chip()
     val zxGlass = LocalAppDesign.current == AppDesign.Zx
+    val shape = if (zxGlass) RoundedCornerShape(8.dp, 14.dp, 8.dp, 14.dp) else BentoShapes.chip()
     val bg = if (selected) c.lime else Color.Transparent
     val fg = if (zxGlass) if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface else if (selected) c.onLime else c.ink
     val chipFill = when {
@@ -563,7 +563,7 @@ fun BentoChip(
         Text(
             label,
             style = MaterialTheme.typography.labelLarge.copy(fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold),
-            color = if (zxGlass && selected) c.onLime else fg,
+            color = fg,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -571,7 +571,7 @@ fun BentoChip(
             Text(
                 trailing,
                 style = MaterialTheme.typography.labelMedium,
-                color = if (zxGlass && selected) c.onLime.copy(alpha = 0.8f) else c.muted,
+                color = if (zxGlass) MaterialTheme.colorScheme.onSurfaceVariant else c.muted,
                 maxLines = 1,
             )
         }
