@@ -60,10 +60,10 @@ fun ZxTopBar(
     onMenuClick: () -> Unit,
 ) {
     val connectionTone = when {
-        connectionState == ConnectionState.Connected -> Color(0xFF45D6AD)
+        connectionState == ConnectionState.Connected -> Color(0xFF5CDCB4)
         connectionState == ConnectionState.Error -> MaterialTheme.colorScheme.error
         connectionState.isTransitioning -> MaterialTheme.colorScheme.tertiary
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
+        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f)
     }
     val connectionLabel = when {
         connectionState == ConnectionState.Connected -> "متصل"
@@ -740,62 +740,75 @@ fun ZxBottomBar(
     }
 }
 
-/** Subtle ambient light field behind the ZX interface. */
+/** Ambient light field behind the ZX interface — liquid aurora atmosphere. */
 @Composable
 fun ZxAmbientBackdrop(modifier: Modifier = Modifier) {
     val colors = MaterialTheme.colorScheme
     Canvas(modifier) {
+        // Deep atmospheric ground
         drawRect(
-            Brush.linearGradient(
+            Brush.verticalGradient(
                 colors = listOf(
                     colors.background,
-                    colors.surfaceContainerLow,
+                    colors.surfaceContainerLow.copy(alpha = 0.85f),
                     colors.background,
                 ),
-                start = androidx.compose.ui.geometry.Offset.Zero,
-                end = androidx.compose.ui.geometry.Offset(size.width, size.height),
             ),
         )
+        // Soft liquid aurora wash
         drawRect(
             Brush.linearGradient(
                 colors = listOf(
-                    colors.primary.copy(alpha = 0.035f),
-                    colors.tertiary.copy(alpha = 0.045f),
-                    colors.secondary.copy(alpha = 0.025f),
+                    colors.primary.copy(alpha = 0.055f),
+                    colors.tertiary.copy(alpha = 0.065f),
+                    colors.secondary.copy(alpha = 0.035f),
                     Color.Transparent,
                 ),
-                start = androidx.compose.ui.geometry.Offset(0f, size.height * 0.18f),
-                end = androidx.compose.ui.geometry.Offset(size.width, size.height * 0.92f),
+                start = androidx.compose.ui.geometry.Offset(0f, size.height * 0.12f),
+                end = androidx.compose.ui.geometry.Offset(size.width, size.height * 0.95f),
             ),
         )
+        // Primary glow — top-left
         drawCircle(
             brush = Brush.radialGradient(
-                colors = listOf(colors.primary.copy(alpha = 0.16f), Color.Transparent),
-                center = androidx.compose.ui.geometry.Offset(size.width * 0.08f, size.height * 0.12f),
-                radius = size.minDimension * 0.78f,
+                colors = listOf(colors.primary.copy(alpha = 0.20f), Color.Transparent),
+                center = androidx.compose.ui.geometry.Offset(size.width * 0.06f, size.height * 0.10f),
+                radius = size.minDimension * 0.85f,
             ),
-            radius = size.minDimension * 0.78f,
-            center = androidx.compose.ui.geometry.Offset(size.width * 0.08f, size.height * 0.12f),
+            radius = size.minDimension * 0.85f,
+            center = androidx.compose.ui.geometry.Offset(size.width * 0.06f, size.height * 0.10f),
         )
+        // Tertiary glow — bottom-right
         drawCircle(
             brush = Brush.radialGradient(
-                colors = listOf(colors.tertiary.copy(alpha = 0.12f), Color.Transparent),
-                center = androidx.compose.ui.geometry.Offset(size.width * 0.94f, size.height * 0.70f),
-                radius = size.minDimension * 0.68f,
+                colors = listOf(colors.tertiary.copy(alpha = 0.16f), Color.Transparent),
+                center = androidx.compose.ui.geometry.Offset(size.width * 0.94f, size.height * 0.72f),
+                radius = size.minDimension * 0.72f,
             ),
-            radius = size.minDimension * 0.68f,
-            center = androidx.compose.ui.geometry.Offset(size.width * 0.94f, size.height * 0.70f),
+            radius = size.minDimension * 0.72f,
+            center = androidx.compose.ui.geometry.Offset(size.width * 0.94f, size.height * 0.72f),
         )
-        val gridColor = colors.outlineVariant.copy(alpha = 0.10f)
-        val step = 32.dp.toPx()
+        // Secondary soft bloom — center-right
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(colors.secondary.copy(alpha = 0.08f), Color.Transparent),
+                center = androidx.compose.ui.geometry.Offset(size.width * 0.78f, size.height * 0.38f),
+                radius = size.minDimension * 0.55f,
+            ),
+            radius = size.minDimension * 0.55f,
+            center = androidx.compose.ui.geometry.Offset(size.width * 0.78f, size.height * 0.38f),
+        )
+        // Very subtle holographic grid
+        val gridColor = colors.outlineVariant.copy(alpha = 0.07f)
+        val step = 36.dp.toPx()
         var x = 0f
         while (x <= size.width) {
-            drawLine(gridColor, androidx.compose.ui.geometry.Offset(x, 0f), androidx.compose.ui.geometry.Offset(x, size.height), strokeWidth = 0.45.dp.toPx())
+            drawLine(gridColor, androidx.compose.ui.geometry.Offset(x, 0f), androidx.compose.ui.geometry.Offset(x, size.height), strokeWidth = 0.4.dp.toPx())
             x += step
         }
         var y = 0f
         while (y <= size.height) {
-            drawLine(gridColor, androidx.compose.ui.geometry.Offset(0f, y), androidx.compose.ui.geometry.Offset(size.width, y), strokeWidth = 0.45.dp.toPx())
+            drawLine(gridColor, androidx.compose.ui.geometry.Offset(0f, y), androidx.compose.ui.geometry.Offset(size.width, y), strokeWidth = 0.4.dp.toPx())
             y += step
         }
     }
