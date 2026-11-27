@@ -94,6 +94,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import dev.cluvex.zedsecure.domain.model.AppDesign
+import dev.cluvex.zedsecure.ui.theme.LocalAppDesign
 import dev.cluvex.zedsecure.shared.resources.Res
 import dev.cluvex.zedsecure.shared.resources.bento_add_tile
 import dev.cluvex.zedsecure.shared.resources.bento_add_tile_empty
@@ -150,6 +152,7 @@ fun BentoHub(
     modifier: Modifier = Modifier,
 ) {
     val c = Bento.colors
+    val zx = LocalAppDesign.current == AppDesign.Zx
     val haptics = LocalHapticFeedback.current
     val byKey = remember(entries) { entries.associateBy { it.key } }
     val available = remember(entries) { entries.map { it.key } }
@@ -186,8 +189,8 @@ fun BentoHub(
             } else {
                 MotifButton(
                     shape = androidx.compose.material3.MaterialShapes.Clover4Leaf,
-                    container = c.stage,
-                    content = c.onStage,
+                    container = if (zx) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else c.stage,
+                    content = if (zx) MaterialTheme.colorScheme.primary else c.onStage,
                     icon = Res.drawable.ic_edit,
                     label = stringResource(Res.string.bento_edit_tiles),
                     size = 52.dp,
@@ -335,15 +338,19 @@ private fun TileBoard(
             .padding(horizontal = BentoMetrics.gutter)
             .onGloballyPositioned { boardTop = it.positionInRoot().y },
     ) {
-        val columns = if (maxWidth >= 600.dp) 4 else 2
-        val gap = BentoMetrics.gap()
-        val rowHeight = BentoMetrics.tileRow()
+        val zx = LocalAppDesign.current == AppDesign.Zx
+        val columns = if (zx) 1 else if (maxWidth >= 600.dp) 4 else 2
+        val gap = if (zx) 8.dp else BentoMetrics.gap()
+        val rowHeight = if (zx) 96.dp else BentoMetrics.tileRow()
         val gapPx = with(density) { gap.toPx() }
         val rowPx = with(density) { rowHeight.toPx() }
         val colPx = (with(density) { maxWidth.toPx() } - gapPx * (columns - 1)) / columns
         val unitX = colPx + gapPx
         val unitY = rowPx + gapPx
-        val placed = remember(layout, columns) { BentoTiles.pack(layout.visible, columns) }
+        val placed = remember(layout, columns, zx) {
+            val slots = if (zx) layout.visible.map { it.copy(size = BentoTileSize.Small) } else layout.visible
+            BentoTiles.pack(slots, columns)
+        }
         val rows = BentoTiles.rowsOf(placed)
         val height = with(density) { (rowPx * rows + gapPx * (rows - 1).coerceAtLeast(0)).toDp() }
         val placedNow by rememberUpdatedState(placed)
@@ -485,7 +492,7 @@ private fun TileBoard(
                     ) {
                         HubTile(
                             entry = entry,
-                            slot = p.slot,
+                            slot = layout.visible.firstOrNull { it.key == p.slot.key } ?: p.slot,
                             index = BentoTiles.ordinalOf(entry.key),
                             editing = editing,
                             onOpen = entry.onOpen,
@@ -517,12 +524,13 @@ private fun HubTile(
 ) {
     val c = Bento.colors
     val prefs = Bento.prefs
+    val zx = LocalAppDesign.current == AppDesign.Zx
     val prominent = BentoTiles.isProminent(entry.key)
     val tone = c.tone(BentoTiles.toneOf(entry.key))
     val accent = if (prominent) c.lime else tone.content
     val accentInk = if (prominent) c.onLime else tone.container
     val big = prominent || slot.size != BentoTileSize.Small
-    val shape = if (editing) RoundedCornerShape(16.dp) else BentoShapes.tile(prominent)
+    val shape = if (zx) RoundedCornerShape(10.dp, 22.dp, 10.dp, 22.dp) else if (editing) RoundedCornerShape(16.dp) else BentoShapes.tile(prominent)
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val press by animateFloatAsState(
@@ -550,9 +558,9 @@ private fun HubTile(
                 scaleY = press
             }
             .clip(shape)
-            .background(tone.container)
-            .then(if (editing) Modifier.border(2.dp, tone.content.copy(alpha = 0.2f), shape) else Modifier)
-            .bentoMotif(entry.art.shape, tone.content, if (big) 168.dp else 128.dp, rotation, enabled = prefs.motifs, alpha = 0.1f)
+            .background(if (zx) MaterialTheme.colorScheme.surfaceContainerHigh else tone.container)
+            .then(if (zx) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.58f), shape) else if (editing) Modifier.border(2.dp, tone.content.copy(alpha = 0.2f), shape) else Modifier)
+            .bentoMotif(entry.art.shape, tone.content, if (big) 168.dp else 128.dp, rotation, enabled = !zx && prefs.motifs, alpha = 0.1f)
             .then(
                 if (editing) {
                     Modifier.semantics { contentDescription = "${entry.title}, $sizeName" }
@@ -569,62 +577,108 @@ private fun HubTile(
             ),
     ) {
         val compact = prefs.density == dev.cluvex.zedsecure.domain.model.BentoDensity.Compact
-        var titleHeight by remember { androidx.compose.runtime.mutableIntStateOf(0) }
-        androidx.compose.runtime.CompositionLocalProvider(LocalContentColor provides tone.content) {
-            Column(
-                Modifier.fillMaxSize().padding(
-                    if (prominent) PaddingValues(horizontal = 18.dp, vertical = if (compact) 12.dp else 16.dp) else PaddingValues(BentoMetrics.pad()),
-                ),
+        if (zx) {
+            Row(
+                Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-                    if (prefs.indexes && !editing) BentoIndex(index, tone.content) else Spacer(Modifier.size(1.dp))
-                    BentoBadge(
-                        shape = entry.art.shape,
-                        container = accent,
-                        content = accentInk,
-                        icon = entry.art.icon,
-                        size = when {
-                            prominent -> if (compact) 38.dp else 44.dp
-                            compact -> 32.dp
-                            else -> 38.dp
-                        },
-                        rotation = (if (index % 2 == 0) 10f else -10f) + spin,
-                        modifier = if (editing) Modifier else Modifier.sharedArt(entry.art),
+                Box(
+                    Modifier.size(46.dp).clip(RoundedCornerShape(13.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painterResource(entry.art.icon),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(23.dp),
                     )
                 }
-                BoxWithConstraints(
-                    Modifier.weight(1f).fillMaxWidth().padding(top = 4.dp, end = if (editing) 34.dp else 0.dp),
-                    contentAlignment = Alignment.BottomStart,
-                ) {
-                    val density = LocalDensity.current
-                    val bodyStyle = BentoType.body().copy(fontSize = 12.5.sp, lineHeight = 17.sp)
-                    val lineHeight = with(density) { 17.sp.toPx() }
-                    val gap = with(density) { 3.dp.toPx() }
-                    val room = if (titleHeight <= 0) 0 else ((constraints.maxHeight - titleHeight - gap) / lineHeight).toInt()
-                    val lines = room.coerceIn(0, if (slot.size == BentoTileSize.Tall) 4 else 3)
-                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        entry.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (entry.summary.isNotBlank()) {
                         Text(
-                            entry.title,
-                            style = BentoType.title(
-                                when {
-                                    prominent -> if (compact) 22.sp else 26.sp
-                                    slot.size == BentoTileSize.Small -> if (compact) 17.sp else 19.sp
-                                    else -> if (compact) 19.sp else 21.sp
-                                },
-                            ),
-                            color = tone.content,
+                            if (editing) sizeName else entry.summary,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
-                            onTextLayout = { titleHeight = it.size.height },
                         )
-                        if (lines > 0) {
+                    }
+                }
+                Icon(
+                    painterResource(Res.drawable.ic_chevron_right),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        } else {
+            var titleHeight by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+            androidx.compose.runtime.CompositionLocalProvider(LocalContentColor provides tone.content) {
+                Column(
+                    Modifier.fillMaxSize().padding(
+                        if (prominent) PaddingValues(horizontal = 18.dp, vertical = if (compact) 12.dp else 16.dp) else PaddingValues(BentoMetrics.pad()),
+                    ),
+                ) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
+                        if (prefs.indexes && !editing) BentoIndex(index, tone.content) else Spacer(Modifier.size(1.dp))
+                        BentoBadge(
+                            shape = entry.art.shape,
+                            container = accent,
+                            content = accentInk,
+                            icon = entry.art.icon,
+                            size = when {
+                                prominent -> if (compact) 38.dp else 44.dp
+                                compact -> 32.dp
+                                else -> 38.dp
+                            },
+                            rotation = (if (index % 2 == 0) 10f else -10f) + spin,
+                            modifier = if (editing) Modifier else Modifier.sharedArt(entry.art),
+                        )
+                    }
+                    BoxWithConstraints(
+                        Modifier.weight(1f).fillMaxWidth().padding(top = 4.dp, end = if (editing) 34.dp else 0.dp),
+                        contentAlignment = Alignment.BottomStart,
+                    ) {
+                        val density = LocalDensity.current
+                        val bodyStyle = BentoType.body().copy(fontSize = 12.5.sp, lineHeight = 17.sp)
+                        val lineHeight = with(density) { 17.sp.toPx() }
+                        val gap = with(density) { 3.dp.toPx() }
+                        val room = if (titleHeight <= 0) 0 else ((constraints.maxHeight - titleHeight - gap) / lineHeight).toInt()
+                        val lines = room.coerceIn(0, if (slot.size == BentoTileSize.Tall) 4 else 3)
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(
-                                if (editing) sizeName else entry.summary,
-                                style = bodyStyle,
-                                color = tone.content.copy(alpha = 0.82f),
-                                maxLines = lines,
+                                entry.title,
+                                style = BentoType.title(
+                                    when {
+                                        prominent -> if (compact) 22.sp else 26.sp
+                                        slot.size == BentoTileSize.Small -> if (compact) 17.sp else 19.sp
+                                        else -> if (compact) 19.sp else 21.sp
+                                    },
+                                ),
+                                color = tone.content,
+                                maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
+                                onTextLayout = { titleHeight = it.size.height },
                             )
+                            if (lines > 0) {
+                                Text(
+                                    if (editing) sizeName else entry.summary,
+                                    style = bodyStyle,
+                                    color = tone.content.copy(alpha = 0.82f),
+                                    maxLines = lines,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                         }
                     }
                 }
