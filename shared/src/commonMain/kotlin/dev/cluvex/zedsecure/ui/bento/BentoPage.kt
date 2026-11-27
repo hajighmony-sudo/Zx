@@ -2,6 +2,7 @@ package dev.cluvex.zedsecure.ui.bento
 
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,9 +19,14 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import dev.cluvex.zedsecure.domain.model.AppDesign
+import dev.cluvex.zedsecure.ui.theme.LocalAppDesign
 import dev.cluvex.zedsecure.ui.components.LocalPageBack
 import dev.cluvex.zedsecure.ui.settings.SettingsArt
 import dev.cluvex.zedsecure.ui.settings.sharedArt
@@ -52,12 +58,43 @@ fun BentoPageHeader(
         val accent = if (prominent) c.lime else tone.content
         val accentInk = if (prominent) c.onLime else tone.container
         val spin = (scroll?.value ?: 0) * 0.12f
+        val zxGlass = LocalAppDesign.current == AppDesign.Zx
+        val heroShape = BentoShapes.hero()
+        val heroFill = if (zxGlass) {
+            Brush.linearGradient(
+                listOf(
+                    tone.container.copy(alpha = 0.94f),
+                    Bento.colors.surface.copy(alpha = 0.76f),
+                    tone.container.copy(alpha = 0.78f),
+                ),
+            )
+        } else SolidColor(tone.container)
+        val heroRim = Brush.linearGradient(
+            listOf(
+                androidx.compose.ui.graphics.Color.White.copy(alpha = 0.48f),
+                tone.content.copy(alpha = 0.34f),
+                androidx.compose.material3.MaterialTheme.colorScheme.tertiary.copy(alpha = 0.34f),
+            ),
+        )
         Box(
             Modifier
                 .fillMaxWidth()
                 .heightIn(min = 148.dp)
-                .clip(BentoShapes.hero())
-                .background(tone.container)
+                .then(if (zxGlass) Modifier.shadow(16.dp, heroShape, clip = false) else Modifier)
+                .clip(heroShape)
+                .background(heroFill, heroShape)
+                .then(
+                    if (zxGlass) {
+                        Modifier
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.13f), androidx.compose.ui.graphics.Color.Transparent),
+                                ),
+                                heroShape,
+                            )
+                            .border(1.dp, heroRim, heroShape)
+                    } else Modifier,
+                )
                 .bentoMotif(art.shape, tone.content, 170.dp, 18f + spin, enabled = Bento.prefs.motifs, alpha = 0.1f, bleedX = 36.dp, bleedY = 44.dp),
         ) {
             CompositionLocalProvider(LocalContentColor provides tone.content) {
