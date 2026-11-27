@@ -248,6 +248,7 @@ fun BentoCard(
         label = "bento-card-press",
     )
     val zxGlass = LocalAppDesign.current == AppDesign.Zx
+    val surfaceShape = if (zxGlass) RoundedCornerShape(12.dp, 26.dp, 12.dp, 26.dp) else shape
     val glassBorder = Brush.linearGradient(
         listOf(
             Color.White.copy(alpha = 0.62f),
@@ -263,15 +264,14 @@ fun BentoCard(
                 scaleX = scale
                 scaleY = scale
             }
-            .shadow(if (zxGlass) 18.dp else 0.dp, shape, clip = false, ambientColor = Color.Black.copy(alpha = 0.28f), spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
-            .clip(shape)
+            .shadow(if (zxGlass) 10.dp else 0.dp, surfaceShape, clip = false, ambientColor = Color.Black.copy(alpha = 0.28f), spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
+            .clip(surfaceShape)
             .background(
                 if (zxGlass) {
                     Brush.linearGradient(
                         listOf(
-                            tone.container.copy(alpha = 0.82f),
-                            Bento.colors.surface.copy(alpha = 0.70f),
-                            tone.container.copy(alpha = 0.64f),
+                            Bento.colors.surface.copy(alpha = 0.98f),
+                            Bento.colors.surface2.copy(alpha = 0.96f),
                         ),
                     )
                 } else {
@@ -288,12 +288,12 @@ fun BentoCard(
                                 Color.Black.copy(alpha = 0.04f),
                             ),
                         ),
-                        shape,
+                        surfaceShape,
                     )
                 } else Modifier,
             )
-            .then(if (zxGlass) Modifier.border(1.15.dp, glassBorder, shape) else Modifier)
-            .bentoMotif(motif ?: NoMotif, tone.content, motifSize, motifRotation, enabled = motif != null && Bento.prefs.motifs)
+            .then(if (zxGlass) Modifier.border(1.dp, glassBorder, surfaceShape) else Modifier)
+            .bentoMotif(motif ?: NoMotif, tone.content, motifSize, motifRotation, enabled = !zxGlass && motif != null && Bento.prefs.motifs)
             .then(
                 if (onClick != null) {
                     Modifier.combinedClickable(
