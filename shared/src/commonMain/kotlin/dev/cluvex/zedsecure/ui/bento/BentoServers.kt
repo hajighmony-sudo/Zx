@@ -33,7 +33,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -41,6 +44,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.cluvex.zedsecure.domain.config.Subscription
+import dev.cluvex.zedsecure.domain.model.AppDesign
+import dev.cluvex.zedsecure.ui.theme.LocalAppDesign
 import dev.cluvex.zedsecure.shared.resources.Res
 import dev.cluvex.zedsecure.shared.resources.bento_sub_meta
 import dev.cluvex.zedsecure.shared.resources.bento_updated_days
@@ -86,16 +91,36 @@ fun BentoServerRow(
     menu: @Composable ColumnScope.(close: () -> Unit) -> Unit,
 ) {
     val c = Bento.colors
+    val zxGlass = LocalAppDesign.current == AppDesign.Zx
     val singBox = detail.endsWith(SING_BOX_SUFFIX)
     val plain = if (singBox) detail.removeSuffix(SING_BOX_SUFFIX) else detail
     val highlight = (selecting && selected) || (!selecting && active)
+    val rowFill = if (zxGlass) {
+        if (highlight) {
+            Brush.linearGradient(
+                listOf(c.selected.copy(alpha = 0.94f), c.violet.container.copy(alpha = 0.74f), c.cyan.container.copy(alpha = 0.66f)),
+            )
+        } else {
+            Brush.linearGradient(listOf(c.surface.copy(alpha = 0.88f), c.surface2.copy(alpha = 0.60f)))
+        }
+    } else SolidColor(if (highlight) c.selected else c.surface)
+    val rowRim = Brush.linearGradient(
+        listOf(
+            Color.White.copy(alpha = if (highlight) 0.48f else 0.24f),
+            MaterialTheme.colorScheme.primary.copy(alpha = if (highlight) 0.46f else 0.20f),
+            MaterialTheme.colorScheme.tertiary.copy(alpha = if (highlight) 0.38f else 0.16f),
+            c.line.copy(alpha = 0.34f),
+        ),
+    )
     var menuOpen by remember { mutableStateOf(false) }
     Row(
         modifier
             .fillMaxWidth()
-            .heightIn(min = BentoMetrics.rowMin())
+            .heightIn(min = maxOf(48.dp, BentoMetrics.rowMin()))
+            .then(if (zxGlass) Modifier.shadow(if (highlight) 10.dp else 5.dp, shape, clip = false) else Modifier)
             .clip(shape)
-            .background(if (highlight) c.selected else c.surface)
+            .background(rowFill, shape)
+            .then(if (zxGlass) Modifier.border(if (highlight) 1.dp else 0.7.dp, rowRim, shape) else Modifier)
             .clickable(role = Role.Button, onClick = onClick)
             .padding(start = 14.dp, end = 2.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
