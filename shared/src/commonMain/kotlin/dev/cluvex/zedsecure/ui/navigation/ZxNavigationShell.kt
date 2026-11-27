@@ -102,7 +102,7 @@ fun ZxTopBar(
             ) {
                 Surface(
                     onClick = onMenuClick,
-                    modifier = Modifier.size(42.dp).semantics {
+                    modifier = Modifier.size(48.dp).semantics {
                         contentDescription = if (drawerOpen) "Close navigation menu" else "Open navigation menu"
                     },
                     shape = CircleShape,
@@ -647,9 +647,11 @@ fun ZxBottomBar(
     val shape = RoundedCornerShape(30.dp)
     val borderBrush = Brush.linearGradient(
         listOf(
+            Color.White.copy(alpha = 0.50f),
             MaterialTheme.colorScheme.primary.copy(alpha = 0.58f),
-            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.34f),
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.40f),
+            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.42f),
+            MaterialTheme.colorScheme.secondary.copy(alpha = 0.28f),
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.38f),
         ),
     )
     Box(
@@ -663,7 +665,7 @@ fun ZxBottomBar(
             shape = shape,
             color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.78f),
             tonalElevation = 1.dp,
-            shadowElevation = 16.dp,
+            shadowElevation = 18.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .border(1.dp, borderBrush, shape),
@@ -694,6 +696,7 @@ fun ZxBottomBar(
                         onClick = { onSelect(destination) },
                         modifier = Modifier
                             .weight(1f)
+                            .heightIn(min = 48.dp)
                             .border(
                                 width = if (selected) 1.dp else 0.dp,
                                 brush = borderBrush,
@@ -746,6 +749,18 @@ fun ZxAmbientBackdrop(modifier: Modifier = Modifier) {
                 ),
                 start = androidx.compose.ui.geometry.Offset.Zero,
                 end = androidx.compose.ui.geometry.Offset(size.width, size.height),
+            ),
+        )
+        drawRect(
+            Brush.linearGradient(
+                colors = listOf(
+                    colors.primary.copy(alpha = 0.035f),
+                    colors.tertiary.copy(alpha = 0.045f),
+                    colors.secondary.copy(alpha = 0.025f),
+                    Color.Transparent,
+                ),
+                start = androidx.compose.ui.geometry.Offset(0f, size.height * 0.18f),
+                end = androidx.compose.ui.geometry.Offset(size.width, size.height * 0.92f),
             ),
         )
         drawCircle(
