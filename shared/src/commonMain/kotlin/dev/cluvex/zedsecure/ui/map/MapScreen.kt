@@ -141,7 +141,7 @@ fun MapScreen(
         )
     }
 
-    if (dev.cluvex.zedsecure.ui.bento.Bento.active) {
+    if (dev.cluvex.zedsecure.ui.theme.LocalAppDesign.current == dev.cluvex.zedsecure.domain.model.AppDesign.Bento) {
         var showDetails by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
         if (showDetails) {
             val details by vm.details.collectAsStateWithLifecycle()
