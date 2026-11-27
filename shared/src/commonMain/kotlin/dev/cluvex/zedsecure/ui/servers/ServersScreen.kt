@@ -700,11 +700,13 @@ fun ServersScreen(
                     }
                 }
                 if (servers.isNotEmpty()) {
-                    dev.cluvex.zedsecure.ui.bento.BentoSearchField(
+                    androidx.compose.material3.OutlinedTextField(
                         value = query,
                         onValueChange = { query = it },
-                        placeholder = stringResource(Res.string.bento_search_servers),
-                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 4.dp),
+                        placeholder = { Text(stringResource(Res.string.bento_search_servers)) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(10.dp, 18.dp, 10.dp, 18.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp),
                     )
                 }
             } else if (bento) {
