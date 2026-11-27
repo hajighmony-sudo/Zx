@@ -97,11 +97,12 @@ internal fun BentoMapLayout(
     onDetails: () -> Unit,
 ) {
     val c = Bento.colors
+    val zx = dev.cluvex.zedsecure.ui.theme.LocalAppDesign.current == dev.cluvex.zedsecure.domain.model.AppDesign.Zx
     val scroll = rememberScrollState()
     Column(
         modifier
             .fillMaxSize()
-            .background(c.ground)
+            .background(if (zx) MaterialTheme.colorScheme.background else c.ground)
             .appVerticalScroll(scroll, contentPadding)
             .padding(contentPadding),
         verticalArrangement = Arrangement.spacedBy(BentoMetrics.gap()),
@@ -119,16 +120,17 @@ internal fun BentoMapLayout(
                 .padding(horizontal = BentoMetrics.gutter)
                 .fillMaxWidth()
                 .height(300.dp)
-                .clip(BentoShapes.card())
-                .background(c.stage),
+                .clip(if (zx) RoundedCornerShape(10.dp, 26.dp, 10.dp, 26.dp) else BentoShapes.card())
+                .background(if (zx) MaterialTheme.colorScheme.surfaceContainerHigh else c.stage)
+                .then(if (zx) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(10.dp, 26.dp, 10.dp, 26.dp)) else Modifier),
         ) {
             WorldMapCanvas(
                 countries = countries,
                 origin = origin,
                 exit = exit,
-                accent = c.lime,
-                originColor = c.onStage,
-                landColor = c.onStage,
+                accent = if (zx) MaterialTheme.colorScheme.primary else c.lime,
+                originColor = if (zx) MaterialTheme.colorScheme.primary else c.onStage,
+                landColor = if (zx) MaterialTheme.colorScheme.onSurfaceVariant else c.onStage,
                 reduceMotion = reduceMotion,
                 labels = labels,
                 modifier = Modifier.fillMaxSize(),
