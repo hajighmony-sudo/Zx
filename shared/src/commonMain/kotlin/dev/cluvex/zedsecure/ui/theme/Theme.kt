@@ -80,7 +80,7 @@ fun ZedSecureTheme(
     val scheme = if (design == AppDesign.ZxPs) {
         remember(zxPsColors) { zxPsColorScheme(zxPsColors) }
     } else if (design == AppDesign.Zx) {
-        remember(bentoColors) { zxAccessibleColorScheme(bentoColors) }
+        remember(bentoColors, accentColor) { zxAccessibleColorScheme(bentoColors, accentColor) }
     } else if (design == AppDesign.Bento) {
         remember(bentoColors) { bentoColorScheme(bentoColors) }
     } else {
@@ -121,10 +121,11 @@ fun ZedSecureTheme(
 }
 
 
-private fun zxAccessibleColorScheme(colors: dev.cluvex.zedsecure.ui.bento.BentoColors): ColorScheme {
+private fun zxAccessibleColorScheme(colors: dev.cluvex.zedsecure.ui.bento.BentoColors, accentIndex: Int): ColorScheme {
     // ZX owns a neutral graphite / porcelain surface system. Bento's palette is
     // only used as a source of accent swatches; its color roles are not reused.
-    val primary = if (colors.dark) colors.cyan.content else colors.violet.content
+    val primary = AccentPresets.getOrNull(accentIndex)?.let { if (colors.dark) it.dark else it.light }
+        ?: if (colors.dark) colors.cyan.content else colors.violet.content
     val secondary = if (colors.dark) colors.violet.content else colors.cyan.content
     val tertiary = if (colors.dark) colors.pink.content else colors.coral.content
     val outline = if (colors.dark) Color(0xFF3B4655) else Color(0xFFB9C3D0)
