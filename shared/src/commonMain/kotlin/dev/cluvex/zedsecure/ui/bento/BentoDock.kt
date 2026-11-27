@@ -1,5 +1,8 @@
 package dev.cluvex.zedsecure.ui.bento
 
+import dev.cluvex.zedsecure.domain.model.AppDesign
+import dev.cluvex.zedsecure.ui.theme.LocalAppDesign
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
@@ -37,6 +40,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
@@ -45,7 +50,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.cluvex.zedsecure.domain.model.BentoDockLabels
@@ -55,8 +59,8 @@ import dev.cluvex.zedsecure.ui.onboarding.tourTarget
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-val BentoDockHeight: Dp = 56.dp
-val BentoDockMargin: Dp = 20.dp
+val BentoDockHeight = 64.dp
+val BentoDockMargin = 12.dp
 
 @Composable
 fun BentoDock(
@@ -82,12 +86,41 @@ fun BentoDock(
             exit = slideOutVertically(spring(stiffness = Spring.StiffnessMedium)) { it * 2 } + fadeOut(),
         ) {
             val shape = RoundedCornerShape(30.dp)
+            val zxGlass = LocalAppDesign.current == AppDesign.Zx
+            val dockFill = if (zxGlass) {
+                Brush.linearGradient(
+                    listOf(
+                        c.dock.copy(alpha = 0.82f),
+                        c.surface.copy(alpha = 0.70f),
+                        c.dock.copy(alpha = 0.78f),
+                    ),
+                )
+            } else {
+                androidx.compose.ui.graphics.SolidColor(c.dock)
+            }
+            val dockRim = if (zxGlass) {
+                Brush.linearGradient(
+                    listOf(
+                        Color.White.copy(alpha = 0.45f),
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.40f),
+                        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.28f),
+                        c.dockLine,
+                    ),
+                )
+            } else {
+                androidx.compose.ui.graphics.SolidColor(c.dockLine)
+            }
             Row(
                 Modifier
-                    .shadow(10.dp, shape, ambientColor = c.ink.copy(alpha = 0.18f), spotColor = c.ink.copy(alpha = 0.18f))
+                    .shadow(
+                        if (zxGlass) 18.dp else 10.dp,
+                        shape,
+                        ambientColor = c.ink.copy(alpha = if (zxGlass) 0.26f else 0.18f),
+                        spotColor = if (zxGlass) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else c.ink.copy(alpha = 0.18f),
+                    )
                     .clip(shape)
-                    .background(c.dock)
-                    .border(1.dp, c.dockLine, shape)
+                    .background(dockFill, shape)
+                    .border(1.dp, dockRim, shape)
                     .padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically,
