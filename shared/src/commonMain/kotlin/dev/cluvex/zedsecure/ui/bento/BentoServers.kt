@@ -382,16 +382,24 @@ fun BentoProviderCard(
 
 @Composable
 private fun LinkChip(label: String, tone: BentoTone, onClick: () -> Unit) {
+    val zx = LocalAppDesign.current == AppDesign.Zx
+    val shape = if (zx) RoundedCornerShape(8.dp, 16.dp, 8.dp, 16.dp) else RoundedCornerShape(17.dp)
     Box(
         Modifier
-            .height(34.dp)
-            .clip(RoundedCornerShape(17.dp))
-            .background(tone.content.copy(alpha = 0.14f))
+            .height(36.dp)
+            .clip(shape)
+            .background(if (zx) MaterialTheme.colorScheme.surfaceContainerHigh else tone.content.copy(alpha = 0.14f))
+            .then(if (zx) Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f), shape) else Modifier)
             .clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold), color = tone.content, maxLines = 1)
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold),
+            color = if (zx) MaterialTheme.colorScheme.onSurface else tone.content,
+            maxLines = 1,
+        )
     }
 }
 
