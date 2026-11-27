@@ -610,32 +610,43 @@ fun BentoPill(text: String, container: Color, content: Color, modifier: Modifier
 
 @Composable
 fun BentoFlag(
-    url: String?,
-    label: String,
+    countryCode: String?,
     modifier: Modifier = Modifier,
-    size: Dp = 22.dp,
+    size: Dp = 38.dp,
+    corner: Dp = 13.dp,
+    fallback: String? = null,
     container: Color = Bento.colors.surface2,
+    content: Color = Bento.colors.ink,
 ) {
-    val ctx = LocalPlatformContext.current
+    val code = countryCode?.trim()?.uppercase()?.takeIf { it.length == 2 && it.all { ch -> ch in 'A'..'Z' } }
+    var bytes by remember(code) { mutableStateOf<ByteArray?>(null) }
+    LaunchedEffect(code) {
+        bytes = code?.let { runCatching { Res.readBytes("files/flags/${it.lowercase()}.svg") }.getOrNull() }
+    }
+    val shape = RoundedCornerShape(corner)
+    val context = LocalPlatformContext.current
     Box(
         modifier
             .size(size)
-            .clip(CircleShape)
-            .background(container),
+            .clip(shape)
+            .background(container)
+            .border(1.dp, content.copy(alpha = 0.12f), shape),
         contentAlignment = Alignment.Center,
     ) {
-        if (!url.isNullOrBlank()) {
+        val data = bytes
+        if (data != null) {
             AsyncImage(
-                model = ImageRequest.Builder(ctx).data(url).build(),
-                contentDescription = label,
+                model = remember(data) { ImageRequest.Builder(context).data(data).build() },
+                contentDescription = code,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.matchParentSize().clip(CircleShape),
+                modifier = Modifier.matchParentSize(),
             )
         } else {
             Text(
-                label.take(2).uppercase(),
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                color = Bento.colors.ink,
+                (fallback ?: code ?: "··").take(3),
+                style = MaterialTheme.typography.labelLarge.copy(fontSize = (size.value * 0.32f).sp, fontWeight = FontWeight.Bold),
+                color = content,
+                maxLines = 1,
             )
         }
     }
@@ -645,27 +656,31 @@ fun BentoFlag(
 fun BentoIndex(index: Int, color: Color = LocalContentColor.current, modifier: Modifier = Modifier) {
     Text(
         "%02d".format(index),
-        style = BentoType.number(13.sp, FontWeight.Bold),
-        color = color.copy(alpha = 0.55f),
+        style = BentoType.number(12.sp, FontWeight.Medium),
+        color = color.copy(alpha = color.alpha * 0.7f),
         modifier = modifier,
     )
 }
 
 @Composable
 fun BentoBadge(
-    text: String,
+    shape: RoundedPolygon,
     container: Color,
     content: Color,
+    icon: DrawableResource,
+    size: Dp,
     modifier: Modifier = Modifier,
+    rotation: Float = 10f,
 ) {
-    Text(
-        text,
-        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-        color = content,
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(container)
-            .padding(horizontal = 8.dp, vertical = 3.dp),
-        maxLines = 1,
-    )
+    val clip = shape.toShape()
+    Box(modifier.size(size), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .matchParentSize()
+                .graphicsLayer { rotationZ = rotation }
+                .clip(clip)
+                .background(container),
+        )
+        Icon(painterResource(icon), contentDescription = null, tint = content, modifier = Modifier.size(size * 0.5f))
+    }
 }
