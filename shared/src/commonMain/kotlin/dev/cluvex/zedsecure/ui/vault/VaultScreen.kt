@@ -342,7 +342,7 @@ private fun ZxVaultPanel(
             .padding(horizontal = 16.dp, vertical = 5.dp)
             .background(
                 androidx.compose.ui.graphics.Brush.linearGradient(
-                    listOf(c.surfaceContainerContainerHigh.copy(alpha = 0.96f), c.surfaceContainer.copy(alpha = 0.92f), c.background.copy(alpha = 0.94f)),
+                    listOf(c.surfaceContainerHigh.copy(alpha = 0.96f), c.surfaceContainer.copy(alpha = 0.92f), c.background.copy(alpha = 0.94f)),
                 ),
                 shape,
             )
@@ -361,7 +361,7 @@ private fun ZxVaultStat(label: String, value: String, accent: Color, modifier: M
             .border(1.dp, accent.copy(alpha = 0.34f), shape)
             .padding(horizontal = 11.dp, vertical = 9.dp),
     ) {
-        Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = Bento.colors.muted, maxLines = 1)
+        Text(label.uppercase(), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         Text(value, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black), color = accent)
     }
 }
@@ -412,7 +412,7 @@ private fun ZxLockedCard(
                 .background(
                     androidx.compose.ui.graphics.Brush.horizontalGradient(
                         listOf(
-                            if (active) c.primary.copy(alpha = 0.14f) else c.surfaceContainerContainerHigh.copy(alpha = 0.88f),
+                            if (active) c.primary.copy(alpha = 0.14f) else c.surfaceContainerHigh.copy(alpha = 0.88f),
                             c.surfaceContainer.copy(alpha = 0.94f),
                         ),
                     ),
@@ -446,7 +446,7 @@ private fun ZxLockedCard(
                 }
             }
             if (active) {
-                Icon(painterResource(Res.drawable.ic_check_circle), null, tint = c.good, modifier = Modifier.size(20.dp))
+                Icon(painterResource(Res.drawable.ic_check_circle), null, tint = Color(0xFF159B78), modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(4.dp))
             }
             IconButton(onClick = onDelete) {
