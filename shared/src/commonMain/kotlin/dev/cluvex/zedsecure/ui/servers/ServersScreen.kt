@@ -632,7 +632,7 @@ fun ServersScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box {
-                        dev.cluvex.zedsecure.ui.bento.BentoIconButton(
+                        ZxServerActionButton(
                             if (testing) Res.drawable.ic_close else Res.drawable.ic_speed,
                             stringResource(if (testing) Res.string.ping_stop else Res.string.ping_test),
                             { if (testing) PingCoordinator.cancel() else pingMenu = true },
@@ -650,7 +650,7 @@ fun ServersScreen(
                                 CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                             }
                         } else {
-                            dev.cluvex.zedsecure.ui.bento.BentoIconButton(
+                            ZxServerActionButton(
                                 Res.drawable.ic_sync,
                                 stringResource(Res.string.subs_update),
                                 { updateSubscription(openSubscription) },
@@ -658,20 +658,20 @@ fun ServersScreen(
                             )
                         }
                     } else {
-                        dev.cluvex.zedsecure.ui.bento.BentoIconButton(
+                        ZxServerActionButton(
                             Res.drawable.ic_info,
                             stringResource(Res.string.real_delay_note_title),
                             { showRealDelayNote = true },
                         )
                     }
-                    dev.cluvex.zedsecure.ui.bento.BentoIconButton(
+                    ZxServerActionButton(
                         Res.drawable.ic_add_link,
                         stringResource(Res.string.subs_title),
                         { showSubs = true },
                         modifier = Modifier.tourTarget(TourTargets.SERVERS_SUBS),
                     )
                     Box {
-                        dev.cluvex.zedsecure.ui.bento.BentoIconButton(
+                        ZxServerActionButton(
                             Res.drawable.ic_more_vert,
                             stringResource(Res.string.servers_actions),
                             { overflowOpen = true },
@@ -683,22 +683,21 @@ fun ServersScreen(
                             shape = MaterialTheme.shapes.largeIncreased,
                         ) { overflowItems() }
                     }
-                    dev.cluvex.zedsecure.ui.bento.BentoIconButton(
+                    ZxServerActionButton(
                         Res.drawable.ic_edit,
                         stringResource(Res.string.servers_add_manual),
                         { showManual = true },
                     )
                     Spacer(Modifier.weight(1f))
-                    dev.cluvex.zedsecure.ui.bento.MotifButton(
-                        shape = androidx.compose.material3.MaterialShapes.Clover4Leaf,
-                        container = dev.cluvex.zedsecure.ui.bento.Bento.colors.lime,
-                        content = dev.cluvex.zedsecure.ui.bento.Bento.colors.onLime,
-                        icon = Res.drawable.ic_add,
-                        label = stringResource(Res.string.servers_add),
+                    androidx.compose.material3.Button(
                         onClick = { showAddSheet = true },
-                        onLongClick = { importFromClipboard() },
                         modifier = Modifier.tourTarget(TourTargets.SERVERS_ADD),
-                    )
+                        shape = RoundedCornerShape(10.dp, 18.dp, 10.dp, 18.dp),
+                    ) {
+                        Icon(painterResource(Res.drawable.ic_add), null)
+                        Spacer(Modifier.width(7.dp))
+                        Text(stringResource(Res.string.servers_add))
+                    }
                 }
                 if (servers.isNotEmpty()) {
                     dev.cluvex.zedsecure.ui.bento.BentoSearchField(
@@ -2221,7 +2220,7 @@ private fun GroupTab(
     onClick: () -> Unit,
     onMenu: (() -> Unit)? = null,
 ) {
-    if (dev.cluvex.zedsecure.ui.bento.Bento.active) {
+    if (dev.cluvex.zedsecure.ui.theme.LocalAppDesign.current == dev.cluvex.zedsecure.domain.model.AppDesign.Bento) {
         dev.cluvex.zedsecure.ui.bento.BentoChip(
             label = label,
             selected = selected,
@@ -3208,5 +3207,28 @@ private fun SmartChip(text: String) {
             Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelSmall,
         )
+    }
+}
+
+@Composable
+private fun ZxServerActionButton(
+    icon: org.jetbrains.compose.resources.DrawableResource,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    androidx.compose.material3.Surface(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.size(44.dp),
+        shape = RoundedCornerShape(10.dp, 16.dp, 10.dp, 16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(painterResource(icon), contentDescription = label, modifier = Modifier.size(20.dp))
+        }
     }
 }
