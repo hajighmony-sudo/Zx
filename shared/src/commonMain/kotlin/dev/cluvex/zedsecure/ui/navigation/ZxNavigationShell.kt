@@ -460,6 +460,184 @@ private fun ZxDrawerTile(
 }
 
 @Composable
+fun ZxNavigationMenuSheet(
+    current: TopDestination,
+    onSelect: (TopDestination) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val sheetState = androidx.compose.material3.rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+    )
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f),
+        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.48f),
+        dragHandle = {
+            Box(
+                Modifier
+                    .padding(vertical = 11.dp)
+                    .size(width = 42.dp, height = 4.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)),
+            )
+        },
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(max = 760.dp)
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp),
+        ) {
+            Surface(
+                shape = RoundedCornerShape(26.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.76f),
+                tonalElevation = 1.dp,
+                shadowElevation = 10.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        1.dp,
+                        Brush.linearGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.62f),
+                                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.46f),
+                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.24f),
+                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.34f),
+                            ),
+                        ),
+                        RoundedCornerShape(26.dp),
+                    ),
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 16.dp, vertical = 15.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(17.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(50.dp),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("ZX", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
+                        }
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("ZX", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
+                        Text(
+                            "FUTURE OS  ·  UI / XU",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.15f),
+                    ) {
+                        Box(
+                            Modifier
+                                .size(10.dp)
+                                .padding(2.dp)
+                                .background(MaterialTheme.colorScheme.tertiary, CircleShape),
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.size(14.dp))
+            Surface(
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.48f),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            "CURRENT SPACE",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            stringResource(current.labelRes),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                        contentColor = MaterialTheme.colorScheme.primary,
+                    ) {
+                        Icon(painterResource(current.icon), null, Modifier.padding(9.dp).size(21.dp))
+                    }
+                }
+            }
+            Spacer(Modifier.size(18.dp))
+            val sections = listOf(
+                "CORE" to listOf(TopDestination.Home),
+                "NETWORK" to listOf(TopDestination.Servers, TopDestination.Subscriptions, TopDestination.Vault),
+                "TOOLS" to listOf(TopDestination.SpeedTest, TopDestination.Map, TopDestination.Logs, TopDestination.Routing, TopDestination.Apps),
+                "SYSTEM" to listOf(TopDestination.Settings),
+            )
+            sections.forEach { (sectionTitle, destinations) ->
+                Text(
+                    sectionTitle,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 7.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    fontWeight = FontWeight.Bold,
+                )
+                destinations.chunked(2).forEach { pair ->
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(9.dp),
+                    ) {
+                        pair.forEach { destination ->
+                            ZxDrawerTile(
+                                destination = destination,
+                                selected = current == destination,
+                                modifier = Modifier.weight(1f).heightIn(min = 72.dp),
+                                onClick = { onSelect(destination) },
+                            )
+                        }
+                        if (pair.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                    Spacer(Modifier.size(8.dp))
+                }
+            }
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.48f),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(horizontal = 14.dp, vertical = 11.dp)) {
+                    Text(
+                        "GLASS  ·  LIQUID  ·  HOLOGRAPHIC",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        "A calmer, adaptive ZX experience",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.82f),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun ZxBottomBar(
     tabs: List<TopDestination>,
     current: TopDestination,
