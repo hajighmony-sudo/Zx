@@ -51,6 +51,8 @@ import dev.cluvex.zedsecure.shared.resources.Res
 import dev.cluvex.zedsecure.shared.resources.action_connect
 import dev.cluvex.zedsecure.shared.resources.action_disconnect
 import dev.cluvex.zedsecure.shared.resources.bento_connected_for
+import dev.cluvex.zedsecure.shared.resources.bento_data_session
+import dev.cluvex.zedsecure.shared.resources.bento_fastest
 import dev.cluvex.zedsecure.shared.resources.bento_current_server
 import dev.cluvex.zedsecure.shared.resources.bento_no_server
 import dev.cluvex.zedsecure.shared.resources.bento_no_server_hint
