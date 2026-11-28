@@ -7,8 +7,9 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 
 object SettingsBackup {
-    const val FILE_NAME = "zedsecure-settings.json"
-    private const val MARK = "zedsecureSettings"
+    const val FILE_NAME = "zx-settings.json"
+    private const val MARK = "zxSettings"
+    private const val LEGACY_MARK = "zedsecureSettings"
     private const val VERSION = 1
 
     private val json = Json {
@@ -28,7 +29,7 @@ object SettingsBackup {
 
     fun read(text: String): AppSettings? = runCatching {
         val root = json.parseToJsonElement(text).jsonObject
-        val body = root["settings"]?.takeIf { root.containsKey(MARK) } ?: return null
+        val body = root["settings"]?.takeIf { root.containsKey(MARK) || root.containsKey(LEGACY_MARK) } ?: return null
         json.decodeFromJsonElement(AppSettings.serializer(), body)
     }.getOrNull()
 }

@@ -203,7 +203,7 @@ data class AppSettings(
     val customServerActiveColor: Long? = null,
     val customConfigCardColor: Long? = null,
     val customConfigCardTextColor: Long? = null,
-    val appDesign: AppDesign = AppDesign.ZxPs,
+    val appDesign: AppDesign = AppDesign.Zx,
     val launcherIcon: String = "zx_original",
     val zxAnim: ZxAnim = ZxAnim.Auto,
     val zxPs: ZxPsPrefs = ZxPsPrefs(),

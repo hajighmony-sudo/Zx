@@ -2974,10 +2974,13 @@ private fun AetherSmartDialog(
     var probed by remember { mutableStateOf(false) }
     var goal by remember { mutableStateOf(dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Auto) }
     var edgeJitter by remember { mutableStateOf<Int?>(null) }
+    var edgeLossPercent by remember { mutableStateOf<Int?>(null) }
+    var apiLossPercent by remember { mutableStateOf<Int?>(null) }
     var scanNonce by remember { mutableStateOf(0) }
     var lastInput by remember { mutableStateOf<dev.cluvex.zedsecure.domain.config.AetherSmartInput?>(null) }
     LaunchedEffect(scanNonce) {
         profile = null; probed = false; ipv6 = null; edgeMs = null; apiMs = null
+        edgeJitter = null; edgeLossPercent = null; apiLossPercent = null
         udpReachable = null; tlsSniReachable = null
         tcp443Reachable = null; dnsSystemMatchesDoh = null
         publicIp = null; isp = null; asn = null
@@ -2993,6 +2996,8 @@ private fun AetherSmartDialog(
         edgeMs = probe.edgeMs
         apiMs = probe.apiMs
         edgeJitter = probe.edgeJitterMs
+        edgeLossPercent = probe.edgeLossPercent
+        apiLossPercent = probe.apiLossPercent
         udpReachable = probe.udpReachable
         tlsSniReachable = probe.tlsSniReachable
         tcp443Reachable = probe.tcp443Reachable
@@ -3013,6 +3018,7 @@ private fun AetherSmartDialog(
             edgeReachable = probe.edgeMs != null,
             edgeMs = probe.edgeMs,
             apiReachable = probe.apiMs != null,
+            apiMs = probe.apiMs,
             edgeJitterMs = probe.edgeJitterMs,
             link = dev.cluvex.zedsecure.platform.detectLinkQuality(),
             edgeLossPercent = probe.edgeLossPercent,
@@ -3054,10 +3060,16 @@ private fun AetherSmartDialog(
                     stringResource(Res.string.aether_smart_step_edge), probed, edgeMs != null,
                     if (edgeMs != null) "$edgeMs ms" else blockedText,
                 )
+                SmartStepRow("Edge jitter", probed, edgeJitter == null || edgeJitter!! < 180,
+                    edgeJitter?.let { "$it ms" } ?: naText)
+                SmartStepRow("Edge loss", probed, edgeLossPercent != null && edgeLossPercent!! < 34,
+                    edgeLossPercent?.let { "$it%" } ?: naText)
                 SmartStepRow(
                     stringResource(Res.string.aether_smart_step_api), probed, apiMs != null,
-                    if (apiMs != null) okText else blockedText,
+                    if (apiMs != null) "$apiMs ms" else blockedText,
                 )
+                SmartStepRow("API loss", probed, apiLossPercent != null && apiLossPercent!! < 34,
+                    apiLossPercent?.let { "$it%" } ?: naText)
                 SmartStepRow("UDP / DNS", probed, udpReachable == true,
                     when (udpReachable) { true -> okText; false -> blockedText; null -> naText })
                 SmartStepRow("TCP / 443", probed, tcp443Reachable == true,
@@ -3077,6 +3089,8 @@ private fun AetherSmartDialog(
                 }
                 val filteringSignals = buildList {
                     if (dnsSystemMatchesDoh == false) add("Potential DNS manipulation")
+                    if ((apiMs ?: 0) >= 900) add("WARP API latency elevated: ${apiMs} ms")
+                    if ((edgeJitter ?: 0) >= 180) add("Edge latency is unstable: ${edgeJitter} ms jitter")
                     if (tcp443Reachable == false) add("TCP/443 unreachable")
                     if (tcp443Reachable == true && tlsSniReachable == false) add("Possible TLS/SNI interference")
                     if (udpReachable == false) add("UDP/53 unavailable (not a QUIC test)")
@@ -3096,22 +3110,31 @@ private fun AetherSmartDialog(
                 )
                 val p = profile
                 if (p != null) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        androidx.compose.material3.FilterChip(
-                            selected = goal == dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Auto,
-                            onClick = { goal = dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Auto },
-                            label = { Text(stringResource(Res.string.aether_smart_goal_auto)) },
-                        )
-                        androidx.compose.material3.FilterChip(
-                            selected = goal == dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Speed,
-                            onClick = { goal = dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Speed },
-                            label = { Text(stringResource(Res.string.aether_smart_goal_speed)) },
-                        )
-                        androidx.compose.material3.FilterChip(
-                            selected = goal == dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Stealth,
-                            onClick = { goal = dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Stealth },
-                            label = { Text(stringResource(Res.string.aether_smart_goal_stealth)) },
-                        )
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            androidx.compose.material3.FilterChip(
+                                selected = goal == dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Auto,
+                                onClick = { goal = dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Auto },
+                                label = { Text(stringResource(Res.string.aether_smart_goal_auto)) },
+                            )
+                            androidx.compose.material3.FilterChip(
+                                selected = goal == dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Speed,
+                                onClick = { goal = dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Speed },
+                                label = { Text(stringResource(Res.string.aether_smart_goal_speed)) },
+                            )
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            androidx.compose.material3.FilterChip(
+                                selected = goal == dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Stability,
+                                onClick = { goal = dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Stability },
+                                label = { Text(stringResource(Res.string.aether_smart_goal_stability)) },
+                            )
+                            androidx.compose.material3.FilterChip(
+                                selected = goal == dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Stealth,
+                                onClick = { goal = dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Stealth },
+                                label = { Text(stringResource(Res.string.aether_smart_goal_stealth)) },
+                            )
+                        }
                     }
                     Surface(
                         shape = MaterialTheme.shapes.large,

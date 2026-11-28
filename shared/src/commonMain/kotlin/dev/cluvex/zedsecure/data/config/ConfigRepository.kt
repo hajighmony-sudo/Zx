@@ -782,7 +782,7 @@ class ConfigRepository(private val store: KeyValueStore) {
 
     private fun importZedLink(text: String): Int {
         val payload = ZedLink.parse(text)
-            ?: throw IllegalArgumentException("invalid zedsecure:// link")
+            ?: throw IllegalArgumentException("invalid ZX share link")
         val name = payload.name
         return when (val src = payload.source) {
             is ProfileSource.Psiphon -> { addPsiphon(src.settings, name); 1 }
@@ -804,7 +804,7 @@ class ConfigRepository(private val store: KeyValueStore) {
                 else addCrossChain(ids[0], ids[1], name)
                 1
             }
-            else -> throw IllegalArgumentException("unsupported zedsecure:// payload")
+            else -> throw IllegalArgumentException("unsupported ZX share-link payload")
         }
     }
 
@@ -1614,7 +1614,7 @@ class ConfigRepository(private val store: KeyValueStore) {
             }
             val configPayload = portableProfile?.lockedSharePayload() ?: originalPayload
             val source = VpnProfile.sourceOfPayload(configPayload)
-                ?: throw ConfigParseException("This locked config holds a format ZedSecure cannot run")
+                ?: throw ConfigParseException("This locked config holds a format ZX VPN cannot run")
             val name = entryName.ifBlank {
                 val base = meta.nameEn.ifBlank { meta.nameFa }.ifBlank { "Locked config" }
                 if (bundleEntries.size > 1) base + " " + (index + 1) else base
@@ -1713,7 +1713,7 @@ class ConfigRepository(private val store: KeyValueStore) {
 
         val DEFAULT_UA = "v2rayNG/${AppInfo.versionName}"
 
-        val ALT_UA = "ZedSecure/${AppInfo.versionName}"
+        val ALT_UA = "ZX-VPN/${AppInfo.versionName}"
 
         const val SING_BOX_UA = "SFA/1.14.4 (sing-box 1.14.4)"
 

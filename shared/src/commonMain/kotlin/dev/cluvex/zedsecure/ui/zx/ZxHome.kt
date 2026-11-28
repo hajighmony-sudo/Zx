@@ -28,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -40,10 +41,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.cluvex.zedsecure.data.net.NetworkInfo
+import dev.cluvex.zedsecure.domain.model.ConnectButtonStyle
 import dev.cluvex.zedsecure.domain.model.ConnectionState
 import dev.cluvex.zedsecure.ui.bento.BentoActiveServer
 import dev.cluvex.zedsecure.ui.bento.BentoServerPick
 import dev.cluvex.zedsecure.ui.connection.ConnectionUiState
+import dev.cluvex.zedsecure.ui.theme.Personalization
+import dev.cluvex.zedsecure.ui.theme.readableOn
 import dev.cluvex.zedsecure.ui.format.formatBytes
 import dev.cluvex.zedsecure.ui.format.formatElapsed
 import dev.cluvex.zedsecure.ui.format.formatRate
@@ -88,6 +92,8 @@ internal fun ZxHome(
     localProxyAddress: String?,
     showConnectionInfo: Boolean,
     reduceMotion: Boolean,
+    personalization: Personalization,
+    connectStyle: ConnectButtonStyle,
     contentPadding: PaddingValues,
     onToggleConnection: () -> Unit,
     onBrowseConfigs: () -> Unit,
@@ -125,6 +131,19 @@ internal fun ZxHome(
     }
     val down = formatRate(ui.downloadBps)
     val up = formatRate(ui.uploadBps)
+    val connectColor = (if (connected) personalization.connectedColor else personalization.connectColor)
+        ?: if (connected) cs.error else cs.primary
+    val connectContentColor = connectColor.readableOn()
+    val connectLabel = stringResource(
+        when {
+            transitioning -> Res.string.state_connecting
+            connected -> Res.string.action_disconnect
+            else -> Res.string.action_connect
+        },
+    )
+    val configCardColor = personalization.configCardColor ?: cs.surfaceContainer
+    val configTextColor = personalization.configCardTextColor ?: cs.onSurface
+    val configSecondaryColor = personalization.configCardTextColor?.copy(alpha = 0.78f) ?: cs.onSurfaceVariant
 
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState())
@@ -139,7 +158,7 @@ internal fun ZxHome(
         ) {
             Column(Modifier.weight(1f)) {
                 Text("ZX / CONTROL CENTER", style = MaterialTheme.typography.labelSmall, color = cs.primary, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp)
-                Text("ZedSecure", style = MaterialTheme.typography.headlineSmall.copy(fontSize = when (prefs.title) { dev.cluvex.zedsecure.domain.model.BentoTitle.Huge -> 31.sp; dev.cluvex.zedsecure.domain.model.BentoTitle.Large -> 26.sp; dev.cluvex.zedsecure.domain.model.BentoTitle.Compact -> 22.sp }), color = cs.onSurface, fontWeight = FontWeight.ExtraBold)
+                Text("ZX", style = MaterialTheme.typography.headlineSmall.copy(fontSize = when (prefs.title) { dev.cluvex.zedsecure.domain.model.BentoTitle.Huge -> 31.sp; dev.cluvex.zedsecure.domain.model.BentoTitle.Large -> 26.sp; dev.cluvex.zedsecure.domain.model.BentoTitle.Compact -> 22.sp }), color = cs.onSurface, fontWeight = FontWeight.ExtraBold)
             }
             Surface(
                 onClick = onRefreshInfo,
@@ -155,7 +174,7 @@ internal fun ZxHome(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = panelShape,
-            color = cs.surfaceContainer,
+            color = configCardColor,
             border = androidx.compose.foundation.BorderStroke(1.dp, cs.outlineVariant),
             shadowElevation = 5.dp,
         ) {
@@ -171,7 +190,7 @@ internal fun ZxHome(
                     if (connected) (active?.name ?: ui.activeConfigName ?: stringResource(Res.string.bento_current_server))
                     else if (active != null) active.name else stringResource(Res.string.bento_no_server),
                     style = MaterialTheme.typography.headlineMedium,
-                    color = cs.onSurface,
+                    color = configTextColor,
                     fontWeight = FontWeight.ExtraBold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -183,32 +202,24 @@ internal fun ZxHome(
                         else -> active.detail.orEmpty()
                     },
                     style = MaterialTheme.typography.bodyMedium,
-                    color = cs.onSurfaceVariant,
+                    color = configSecondaryColor,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Button(
+                ZxConnectionControl(
+                    style = connectStyle,
+                    connected = connected,
+                    transitioning = transitioning,
+                    label = connectLabel,
+                    containerColor = connectColor,
+                    contentColor = connectContentColor,
                     onClick = onToggleConnection,
-                    modifier = Modifier.fillMaxWidth().height(58.dp),
-                    shape = RoundedCornerShape(15.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (connected) cs.error else cs.primary,
-                        contentColor = if (connected) cs.onError else cs.onPrimary,
-                    ),
-                ) {
-                    Icon(painterResource(Res.drawable.ic_fill_power), null, Modifier.size(21.dp))
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        stringResource(if (connected || transitioning) Res.string.action_disconnect else Res.string.action_connect),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
+                )
                 if (!lockedNote.isNullOrBlank()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(painterResource(Res.drawable.ic_lock), null, tint = cs.tertiary, modifier = Modifier.size(16.dp))
+                        Icon(painterResource(Res.drawable.ic_lock), null, tint = personalization.tapHintColor ?: cs.tertiary, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(7.dp))
-                        Text(lockedNote, color = cs.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+                        Text(lockedNote, color = personalization.tapHintColor ?: configSecondaryColor, style = MaterialTheme.typography.bodySmall)
                     }
                 }
                 if (ui.state == ConnectionState.Error) {
@@ -220,8 +231,8 @@ internal fun ZxHome(
 
         if (showConnectionInfo && prefs.homeSpeed) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ZxMetricCard(Modifier.weight(1f), stringResource(Res.string.home_download), down.first, down.second, Res.drawable.ic_download, cs.primary)
-                ZxMetricCard(Modifier.weight(1f), stringResource(Res.string.home_upload), up.first, up.second, Res.drawable.ic_upload, cs.tertiary)
+                ZxMetricCard(Modifier.weight(1f), stringResource(Res.string.home_download), down.first, down.second, Res.drawable.ic_download, personalization.downloadColor ?: cs.primary, personalization.downloadTileColor ?: cs.surfaceContainerHigh)
+                ZxMetricCard(Modifier.weight(1f), stringResource(Res.string.home_upload), up.first, up.second, Res.drawable.ic_upload, personalization.uploadColor ?: cs.tertiary, personalization.uploadTileColor ?: cs.surfaceContainerHigh)
             }
         }
         if (showConnectionInfo && prefs.homeSession) {
@@ -234,7 +245,7 @@ internal fun ZxHome(
         Surface(
             modifier = Modifier.fillMaxWidth().clickable(onClick = onBrowseConfigs),
             shape = panelShape,
-            color = cs.surfaceContainerHigh,
+            color = if (active != null) personalization.serverActiveColor ?: cs.surfaceContainerHigh else personalization.serverCardColor ?: cs.surfaceContainerHigh,
             border = androidx.compose.foundation.BorderStroke(1.dp, cs.outlineVariant),
         ) {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -283,6 +294,92 @@ internal fun ZxHome(
 }
 
 @Composable
+private fun ZxConnectionControl(
+    style: ConnectButtonStyle,
+    connected: Boolean,
+    transitioning: Boolean,
+    label: String,
+    containerColor: Color,
+    contentColor: Color,
+    onClick: () -> Unit,
+) {
+    val enabled = !transitioning
+    val height = if (style == ConnectButtonStyle.Hero) 64.dp else if (style == ConnectButtonStyle.Bar) 48.dp else 58.dp
+    when (style) {
+        ConnectButtonStyle.Pill -> Button(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth().height(height),
+            shape = CircleShape,
+            colors = ButtonDefaults.buttonColors(containerColor = containerColor, contentColor = contentColor),
+        ) { ZxConnectionButtonContent(label) }
+
+        ConnectButtonStyle.Hero -> Button(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth().height(height),
+            shape = RoundedCornerShape(20.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = containerColor, contentColor = contentColor),
+        ) { ZxConnectionButtonContent(label) }
+
+        ConnectButtonStyle.Ring -> OutlinedButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth().height(58.dp),
+            shape = CircleShape,
+            border = androidx.compose.foundation.BorderStroke(2.dp, containerColor),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = containerColor),
+        ) { ZxConnectionButtonContent(label) }
+
+        ConnectButtonStyle.Bar -> Button(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth().height(height),
+            shape = RoundedCornerShape(6.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = containerColor, contentColor = contentColor),
+        ) { ZxConnectionButtonContent(label) }
+
+        ConnectButtonStyle.Icon -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Button(
+                onClick = onClick,
+                enabled = enabled,
+                modifier = Modifier.size(70.dp),
+                shape = CircleShape,
+                colors = ButtonDefaults.buttonColors(containerColor = containerColor, contentColor = contentColor),
+            ) {
+                Icon(painterResource(Res.drawable.ic_fill_power), label, Modifier.size(25.dp))
+            }
+        }
+
+        ConnectButtonStyle.Switch -> Surface(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(painterResource(Res.drawable.ic_fill_power), null, tint = containerColor, modifier = Modifier.size(21.dp))
+                Spacer(Modifier.width(10.dp))
+                Text(label, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Switch(checked = connected, onCheckedChange = { onClick() }, enabled = enabled)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ZxConnectionButtonContent(label: String) {
+    Icon(painterResource(Res.drawable.ic_fill_power), null, Modifier.size(21.dp))
+    Spacer(Modifier.width(10.dp))
+    Text(label, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+}
+
+@Composable
 private fun ZxMetricCard(
     modifier: Modifier,
     label: String,
@@ -290,12 +387,13 @@ private fun ZxMetricCard(
     unit: String,
     icon: org.jetbrains.compose.resources.DrawableResource,
     accent: Color,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
 ) {
     val cs = MaterialTheme.colorScheme
     Surface(
         modifier,
         shape = RoundedCornerShape(9.dp, 18.dp, 9.dp, 18.dp),
-        color = cs.surfaceContainerHigh,
+        color = containerColor,
         border = androidx.compose.foundation.BorderStroke(1.dp, cs.outlineVariant),
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {

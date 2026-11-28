@@ -53,7 +53,7 @@ fun ZedSecureTheme(
     colorContrast: ColorContrast = ColorContrast.Standard,
     animateColors: Boolean = true,
 
-    design: AppDesign = AppDesign.Bento,
+    design: AppDesign = AppDesign.Zx,
 
     bento: BentoPrefs = BentoPrefs(),
 
@@ -80,7 +80,10 @@ fun ZedSecureTheme(
     val scheme = if (design == AppDesign.ZxPs) {
         remember(zxPsColors) { zxPsColorScheme(zxPsColors) }
     } else if (design == AppDesign.Zx) {
-        remember(bentoColors, accentColor) { zxAccessibleColorScheme(bentoColors, accentColor) }
+        remember(bentoColors, accentColor, colorStyle, colorContrast, amoledBlack, system) {
+            zxAccessibleColorScheme(bentoColors, accentColor, colorStyle, colorContrast, system)
+                .let { if (amoledBlack) it.amoled(bentoColors.dark) else it }
+        }
     } else if (design == AppDesign.Bento) {
         remember(bentoColors) { bentoColorScheme(bentoColors) }
     } else {
@@ -121,26 +124,32 @@ fun ZedSecureTheme(
 }
 
 
-private fun zxAccessibleColorScheme(colors: dev.cluvex.zedsecure.ui.bento.BentoColors, accentIndex: Int): ColorScheme {
+private fun zxAccessibleColorScheme(
+    colors: dev.cluvex.zedsecure.ui.bento.BentoColors,
+    accentIndex: Int,
+    style: ColorStyle,
+    contrast: ColorContrast,
+    dynamicScheme: ColorScheme?,
+): ColorScheme {
     // ZX owns a neutral graphite / porcelain surface system. Bento's palette is
     // only used as a source of accent swatches; its color roles are not reused.
-    val primary = AccentPresets.getOrNull(accentIndex)?.let { if (colors.dark) it.dark else it.light }
-        ?: if (colors.dark) colors.cyan.content else colors.violet.content
-    val secondary = if (colors.dark) colors.violet.content else colors.cyan.content
-    val tertiary = if (colors.dark) colors.pink.content else colors.coral.content
+    val palette = dynamicScheme ?: zedColorScheme(colors.dark, accentIndex, style, contrast)
+    val primary = palette.primary
+    val secondary = palette.secondary
+    val tertiary = palette.tertiary
     val outline = if (colors.dark) Color(0xFF3B4655) else Color(0xFFB9C3D0)
     return if (colors.dark) {
         darkColorScheme(
             primary = primary,
-            onPrimary = Color(0xFF07131A),
-            primaryContainer = Color(0xFF17313A),
-            onPrimaryContainer = Color(0xFFD7F5F4),
+            onPrimary = palette.onPrimary,
+            primaryContainer = palette.primaryContainer,
+            onPrimaryContainer = palette.onPrimaryContainer,
             secondary = secondary,
-            onSecondary = Color(0xFF171329),
-            secondaryContainer = Color(0xFF28233D),
-            onSecondaryContainer = Color(0xFFE8E1FF),
+            onSecondary = palette.onSecondary,
+            secondaryContainer = palette.secondaryContainer,
+            onSecondaryContainer = palette.onSecondaryContainer,
             tertiary = tertiary,
-            onTertiary = Color(0xFF25101C),
+            onTertiary = palette.onTertiary,
             background = Color(0xFF0B1017),
             onBackground = Color(0xFFE8EDF4),
             surface = Color(0xFF101720),
@@ -168,15 +177,15 @@ private fun zxAccessibleColorScheme(colors: dev.cluvex.zedsecure.ui.bento.BentoC
     } else {
         lightColorScheme(
             primary = primary,
-            onPrimary = Color.White,
-            primaryContainer = Color(0xFFE5E1FF),
-            onPrimaryContainer = Color(0xFF21175D),
+            onPrimary = palette.onPrimary,
+            primaryContainer = palette.primaryContainer,
+            onPrimaryContainer = palette.onPrimaryContainer,
             secondary = secondary,
-            onSecondary = Color.White,
-            secondaryContainer = Color(0xFFD9F1F4),
-            onSecondaryContainer = Color(0xFF123E48),
+            onSecondary = palette.onSecondary,
+            secondaryContainer = palette.secondaryContainer,
+            onSecondaryContainer = palette.onSecondaryContainer,
             tertiary = tertiary,
-            onTertiary = Color.White,
+            onTertiary = palette.onTertiary,
             background = Color(0xFFF3F5F8),
             onBackground = Color(0xFF18212D),
             surface = Color(0xFFFAFBFD),

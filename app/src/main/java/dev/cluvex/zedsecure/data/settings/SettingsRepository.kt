@@ -50,8 +50,18 @@ class SettingsRepository(context: Context) {
         if (!prefs.getBoolean(KEY_BENTO_INTRO, false)) {
             val edit = prefs.edit()
             val stored = prefs.getString("app_design", null)
-            if (stored == null || stored == "Pixel" || stored == "Portal") edit.putString("app_design", AppDesign.Bento.name)
+            if (stored == null) edit.putString("app_design", AppDesign.Zx.name)
+            else if (stored == "Pixel" || stored == "Portal") edit.putString("app_design", AppDesign.Bento.name)
             edit.putBoolean(KEY_BENTO_INTRO, true).apply()
+        }
+
+        // Migrate the old first-install Bento default to ZX once.
+        if (!prefs.getBoolean(KEY_ZX_DEFAULT_INTRO, false)) {
+            val edit = prefs.edit()
+            if (prefs.getString("app_design", null) == AppDesign.Bento.name) {
+                edit.putString("app_design", AppDesign.Zx.name)
+            }
+            edit.putBoolean(KEY_ZX_DEFAULT_INTRO, true).apply()
         }
         return AppSettings(
 
@@ -546,6 +556,7 @@ class SettingsRepository(context: Context) {
         private const val PREFS_NAME = "zed_settings"
         private const val KEY_ROUTING_DEFAULTS_MIGRATED = "routing_defaults_migrated"
         private const val KEY_BENTO_INTRO = "bento_design_intro"
+        private const val KEY_ZX_DEFAULT_INTRO = "zx_default_design_v1"
         private const val LEGACY_RENDEZVOUS = "amp"
         private const val LEGACY_DIRECT_DNS = "223.5.5.5"
 

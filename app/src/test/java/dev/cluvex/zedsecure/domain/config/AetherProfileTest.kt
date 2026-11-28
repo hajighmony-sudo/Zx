@@ -334,4 +334,54 @@ class AetherProfileTest {
         assertEquals("162.159.137.105", profile.apiAddress)
         assertTrue(profile.http2)
     }
+
+    @Test
+    fun smartUsesApiLatencyAsADegradationSignalEvenWhenReachable() {
+        val profile = AetherSmartConfig.build(
+            AetherSmartInput(
+                network = dev.cluvex.zedsecure.platform.NetworkKind.Wifi,
+                edgeReachable = true,
+                edgeMs = 85,
+                apiReachable = true,
+                apiMs = 1_250,
+                edgeLossPercent = 0,
+                apiLossPercent = 0,
+                udpReachable = true,
+                tcp443Reachable = true,
+                tlsSniReachable = true,
+                dnsSystemMatchesDoh = true,
+            ),
+        )
+
+        assertEquals("162.159.137.105", profile.apiAddress)
+        assertTrue(profile.http2)
+        assertEquals("firewall", profile.noize)
+        assertEquals("thorough", profile.scanMode)
+    }
+
+    @Test
+    fun stabilityGoalPrefersPredictableTransportWithoutUnneededFragmentation() {
+        val profile = AetherSmartConfig.build(
+            AetherSmartInput(
+                network = dev.cluvex.zedsecure.platform.NetworkKind.Wifi,
+                edgeReachable = true,
+                edgeMs = 90,
+                apiReachable = true,
+                apiMs = 110,
+                edgeLossPercent = 0,
+                apiLossPercent = 0,
+                udpReachable = true,
+                tcp443Reachable = true,
+                tlsSniReachable = true,
+                dnsSystemMatchesDoh = true,
+                goal = AetherSmartGoal.Stability,
+            ),
+        )
+
+        assertEquals("balanced", profile.scanMode)
+        assertEquals("balanced", profile.noize)
+        assertTrue(profile.http2)
+        assertFalse(profile.fragment)
+        assertEquals("", profile.apiAddress)
+    }
 }

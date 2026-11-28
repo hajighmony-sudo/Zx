@@ -89,7 +89,10 @@ object AetherSmartProbe {
         val successful = samples.filterNotNull().sorted()
         SampleSet(
             medianMs = successful.takeIf { it.isNotEmpty() }?.let { it[it.size / 2] },
-            jitterMs = successful.takeIf { it.size >= 2 }?.let { it.last() - it.first() },
+            jitterMs = successful.takeIf { it.size >= 3 }?.let { values ->
+                val trim = if (values.size >= 5) 1 else 0
+                values[values.lastIndex - trim] - values[trim]
+            },
             lossPercent = ((SAMPLE_COUNT - successful.size) * 100) / SAMPLE_COUNT,
         )
     }
@@ -167,7 +170,7 @@ object AetherSmartProbe {
         }
 
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
-    private const val SAMPLE_COUNT = 3
+    private const val SAMPLE_COUNT = 5
     private const val TIMEOUT_MS = 2_500
     private const val OONI_TIMEOUT_MS = 4_000
     private const val USER_AGENT = "ZX-Aether-Smart"

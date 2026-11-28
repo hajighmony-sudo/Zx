@@ -178,7 +178,7 @@ fun HomeScreen(
     personalization: Personalization = Personalization.Default,
 
     connectStyle: ConnectButtonStyle = ConnectButtonStyle.Pill,
-    design: AppDesign = AppDesign.Bento,
+    design: AppDesign = AppDesign.Zx,
     homeVm: HomeViewModel = viewModel { HomeViewModel() },
     bentoActive: dev.cluvex.zedsecure.ui.bento.BentoActiveServer? = null,
     bentoPicks: List<dev.cluvex.zedsecure.ui.bento.BentoServerPick> = emptyList(),
@@ -253,6 +253,8 @@ fun HomeScreen(
                     showConnectionInfo = showConnectionInfo,
                     reduceMotion = reduceMotion,
                     contentPadding = contentPadding,
+                    personalization = personalization,
+                    connectStyle = connectStyle,
                     onToggleConnection = onToggleConnection,
                     onBrowseConfigs = onBrowseConfigs,
                     onPickServer = onPickServer,

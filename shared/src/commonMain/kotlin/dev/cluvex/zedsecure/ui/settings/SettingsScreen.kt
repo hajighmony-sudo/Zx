@@ -1495,7 +1495,7 @@ private fun UiPage(
                 art = SettingsArts.Mode,
                 onClick = { onOpen(SettingsPage.NavBar) },
             )
-            if (oldHome) {
+            if (oldHome || s.appDesign == AppDesign.Zx) {
                 SettingsSegment {
                     ConnectStyleRow(
                         label = stringResource(Res.string.connect_style_title),
@@ -1514,7 +1514,7 @@ private fun UiPage(
             }
         }
 
-        if (oldHome) {
+        if (oldHome || s.appDesign == AppDesign.Zx) {
             SettingsGroup(title = stringResource(Res.string.personalize_tiles_title)) {
                 val cs = androidx.compose.material3.MaterialTheme.colorScheme
                 PersonalizeColorRow(

@@ -31,7 +31,7 @@ class ZsxTamperException : ZsxException("File is corrupt or has been tampered wi
 class ZsxWrongPasswordException : ZsxException("Incorrect password")
 class ZsxExpiredException : ZsxException("This locked config has expired")
 class ZsxPasswordRequiredException : ZsxException("A password is required")
-class ZsxLegacyException : ZsxException("This locked config was made by an older version of ZedSecure")
+class ZsxLegacyException : ZsxException("This locked config was made by an older version of ZX VPN")
 
 fun zsxFileName(name: String): String {
     val base = name.trim().ifBlank { "config" }

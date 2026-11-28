@@ -4,7 +4,7 @@ import dev.cluvex.zedsecure.platform.LinkQuality
 import dev.cluvex.zedsecure.platform.NetworkKind
 
 /** What the user wants the Smart config to favor. */
-enum class AetherSmartGoal { Auto, Speed, Stealth }
+enum class AetherSmartGoal { Auto, Speed, Stability, Stealth }
 
 /** Privacy-preserving measurements collected from the active physical network. */
 data class AetherSmartInput(
@@ -16,6 +16,8 @@ data class AetherSmartInput(
     val edgeReachable: Boolean? = null,
     val edgeMs: Int? = null,
     val apiReachable: Boolean? = null,
+    /** Median latency of repeated requests to the WARP registration API. */
+    val apiMs: Int? = null,
     val edgeJitterMs: Int? = null,
     val goal: AetherSmartGoal = AetherSmartGoal.Auto,
     /** Local link estimates; they are hints, not proof that a tunnel transport works. */
@@ -62,7 +64,8 @@ object AetherSmartConfig {
         val apiLoss = input.apiLossPercent?.coerceIn(0, 100) ?: if (apiBlocked) 100 else 0
         val unstable = edgeLoss >= UNSTABLE_LOSS_PERCENT ||
             (input.edgeJitterMs ?: 0) >= UNSTABLE_JITTER_MS
-        val apiDegraded = apiLoss >= DEGRADED_API_LOSS_PERCENT
+        val apiSlow = (input.apiMs ?: 0) >= SLOW_API_MS
+        val apiDegraded = apiLoss >= DEGRADED_API_LOSS_PERCENT || apiSlow
 
         val weak = link != null && (
             link.generation == "2G" || link.generation == "3G" ||
@@ -99,7 +102,7 @@ object AetherSmartConfig {
 
         val speedOverride = input.goal == AetherSmartGoal.Speed &&
             !edgeBlocked && !unstable && !networkUnvalidated && !udpThrottled && !sniFiltered &&
-            !dnsTampering && !tcp443Blocked && !communityCorroboration
+            !dnsTampering && !tcp443Blocked && !communityCorroboration && !apiDegraded
 
         val strict = edgeBlocked || unstable || networkUnvalidated || sniFiltered || hostile ||
             dnsTampering || tcp443Blocked || communityCorroboration ||
@@ -112,7 +115,7 @@ object AetherSmartConfig {
                 input.goal == AetherSmartGoal.Stealth -> "gfw"
             cellular || weak || apiDegraded || udpThrottled || sniFiltered ||
                 dnsTampering || tcp443Blocked -> "firewall"
-            slow || (edgeLoss in 15 until UNSTABLE_LOSS_PERCENT) -> "balanced"
+            slow || (edgeLoss in 15 until UNSTABLE_LOSS_PERCENT) || input.goal == AetherSmartGoal.Stability -> "balanced"
             else -> "light"
         }
 
@@ -121,11 +124,12 @@ object AetherSmartConfig {
         val scan = when {
             input.goal == AetherSmartGoal.Stealth -> "verified"
             edgeBlocked || unstable || networkUnvalidated || hostile || sniFiltered ||
-                dnsTampering || tcp443Blocked || communityCorroboration -> {
+                dnsTampering || tcp443Blocked || communityCorroboration || apiDegraded -> {
                 // When conditions are very hostile, prefer ironclad (end-to-end data-plane validation)
                 if (hostile || communityCorroboration || edgeLoss >= 50) "ironclad" else "thorough"
             }
             input.goal == AetherSmartGoal.Speed -> "turbo"
+            input.goal == AetherSmartGoal.Stability -> if (weak || apiDegraded || cellular) "thorough" else "balanced"
             fastEdge && !apiDegraded && !weak -> "turbo"
             slow || weak -> "turbo"
             cellular -> "thorough"
@@ -136,7 +140,8 @@ object AetherSmartConfig {
         // weak, unstable, or not demonstrably friendly to the faster UDP path.
         val h2 = !speedOverride && (
             cellular || strict || weak || !udpFriendlyHint || apiDegraded || udpThrottled ||
-                sniFiltered || dnsTampering || tcp443Blocked || communityCorroboration
+                sniFiltered || dnsTampering || tcp443Blocked || communityCorroboration ||
+                input.goal == AetherSmartGoal.Stability
             )
 
         // Fragment ClientHello only when using H2 and there are clear DPI signals
@@ -170,6 +175,7 @@ object AetherSmartConfig {
         }
         return when (goal) {
             AetherSmartGoal.Speed -> "$base · Speed"
+            AetherSmartGoal.Stability -> "$base · Stability"
             AetherSmartGoal.Stealth -> "$base · Stealth"
             AetherSmartGoal.Auto -> base
         }
@@ -181,6 +187,7 @@ object AetherSmartConfig {
     private const val UNSTABLE_JITTER_MS = 180
     private const val UNSTABLE_LOSS_PERCENT = 34
     private const val DEGRADED_API_LOSS_PERCENT = 34
+    private const val SLOW_API_MS = 900
     private const val STRONG_DOWN_KBPS = 15_000
     private const val STRONG_UP_KBPS = 3_000
     private const val STRONG_SIGNAL_DBM = -85
