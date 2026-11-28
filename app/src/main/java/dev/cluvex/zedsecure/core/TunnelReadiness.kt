@@ -66,7 +66,7 @@ object TunnelReadiness {
                         socket.tcpNoDelay = true
                         socket.connect(InetSocketAddress(host, PROBE_PORT), 2_500)
                         socket.soTimeout = timeoutMs.coerceAtLeast(1_000)
-                        val request = "HEAD / HTTP/1.1\\r\\nHost: $host\\r\\nUser-Agent: ZedSecure-TUN-Probe\\r\\nConnection: close\\r\\n\\r\\n"
+                        val request = "HEAD / HTTP/1.1\r\nHost: $host\r\nUser-Agent: ZedSecure-TUN-Probe\r\nConnection: close\r\n\r\n"
                         socket.getOutputStream().write(request.toByteArray())
                         socket.getOutputStream().flush()
                         socket.getInputStream().read() >= 0
