@@ -986,6 +986,7 @@ class ZedVpnService : VpnService() {
                     val identitiesReady = AetherIdentityManager.ensureAll(
                         java.io.File(applicationInfo.nativeLibraryDir),
                         workDir,
+                        apiAddress = profile.aetherProfile.apiAddress,
                     )
                     if (identitiesReady) {
                         LogBus.append("I/Aether Smart 2: native WARP identities are ready")
