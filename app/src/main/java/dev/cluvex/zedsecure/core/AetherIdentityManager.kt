@@ -38,6 +38,7 @@ internal object AetherIdentityManager {
     suspend fun ensureAll(
         nativeLibraryDir: File,
         workingDirectory: File,
+        apiAddress: String = "",
         timeoutMs: Long = REGISTRATION_TIMEOUT_MS,
     ): Boolean = withContext(Dispatchers.IO) {
         require(timeoutMs > 0)
@@ -52,6 +53,8 @@ internal object AetherIdentityManager {
                 listOf(
                     "--register", "all",
                     "--config", File(workingDirectory, "aether.toml").absolutePath,
+                    *apiAddress.takeIf { it.isNotBlank() && it.all { c -> c.isLetterOrDigit() || c in ".:-[]" } }
+                        ?.let { listOf("--api-address", it) }.orEmpty().toTypedArray(),
                     "--log-level", "info",
                 ),
             )
