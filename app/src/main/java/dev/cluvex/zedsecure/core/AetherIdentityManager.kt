@@ -24,11 +24,15 @@ internal object AetherIdentityManager {
     internal fun missingFiles(directory: File): List<String> =
         requiredFiles.filter { name ->
             val file = File(directory, name)
-            !file.isFile || file.length() == 0L
+            !file.isFile || !isValidIdentityFile(file)
         }
 
     internal fun isReadyLine(line: String): Boolean =
         READY_LINE.containsMatchIn(line)
+
+    internal fun isValidIdentityFile(file: File): Boolean =
+        file.isFile && file.length() > 0L &&
+            runCatching { DEVICE_ID_LINE.containsMatchIn(file.readText()) }.getOrDefault(false)
 
     /**
      * Returns true when every native identity already exists or Aether registered
@@ -79,6 +83,7 @@ internal object AetherIdentityManager {
     }
 
     private val READY_LINE = Regex("""identities ready:\s*\S""", RegexOption.IGNORE_CASE)
+    private val DEVICE_ID_LINE = Regex("""(?m)^\\s*device_id\\s*=\\s*"[^"]+"\\s*$""")
     private const val POLL_MS = 200L
     private const val REGISTRATION_TIMEOUT_MS = 4 * 60_000L
 }
