@@ -15,16 +15,18 @@ class AetherSmart2ProfileTest {
     }
 
     @Test
-    fun commandUsesPsiphonCdnAndDynamicLoopbackPorts() {
+    fun commandUsesNativeAetherAndDynamicLoopbackPort() {
         val profile = AetherSmart2Profile.build(NetworkKind.Cellular, false, null)
-        val args = profile.commandArgs(10919, 10922)
+        val args = profile.commandArgs(10919, "/tmp/aether-smart2")
         assertTrue(args.containsAll(listOf(
             "--bind", "127.0.0.1:10919",
-            "--psiphon-only",
-            "--psiphon-mode", "cdn",
-            "--psiphon-server-entries", "shipped-list",
-            "--upstream", "socks5://127.0.0.1:10922",
+            "--protocol", profile.aetherProfile.protocol,
+            "--scan", profile.aetherProfile.scanMode,
+            "--ip", profile.aetherProfile.ipVersion,
+            "--noize", profile.aetherProfile.noize,
+            "--config", "/tmp/aether-smart2/aether.toml",
         )))
+        assertTrue("--psiphon-only" !in args)
     }
 
     @Test
