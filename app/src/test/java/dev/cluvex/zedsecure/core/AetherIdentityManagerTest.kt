@@ -63,6 +63,26 @@ class AetherIdentityManagerTest {
     }
 
     @Test
+    fun registrationUsesNativeCoreKindsForEachProtocolFamily() {
+        val directory = java.io.File("/tmp/aether")
+        assertEquals("all", AetherIdentityManager.registrationArguments(directory).let {
+            it[it.indexOf("--register") + 1]
+        })
+        assertEquals("gool-classic", AetherIdentityManager.registrationArguments(
+            directory,
+            registerKind = "gool-classic",
+        ).let { it[it.indexOf("--register") + 1] })
+        assertEquals("gool", AetherIdentityManager.registrationArguments(
+            directory,
+            registerKind = "gool",
+        ).let { it[it.indexOf("--register") + 1] })
+        assertEquals("mim", AetherIdentityManager.registrationArguments(
+            directory,
+            registerKind = "mim",
+        ).let { it[it.indexOf("--register") + 1] })
+    }
+
+    @Test
     fun registrationDoesNotPassUnsafeApiAddressAsAnArgument() {
         val args = AetherIdentityManager.registrationArguments(java.io.File("/tmp/aether"), "--bad value")
         assertFalse(args.contains("--api-address"))
