@@ -40,12 +40,14 @@ class AetherSmart2ProfileTest {
         assertTrue(json.contains("\"port\": 10922"))
         assertTrue(json.contains("\"tag\": \"secondary-socks\""))
         assertTrue(json.contains("\"tag\": \"dns-module\""))
-        assertTrue(json.contains("\"address\": \"fakedns\""))
-        assertTrue(json.contains("dns.smartguard.io"))
+        // Match the current Xray template without changing its production behavior.
+        assertTrue(json.contains("\"address\":\"fakedns\""))
+        assertTrue(json.contains("\"queryStrategy\": \"UseIPv4\""))
+        assertTrue(json.contains("\"disableFallbackIfMatch\": true"))
+        assertTrue(json.contains("\"domain:ir\""))
+        assertTrue(json.contains("\"tag\": \"proxy\""))
+        assertTrue(json.contains("\"tag\": \"dns-out\""))
+        assertTrue(json.contains("\"outboundTag\": \"direct\""))
         assertTrue(json.contains("\"geoip:ir\""))
-        assertTrue(json.contains("\"finalQuery\": true"))
-        assertTrue(json.contains("\"domestic-dns_1_0\""))
-        assertTrue(json.contains("\"domestic-dns_2_0\""))
-        assertTrue(json.contains("\"inboundTag\": [\"domestic-dns_1_0\", \"domestic-dns_2_0\"]"))
     }
 }
