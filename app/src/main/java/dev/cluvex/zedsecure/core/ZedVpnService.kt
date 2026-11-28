@@ -1264,7 +1264,7 @@ class ZedVpnService : VpnService() {
             stopEverything(); return
         }
         if (descriptor != null) {
-            if (!bridge(descriptor, port, tunMtu, pipeline = true)) return
+            if (!bridge(descriptor, port, tunMtu, pipeline = true, verifyTraffic = verifyTraffic)) return
         } else {
             advance(VpnNotifications.Stage.Engine)
         }
