@@ -77,7 +77,7 @@ internal object AetherIdentityManager {
                     fields.putIfAbsent(key, value)
                 }
             }
-    private val MULTILINE_DELIMITER = Regex("""(?:"{3}|'{3})""")
+            if (MULTILINE_DELIMITER.findAll(line).count() % 2 == 1) {
                 insideMultiline = !insideMultiline
             }
         }
@@ -231,7 +231,7 @@ internal object AetherIdentityManager {
 
     private val READY_LINE = Regex("""identities ready:\s*\S""", RegexOption.IGNORE_CASE)
     private val IDENTITY_FIELD = Regex("""^(device_id|ipv4|ipv6)\s*=\s*"([^"]*)"$""")
-    private val MULTILINE_DELIMITER = Regex("""\"\"\"|'''""")
+    private val MULTILINE_DELIMITER = Regex("""(?:"{3}|'{3})""")
     private const val POLL_MS = 200L
     private const val REGISTRATION_TIMEOUT_MS = 4 * 60_000L
 }
