@@ -12,6 +12,22 @@ import kotlinx.coroutines.withContext
  * writes missing identities into the same app-private working directory that is
  * encrypted by AetherIdentityVault whenever the process stops.
  */
+internal data class AetherIdentityInfo(
+    val deviceId: String,
+    val ipv4: String,
+    val ipv6: String,
+)
+
+internal data class AetherIdentityKey(
+    val file: String,
+    val identity: AetherIdentityInfo?,
+)
+
+internal data class AetherIdentityStatus(
+    val protocol: String,
+    val keys: List<AetherIdentityKey>,
+)
+
 internal object AetherIdentityManager {
     internal val requiredFiles = listOf(
         "aether-wg.toml",
@@ -42,9 +58,49 @@ internal object AetherIdentityManager {
             addAll(listOf("--log-level", "info"))
         }
 
+    internal fun parseIdentity(text: String): AetherIdentityInfo? {
+        val fields = mutableMapOf<String, String>()
+        var insideMultiline = false
+        for (raw in text.lineSequence()) {
+            val line = raw.trim()
+            if (!insideMultiline) {
+                IDENTITY_FIELD.matchEntire(line)?.destructured?.let { (key, value) ->
+                    fields.putIfAbsent(key, value)
+                }
+            }
+            if (MULTILINE_DELIMITER.findAll(line).count() % 2 == 1) {
+                insideMultiline = !insideMultiline
+            }
+        }
+        val deviceId = fields["device_id"]?.takeIf { it.isNotBlank() } ?: return null
+        return AetherIdentityInfo(deviceId, fields["ipv4"].orEmpty(), fields["ipv6"].orEmpty())
+    }
+
     internal fun isValidIdentityFile(file: File): Boolean =
         file.isFile && file.length() > 0L &&
-            runCatching { DEVICE_ID_LINE.containsMatchIn(file.readText()) }.getOrDefault(false)
+            runCatching { parseIdentity(file.readText()) != null }.getOrDefault(false)
+
+    /** Read native identity metadata without exposing private-key fields to the UI. */
+    internal fun keys(directory: File, files: List<String> = requiredFiles): List<AetherIdentityKey> =
+        files.map { name ->
+            val file = File(directory, name)
+            val identity = runCatching {
+                if (file.isFile) parseIdentity(file.readText()) else null
+            }.getOrNull()
+            AetherIdentityKey(name, identity)
+        }
+
+    /** Identity files required by each native transport family. */
+    internal fun filesOf(protocol: String): List<String> = when (protocol.lowercase()) {
+        "masque" -> listOf("aether-masque.toml")
+        "wg", "wireguard" -> listOf("aether-wg.toml")
+        "gool" -> listOf("aether-wg.toml", "aether-wg-secondary.toml")
+        "mim" -> listOf("aether-masque.toml", "aether-masque-secondary.toml")
+        else -> emptyList()
+    }
+
+    internal fun status(directory: File, protocol: String): AetherIdentityStatus =
+        AetherIdentityStatus(protocol, keys(directory, filesOf(protocol)))
 
     /**
      * Returns true when every native identity already exists or Aether registered
@@ -91,7 +147,8 @@ internal object AetherIdentityManager {
     }
 
     private val READY_LINE = Regex("""identities ready:\s*\S""", RegexOption.IGNORE_CASE)
-    private val DEVICE_ID_LINE = Regex("""(?m)^\s*device_id\s*=\s*"[^"]+"\s*$""")
+    private val IDENTITY_FIELD = Regex("""^(device_id|ipv4|ipv6)\s*=\s*"([^"]*)"$""")
+    private val MULTILINE_DELIMITER = Regex("""\"\"\"|'''""")
     private const val POLL_MS = 200L
     private const val REGISTRATION_TIMEOUT_MS = 4 * 60_000L
 }
