@@ -859,7 +859,7 @@ private fun CreateLockedSheet(
         ).count { it }
         AlertDialog(
             onDismissRequest = { showPreview = false },
-            title = { Text("پیش‌نمایش نهایی · ZX Secure Vault") },
+            title = { Text("پیش‌نمایش نهایی · ZX Vault") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Surface(
