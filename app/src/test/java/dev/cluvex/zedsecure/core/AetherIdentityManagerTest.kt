@@ -74,4 +74,49 @@ class AetherIdentityManagerTest {
         assertFalse(AetherIdentityManager.isReadyLine("identity registration started"))
         assertFalse(AetherIdentityManager.isReadyLine("identities ready:"))
     }
+    @Test
+    fun parsesIdentityMetadataWithoutReadingPrivateKeyBlocksAsFields() {
+        val parsed = AetherIdentityManager.parseIdentity(
+            """
+            device_id = "device-123"
+            private_key = """
+            ipv4 = "192.0.2.10"
+            ipv6 = "2001:db8::10"
+            """
+            """.trimIndent(),
+        )
+        assertEquals("device-123", parsed?.deviceId)
+        assertEquals("", parsed?.ipv4)
+        assertEquals("", parsed?.ipv6)
+    }
+
+    @Test
+    fun mapsProtocolToOnlyItsRequiredIdentityFiles() {
+        assertEquals(listOf("aether-masque.toml"), AetherIdentityManager.filesOf("masque"))
+        assertEquals(listOf("aether-wg.toml"), AetherIdentityManager.filesOf("wg"))
+        assertEquals(
+            listOf("aether-wg.toml", "aether-wg-secondary.toml"),
+            AetherIdentityManager.filesOf("gool"),
+        )
+        assertEquals(
+            listOf("aether-masque.toml", "aether-masque-secondary.toml"),
+            AetherIdentityManager.filesOf("mim"),
+        )
+    }
+
+    @Test
+    fun statusNeverReturnsPrivateKeyContents() {
+        val directory = Files.createTempDirectory("zx-aether-status").toFile()
+        try {
+            java.io.File(directory, "aether-masque.toml").writeText(
+                "device_id = \"safe-id\"\nipv4 = \"192.0.2.2\"\nprivate_key = \"secret\"\n",
+            )
+            val status = AetherIdentityManager.status(directory, "masque")
+            assertEquals("safe-id", status.keys.single().identity?.deviceId)
+            assertFalse(status.toString().contains("secret"))
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
 }
