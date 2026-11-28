@@ -230,7 +230,7 @@
     <string name="zsx_invalid">فایل ‎.ZX‎ معتبر نیست</string>
     <string name="zsx_legacy">این کانفیگ قفل‌شده با نسخهٔ قدیمی‌تر ZX VPN ساخته شده است. از فرستنده بخواهید نسخهٔ تازه‌ای بفرستد.</string>
 
-    <string name="cd_app_logo">نشان زدسکیور</string>
+    <string name="cd_app_logo">نشان ZX</string>
     <string name="cd_connection_status">وضعیت اتصال</string>
     <string name="cd_settings">باز کردن تنظیمات</string>
 
@@ -653,7 +653,7 @@
     <string name="snispoof_no_ack">سرور لبه بستهٔ جعلی را تأیید نکرد و همهٔ اتصال‌ها ریست شدند. این شبکه یا این IP تمیز اجازهٔ این روش را نمی‌دهد — یک IP تمیز دیگر را امتحان کن.</string>
     <string name="qr_scan_hint">دوربین را روی کد QR بگیرید</string>
     <string name="qr_scan_chunk_progress">بخش %1$d از %2$d — برای بقیه ثابت نگه دارید</string>
-    <string name="tile_label">زدسکیور</string>
+    <string name="tile_label">ZX VPN</string>
     <string name="switch_server_timeout">تعویض سرور انجام نشد — اتصال قبلی قطع نشد.</string>
     <string name="engine_failed_with_reason">%1$s: %2$s</string>
     <string name="engine_failed_ssh">اتصال SSH ناموفق بود</string>
