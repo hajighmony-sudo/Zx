@@ -28,10 +28,8 @@ import dev.cluvex.zedsecure.domain.config.AetherSmart2Profile
 import dev.cluvex.zedsecure.domain.config.AetherSmartProbe
 import dev.cluvex.zedsecure.platform.NetworkKind
 import dev.cluvex.zedsecure.platform.detectNetworkKind
-import dev.cluvex.zedsecure.shared.resources.Res
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withTimeoutOrNull
-import org.jetbrains.compose.resources.stringResource
 
 /**
  * Smart 2 dialog – fully network-driven.
@@ -184,16 +182,16 @@ internal fun AetherSmart2Dialog(
                 enabled = profile != null && !scanning,
                 onClick = { profile?.let(onCreate) },
             ) {
-                Text(stringResource(Res.string.aether_smart2_create))
+                Text("Create and activate")
             }
         },
         dismissButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 TextButton(onClick = { scanNonce++ }) {
-                    Text(stringResource(Res.string.aether_smart_rescan))
+                    Text("Scan again")
                 }
                 TextButton(onClick = onDismiss) {
-                    Text(stringResource(Res.string.action_cancel))
+                    Text("Cancel")
                 }
             }
         },
