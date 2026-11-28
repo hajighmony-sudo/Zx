@@ -109,7 +109,7 @@ data class VpnProfile(
     /** Local-only opt-in for DNS AUTO lifecycle behavior. Not copied into share links. */
     val dnsAutoManaged: Boolean = false,
 ) {
-    val isCustom: Boolean get() = source is ProfileSource.RawJson && !isAether
+    val isCustom: Boolean get() = source is ProfileSource.RawJson && !isAether && !isAetherSmart2
 
     val isServerless: Boolean by lazy { (source as? ProfileSource.RawJson)?.json?.let(CustomConfig::isServerless) == true }
 
@@ -139,6 +139,8 @@ data class VpnProfile(
     val isSingBoxConfig: Boolean get() = source is ProfileSource.SingBoxConfig
 
     val isAether: Boolean get() = aetherSettings() != null
+
+    val isAetherSmart2: Boolean get() = aetherSmart2Settings() != null
 
     val engineLabel: String
         get() = engineLabelOf(source)
@@ -170,7 +172,7 @@ data class VpnProfile(
 
     val isManagedTunnel: Boolean
         get() = isPsiphon || isDnsTunnel || isMasterDns || isDnsResolver || isTor || isSsh || isSniSpoof ||
-            isOpenConnect || isIkev2 || isCrossChain || isSingBoxConfig || isAether
+            isOpenConnect || isIkev2 || isCrossChain || isSingBoxConfig || isAether || isAetherSmart2
 
     val isDnsBasedTunnel: Boolean get() = isDnsTunnel || isMasterDns || isDnsResolver
 
@@ -187,12 +189,14 @@ data class VpnProfile(
 
     fun aetherSettings(): AetherProfile? = (source as? ProfileSource.RawJson)?.json?.let(AetherProfile::decode)
 
+    fun aetherSmart2Settings(): AetherSmart2Profile? = (source as? ProfileSource.RawJson)?.json?.let(AetherSmart2Profile::decode)
+
     fun proxyChainSettings(): List<String>? = (source as? ProfileSource.ProxyChain)?.memberIds
 
     val isCrossChain: Boolean get() = source is ProfileSource.CrossChain
 
     val canCarryChain: Boolean
-        get() = !isAether && when (source) {
+        get() = !isAether && !isAetherSmart2 && when (source)
             is ProfileSource.Link, is ProfileSource.RawJson, is ProfileSource.Sealed,
             is ProfileSource.ProxyChain, is ProfileSource.SingBox,
             is ProfileSource.Psiphon, is ProfileSource.Tor -> true
@@ -200,7 +204,7 @@ data class VpnProfile(
         }
 
     val canDialThroughProxy: Boolean
-        get() = !isAether && when (source) {
+        get() = !isAether && !isAetherSmart2 && when (source)
             is ProfileSource.Tor, is ProfileSource.Psiphon -> true
             is ProfileSource.Link, is ProfileSource.RawJson, is ProfileSource.Sealed,
             is ProfileSource.ProxyChain, is ProfileSource.SingBox -> true
@@ -208,7 +212,7 @@ data class VpnProfile(
         }
 
     val carrierRelaysUdp: Boolean
-        get() = !isAether && when (source) {
+        get() = !isAether && !isAetherSmart2 && when (source)
             is ProfileSource.Link, is ProfileSource.RawJson, is ProfileSource.Sealed,
             is ProfileSource.ProxyChain, is ProfileSource.SingBox, is ProfileSource.Psiphon -> true
             else -> false
@@ -217,7 +221,7 @@ data class VpnProfile(
     fun crossChainSettings(): Pair<String, String>? =
         (source as? ProfileSource.CrossChain)?.let { it.innerId to it.outerId }
 
-    val isEditable: Boolean get() = !isLocked
+    val isEditable: Boolean get() = !isLocked && !isAetherSmart2
 
     fun unsealed(): VpnProfile {
         val src = source as? ProfileSource.Sealed ?: return this
@@ -260,7 +264,8 @@ data class VpnProfile(
 
     fun rawPayload(): String? = when (val src = source) {
         is ProfileSource.Link -> src.link
-        is ProfileSource.RawJson -> AetherProfile.decode(src.json)?.let { AetherProfile.encode(it.copy(profileName = name)) } ?: src.json
+        is ProfileSource.RawJson -> AetherSmart2Profile.decode(src.json)?.let { AetherSmart2Profile.encode(it.copy(profileName = name)) }
+            ?: AetherProfile.decode(src.json)?.let { AetherProfile.encode(it.copy(profileName = name)) } ?: src.json
 
         is ProfileSource.Sealed -> null
 
@@ -299,7 +304,7 @@ data class VpnProfile(
             )
         }
         is ProfileSource.RawJson -> {
-            check(AetherProfile.decode(src.json) == null) { "Aether profiles do not build Xray config" }
+            check(AetherProfile.decode(src.json) == null && AetherSmart2Profile.decode(src.json) == null) { "Managed Aether profiles do not build Xray config directly" }
             XrayJsonBuilder.normalizeRawJson(
             src.json,
             forSpeedtest = forSpeedtest,
@@ -363,6 +368,7 @@ data class VpnProfile(
         const val ENGINE_XRAY = "Xray"
         const val ENGINE_SINGBOX = "sing-box"
         const val ENGINE_AETHER = "Aether"
+        const val ENGINE_AETHER2 = "Aether 2"
         const val ENGINE_CHAIN = "Chain"
         const val ENGINE_AUTO = "Auto"
 
@@ -518,6 +524,14 @@ data class VpnProfile(
             source = ProfileSource.RawJson(AetherProfile.encode(settings.copy(profileName = name.ifBlank { "Aether" }))), addedAt = addedAt,
         )
 
+        fun fromAetherSmart2(settings: AetherSmart2Profile, id: String, addedAt: Long, name: String): VpnProfile = VpnProfile(
+            id = id, name = name.ifBlank { "Aether · Smart 2" }, protocol = "AETHER2",
+            address = "127.0.0.1", port = 0,
+            transportLabel = "Aether 2 · Xray + Psiphon CDN",
+            source = ProfileSource.RawJson(AetherSmart2Profile.encode(settings.copy(profileName = name.ifBlank { "Aether · Smart 2" }))),
+            addedAt = addedAt,
+        )
+
         fun fromTor(id: String, addedAt: Long, name: String): VpnProfile = VpnProfile(
             id = id,
             name = name.ifBlank { "Tor" },
@@ -616,7 +630,11 @@ data class VpnProfile(
             is ProfileSource.CrossChain -> ENGINE_CHAIN
             is ProfileSource.AutoSelect -> ENGINE_AUTO
             is ProfileSource.Sealed -> sealedEngineLabel(src.zsxBase64)
-            is ProfileSource.RawJson -> if (AetherProfile.decode(src.json) != null) ENGINE_AETHER else ENGINE_XRAY
+            is ProfileSource.RawJson -> when {
+                AetherSmart2Profile.decode(src.json) != null -> ENGINE_AETHER2
+                AetherProfile.decode(src.json) != null -> ENGINE_AETHER
+                else -> ENGINE_XRAY
+            }
             is ProfileSource.ProxyChain -> ENGINE_XRAY
         }
 
@@ -645,6 +663,7 @@ data class VpnProfile(
             if (SniSpoofLink.isSniSpoofLink(text)) {
                 return SniSpoofLink.parse(text)?.second?.let { ProfileSource.SniSpoof(it) }
             }
+            if (AetherSmart2Profile.decode(text) != null) return ProfileSource.RawJson(text)
             if (AetherProfile.decode(text) != null) return ProfileSource.RawJson(text)
             when (SingBoxJson.shapeOf(text)) {
                 SingBoxJson.Shape.FullConfig -> return ProfileSource.SingBoxConfig(text)
