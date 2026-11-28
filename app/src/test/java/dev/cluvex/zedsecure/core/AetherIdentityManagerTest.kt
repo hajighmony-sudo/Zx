@@ -81,7 +81,7 @@ class AetherIdentityManagerTest {
             "private_key = \"\"\"",
             "ipv4 = \"192.0.2.10\"",
             "ipv6 = \"2001:db8::10\"",
-            "\"\\"\"",
+            "\"\"\""
         ).joinToString("\n")
         val parsed = AetherIdentityManager.parseIdentity(source)
         assertEquals("device-123", parsed?.deviceId)
