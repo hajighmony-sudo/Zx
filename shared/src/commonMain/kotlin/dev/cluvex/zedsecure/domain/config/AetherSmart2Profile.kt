@@ -71,7 +71,7 @@ data class AetherSmart2Profile(
                 networkName = networkName,
                 hasIpv6 = hasIpv6,
                 dnsPreference = if (preferCloudflare) "cloudflare" else "smartguard",
-                xrayConfigTemplate = buildXrayConfig(preferCloudflare),
+                xrayConfigTemplate = buildXrayConfig(preferCloudflare, hasIpv6),
             )
         }
 
@@ -84,7 +84,7 @@ data class AetherSmart2Profile(
         fun encode(profile: AetherSmart2Profile): String =
             Json { encodeDefaults = true }.encodeToString(profile.copy(marker = MARKER))
 
-        private fun buildXrayConfig(preferCloudflare: Boolean): String {
+        private fun buildXrayConfig(preferCloudflare: Boolean, hasIpv6: Boolean): String {
             val firstDoh = if (preferCloudflare) {
                 "\"https://cloudflare-dns.com/dns-query\""
             } else {
@@ -95,6 +95,7 @@ data class AetherSmart2Profile(
             } else {
                 "\"https://cloudflare-dns.com/dns-query\""
             }
+            val queryStrategy = if (hasIpv6) "UseIP" else "UseIPv4"
             return """
                 {
                   "log": { "loglevel": "warning" },
@@ -137,7 +138,8 @@ data class AetherSmart2Profile(
                         "tag": "domestic-dns_1_0"
                       }
                     ],
-                    "tag": "dns-module"
+                    "tag": "dns-module",
+                    "queryStrategy": "$queryStrategy"
                   },
                   "fakedns": [
                     { "ipPool": "198.18.0.0/15", "poolSize": 65535 }
