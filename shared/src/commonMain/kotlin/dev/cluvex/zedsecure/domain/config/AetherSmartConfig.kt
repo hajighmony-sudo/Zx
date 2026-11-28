@@ -19,6 +19,8 @@ data class AetherSmartInput(
     /** Median latency of repeated requests to the WARP registration API. */
     val apiMs: Int? = null,
     val edgeJitterMs: Int? = null,
+    /** Median-spread estimate for repeated WARP API requests. */
+    val apiJitterMs: Int? = null,
     val goal: AetherSmartGoal = AetherSmartGoal.Auto,
     /** Local link estimates; they are hints, not proof that a tunnel transport works. */
     val link: LinkQuality? = null,
@@ -65,7 +67,8 @@ object AetherSmartConfig {
         val unstable = edgeLoss >= UNSTABLE_LOSS_PERCENT ||
             (input.edgeJitterMs ?: 0) >= UNSTABLE_JITTER_MS
         val apiSlow = (input.apiMs ?: 0) >= SLOW_API_MS
-        val apiDegraded = apiLoss >= DEGRADED_API_LOSS_PERCENT || apiSlow
+        val apiUnstable = (input.apiJitterMs ?: 0) >= UNSTABLE_API_JITTER_MS
+        val apiDegraded = apiLoss >= DEGRADED_API_LOSS_PERCENT || apiSlow || apiUnstable
 
         val weak = link != null && (
             link.generation == "2G" || link.generation == "3G" ||
@@ -188,6 +191,7 @@ object AetherSmartConfig {
     private const val UNSTABLE_LOSS_PERCENT = 34
     private const val DEGRADED_API_LOSS_PERCENT = 34
     private const val SLOW_API_MS = 900
+    private const val UNSTABLE_API_JITTER_MS = 240
     private const val STRONG_DOWN_KBPS = 15_000
     private const val STRONG_UP_KBPS = 3_000
     private const val STRONG_SIGNAL_DBM = -85
