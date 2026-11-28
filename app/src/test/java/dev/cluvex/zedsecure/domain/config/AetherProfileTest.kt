@@ -26,14 +26,28 @@ class AetherProfileTest {
 
     @Test
     fun attemptsKeepUserSelectionFirstAndRemoveDuplicates() {
-        val profile = AetherProfile(protocol = "masque", http2 = false)
+        val profile = AetherProfile(protocol = "masque", http2 = false, smartFailover = true)
 
         val attempts = profile.attempts()
 
         assertEquals(profile, attempts.first())
         assertEquals(attempts.size, attempts.distinct().size)
         assertTrue(attempts.any { it.protocol == "wg" })
+        assertTrue(attempts.any { it.protocol == "gool" && it.http2 })
+        assertTrue(attempts.any { it.protocol == "mim" && it.http2 })
         assertTrue(attempts.any { it.protocol == "masque" && it.http2 && it.fragment })
+    }
+
+    @Test
+    fun manualProfilesNeverSilentlySwitchTransport() {
+        val manual = AetherProfile(protocol = "masque", http2 = false, smartFailover = false)
+        assertEquals(listOf(manual), manual.attempts())
+    }
+
+    @Test
+    fun smartProfilesCanTryAllNativeTransportFamilies() {
+        val smart = AetherProfile(protocol = "masque", smartFailover = true)
+        assertTrue(smart.attempts().map { it.protocol }.containsAll(listOf("masque", "wg", "gool", "mim")))
     }
 
     @Test
