@@ -2961,6 +2961,8 @@ private fun AetherSmartDialog(
     var network by remember { mutableStateOf<dev.cluvex.zedsecure.platform.NetworkKind?>(null) }
     var edgeMs by remember { mutableStateOf<Int?>(null) }
     var apiMs by remember { mutableStateOf<Int?>(null) }
+    var pingMs by remember { mutableStateOf<Int?>(null) }
+    var linkQuality by remember { mutableStateOf<dev.cluvex.zedsecure.platform.LinkQuality?>(null) }
     var udpReachable by remember { mutableStateOf<Boolean?>(null) }
     var tlsSniReachable by remember { mutableStateOf<Boolean?>(null) }
     var tcp443Reachable by remember { mutableStateOf<Boolean?>(null) }
@@ -2981,6 +2983,7 @@ private fun AetherSmartDialog(
     var lastInput by remember { mutableStateOf<dev.cluvex.zedsecure.domain.config.AetherSmartInput?>(null) }
     LaunchedEffect(scanNonce) {
         profile = null; probed = false; ipv6 = null; edgeMs = null; apiMs = null
+        pingMs = null; linkQuality = null
         edgeJitter = null; apiJitter = null; edgeLossPercent = null; apiLossPercent = null
         udpReachable = null; tlsSniReachable = null
         tcp443Reachable = null; dnsSystemMatchesDoh = null
@@ -3009,9 +3012,11 @@ private fun AetherSmartDialog(
         asn = probe.asn
         ooniAnomalyPercent = probe.ooniAnomalyPercent
         ooniSamples = probe.ooniSamples
-        probed = true
         val info = infoJob.await()
         ipv6 = !info?.ipv6.isNullOrBlank()
+        pingMs = info?.pingMs
+        val link = dev.cluvex.zedsecure.platform.detectLinkQuality()
+        linkQuality = link
         val input = dev.cluvex.zedsecure.domain.config.AetherSmartInput(
             network = kind,
             hasIpv6 = ipv6 == true,
@@ -3023,7 +3028,7 @@ private fun AetherSmartDialog(
             apiMs = probe.apiMs,
             edgeJitterMs = probe.edgeJitterMs,
             apiJitterMs = probe.apiJitterMs,
-            link = dev.cluvex.zedsecure.platform.detectLinkQuality(),
+            link = link,
             edgeLossPercent = probe.edgeLossPercent,
             apiLossPercent = probe.apiLossPercent,
             udpReachable = probe.udpReachable,
@@ -3034,6 +3039,7 @@ private fun AetherSmartDialog(
         )
         lastInput = input
         profile = dev.cluvex.zedsecure.domain.config.AetherSmartConfig.build(input.copy(goal = goal))
+        probed = true
     }
     LaunchedEffect(goal) {
         lastInput?.let { profile = dev.cluvex.zedsecure.domain.config.AetherSmartConfig.build(it.copy(goal = goal)) }
@@ -3059,6 +3065,16 @@ private fun AetherSmartDialog(
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
                 SmartStepRow(stringResource(Res.string.aether_smart_step_net), network != null, true, netLabel)
+                SmartStepRow("Network RTT", probed, pingMs != null, pingMs?.let { "$it ms" } ?: naText)
+                val linkSummary = linkQuality?.let { link -> buildList {
+                    link.generation?.let { add(it) }
+                    if (link.downKbps > 0) add("↓ " + link.downKbps + " kbps")
+                    if (link.upKbps > 0) add("↑ " + link.upKbps + " kbps")
+                    link.signalDbm?.let { add(it.toString() + " dBm") }
+                    add(if (link.metered) "metered" else "unmetered")
+                    add(if (link.validated) "validated" else "not validated")
+                }.joinToString(" · ") } ?: naText
+                SmartStepRow("Physical link estimate", probed, linkQuality?.validated != false, linkSummary)
                 SmartStepRow(
                     stringResource(Res.string.aether_smart_step_edge), probed, edgeMs != null,
                     if (edgeMs != null) "$edgeMs ms" else blockedText,
