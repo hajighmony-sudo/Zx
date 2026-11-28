@@ -141,9 +141,13 @@ internal object AetherIdentityManager {
                 renewalDirectory.deleteRecursively() &&
                 renewalDirectory.mkdirs()
         }
-        if (!prepared) return@withLock false
+        if (!prepared) {
+            withContext(Dispatchers.IO) { AetherIdentityVault.sealAndShred(workingDirectory) }
+            return@withLock false
+        }
 
         val ready = AtomicBoolean(false)
+        var settled = true
         try {
             if (register(renewalDirectory)) {
                 withContext(Dispatchers.IO) {
@@ -158,15 +162,16 @@ internal object AetherIdentityManager {
             }
         } finally {
             withContext(NonCancellable + Dispatchers.IO) {
-                if (ready.get()) {
+                settled = if (ready.get()) {
                     settleRenewal(workingDirectory, renewalDirectory)
                 } else {
                     renewalDirectory.deleteRecursively()
+                    true
                 }
                 AetherIdentityVault.sealAndShred(workingDirectory)
             }
         }
-        ready.get()
+        ready.get() && settled
     }
 
     /**
