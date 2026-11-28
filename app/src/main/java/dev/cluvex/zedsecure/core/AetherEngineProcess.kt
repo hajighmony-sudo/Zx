@@ -12,6 +12,7 @@ import java.io.File
 internal class AetherEngineProcess(
     private val nativeLibraryDir: File,
     private val workingDirectory: File,
+    private val sealIdentitiesOnStop: Boolean = true,
 ) {
     @Volatile private var process: Process? = null
     private val recent = java.util.ArrayDeque<String>()
@@ -112,7 +113,7 @@ internal class AetherEngineProcess(
             runCatching { child.waitFor() }
             process = null
         }
-        AetherIdentityVault.sealAndShred(workingDirectory)
+        if (sealIdentitiesOnStop) AetherIdentityVault.sealAndShred(workingDirectory)
     }
 
     companion object {
