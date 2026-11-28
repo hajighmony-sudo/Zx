@@ -964,8 +964,15 @@ class ZedVpnService : VpnService() {
             var routeReady = false
             var lastDetail = ""
             try {
-                val aetherPort = LocalPortPicker.pick(LocalPorts.AETHER2_SOCKS)
+                // Reserve the Xray upstream inbound first, then choose Aether's SOCKS
+                // listener around it. The two listeners must never share a port: if the
+                // preferred Aether port happened to be 10822, xrayConfig() rejected the
+                // profile (and a busy upstream port could make Xray fail to start).
                 val upstreamPort = LocalPortPicker.pick(LocalPorts.AETHER2_UPSTREAM)
+                val aetherPort = LocalPortPicker.pick(
+                    LocalPorts.AETHER2_SOCKS,
+                    taken = setOf(upstreamPort),
+                )
                 val template = profile.xrayConfig(aetherPort, upstreamPort)
                 val geoReady = runCatching {
                     dev.cluvex.zedsecure.data.assets.GeoAssetsRepository(this@ZedVpnService).allPresent()
