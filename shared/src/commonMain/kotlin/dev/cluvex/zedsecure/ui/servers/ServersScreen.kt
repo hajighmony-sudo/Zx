@@ -351,6 +351,7 @@ fun ServersScreen(
     var showWarp by remember { mutableStateOf(false) }
     var showAether by remember { mutableStateOf(false) }
     var showAetherSmart by remember { mutableStateOf(false) }
+    var showAetherSmart2 by remember { mutableStateOf(false) }
 
     val servers = profiles.filterNot { it.isLocked }
 
@@ -1481,6 +1482,10 @@ fun ServersScreen(
                 showAddSheet = false
                 showAetherSmart = true
             },
+            onAetherSmart2 = {
+                showAddSheet = false
+                showAetherSmart2 = true
+            },
             onSniSpoof = {
                 showAddSheet = false
                 showSniSpoof = true
@@ -1526,6 +1531,20 @@ fun ServersScreen(
             onCustomize = {
                 showAetherSmart = false
                 showAether = true
+            },
+        )
+    }
+
+    if (showAetherSmart2) {
+        AetherSmart2Dialog(
+            onDismiss = { showAetherSmart2 = false },
+            onCreate = { profile ->
+                showAetherSmart2 = false
+                val created = repository.addAetherSmart2(profile, profile.profileName)
+                check(created.protocol == "AETHER2") { "Smart 2 must create an Aether Smart 2 profile" }
+                repository.setActive(created.id)
+                toastRes(Res.string.aether_smart2_done)
+                onServerActivated()
             },
         )
     }
@@ -2478,6 +2497,7 @@ private fun AddServerSheet(
     onWarp: () -> Unit,
     onAether: () -> Unit,
     onAetherSmart: () -> Unit,
+    onAetherSmart2: () -> Unit,
     onSniSpoof: () -> Unit,
     onProxyChain: () -> Unit,
     onCrossChain: () -> Unit,
@@ -2530,6 +2550,7 @@ private fun AddServerSheet(
             Option(Res.drawable.ic_speed, Res.string.ssh_add_title, onSsh)
             Option(Res.drawable.ic_public, Res.string.warp_add_title, onWarp, free = true)
             Option(Res.drawable.ic_bolt, Res.string.aether_smart_title, onAetherSmart, free = true)
+            Option(Res.drawable.ic_bolt, Res.string.aether_smart2_title, onAetherSmart2, free = true)
             OptionText(Res.drawable.ic_public, "Aether · WARP engine", onAether)
             if (LocalPlatform.current.supportsSniSpoof) Option(Res.drawable.ic_bolt, Res.string.snispoof_add_title, onSniSpoof)
 
