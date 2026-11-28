@@ -57,6 +57,8 @@ internal object AetherIdentityManager {
                 listOf(
                     "--register", "all",
                     "--config", File(workingDirectory, "aether.toml").absolutePath,
+                    "--wg-config", File(workingDirectory, "aether-wg.toml").absolutePath,
+                    "--masque-config", File(workingDirectory, "aether-masque.toml").absolutePath,
                     *apiAddress.takeIf { it.isNotBlank() && it.all { c -> c.isLetterOrDigit() || c in ".:-[]" } }
                         ?.let { listOf("--api-address", it) }.orEmpty().toTypedArray(),
                     "--log-level", "info",
