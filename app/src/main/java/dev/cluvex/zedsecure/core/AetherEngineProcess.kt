@@ -24,6 +24,10 @@ internal class AetherEngineProcess(
     @Volatile var candidateSeen: Boolean = false
         private set
 
+    /** Accumulated, redacted transport symptoms consumed by Smart 2 after a failed attempt. */
+    @Volatile var smartSignals: Int = 0
+        private set
+
     /** True only after native Aether confirms that the requested identity set was saved. */
     @Volatile var registrationReady: Boolean = false
         private set
@@ -39,6 +43,7 @@ internal class AetherEngineProcess(
     fun start(arguments: List<String>, environment: Map<String, String> = emptyMap()) {
         check(process?.let(::isProcessAlive) != true) { "Aether is already running" }
         candidateSeen = false
+        smartSignals = 0
         registrationReady = false
         scanResult = null
         AetherIdentityVault.sealAndShred(workingDirectory)
@@ -71,6 +76,7 @@ internal class AetherEngineProcess(
                 child.inputStream.bufferedReader().useLines { lines ->
                     lines.forEach {
                         LogBus.append("I/Aether: " + it.take(MAX_LOG_LINE))
+                        smartSignals = smartSignals or AetherSmart2Brain.signalsOf(it)
                         AetherSmart2ScanParser.parse(it)?.let { selected ->
                             scanResult = selected
                             candidateSeen = true
