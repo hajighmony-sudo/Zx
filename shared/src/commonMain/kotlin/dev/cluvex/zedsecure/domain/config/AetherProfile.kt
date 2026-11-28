@@ -68,6 +68,9 @@ data class AetherProfile(
             add("--stats"); add("--stats-secs"); add("15")
             add("--log-level"); add("info")
             add("--config"); add("$workingDirectory/aether.toml")
+            // Registration and tunnel runs must use the same identity paths.
+            add("--wg-config"); add("$workingDirectory/aether-wg.toml")
+            add("--masque-config"); add("$workingDirectory/aether-masque.toml")
         }
     }
 
@@ -88,6 +91,8 @@ data class AetherProfile(
                 when (arg) {
                     "127.0.0.1:$PREVIEW_SOCKS_PORT" -> "127.0.0.1:<SOCKS_PORT>"
                     "$PREVIEW_HOME/aether.toml" -> "<AETHER_HOME>/aether.toml"
+                    "$PREVIEW_HOME/aether-wg.toml" -> "<AETHER_HOME>/aether-wg.toml"
+                    "$PREVIEW_HOME/aether-masque.toml" -> "<AETHER_HOME>/aether-masque.toml"
                     else -> arg
                 }
             }
