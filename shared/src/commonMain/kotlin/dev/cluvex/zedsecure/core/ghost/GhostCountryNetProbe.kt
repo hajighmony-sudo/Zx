@@ -17,10 +17,7 @@ import java.util.TimeZone
  * rough bandwidth toward representative endpoints in selected countries.
  *
  * Inspired by Cloudflare speed-test style measurements (latency + small
- * download sample) and multi-host ping tools — implemented with plain
- * HTTPS so it stays dependency-free and only lives inside Ghost Mode.
- *
- * Does not modify VPN cores, routing, UI themes or any non-Ghost feature.
+ * download sample). Dependency-free; Ghost Mode only.
  */
 object GhostCountryNetProbe {
 
@@ -100,13 +97,26 @@ object GhostCountryNetProbe {
         val now = System.currentTimeMillis()
         val iran = formatIranTime(now)
         val summary = buildString {
-            append("کشورهای قابل‌دسترس: ${reachable.size}/${samples.size}")
+            append("کشورهای قابل‌دسترس: ")
+            append(reachable.size)
+            append("/")
+            append(samples.size)
             if (best != null) {
-                append(" • بهترین: ${best.countryFa} (${best.latencyMs} ms")
-                if (best.downloadKbps > 0) append(", ~${\"%.0f\".format(best.downloadKbps)} kbps")
+                append(" • بهترین: ")
+                append(best.countryFa)
+                append(" (")
+                append(best.latencyMs)
+                append(" ms")
+                if (best.downloadKbps > 0) {
+                    append(", ~")
+                    append(best.downloadKbps.toLong())
+                    append(" kbps")
+                }
                 append(")")
             }
-            append(" • میانگین تأخیر: ${avg} ms")
+            append(" • میانگین تأخیر: ")
+            append(avg)
+            append(" ms")
         }
 
         CountryReport(
