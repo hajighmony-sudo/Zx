@@ -167,6 +167,13 @@ object AetherSmartConfig {
             noize = noize,
             http2 = h2,
             fragment = useFragment,
+            // ECH is a targeted response to a failed TLS/SNI stage, not a default
+            // obfuscation toggle. The DoH resolver is pinned to a known Cloudflare IP.
+            ech = sniFiltered,
+            echDns = "https://cloudflare-dns.com/dns-query@address=1.1.1.1@sni=cloudflare-dns.com",
+            echDomain = "cloudflare-ech.com",
+            fragmentSize = if (useFragment) "8-16" else "",
+            fragmentDelay = if (useFragment) "2-10" else "",
             apiAddress = apiAddress,
         )
     }
