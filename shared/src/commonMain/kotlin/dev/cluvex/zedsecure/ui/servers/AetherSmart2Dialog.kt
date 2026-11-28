@@ -92,6 +92,8 @@ internal fun AetherSmart2Dialog(
                         "Native Aether · ${profile!!.aetherProfile.protocol.uppercase()} · " +
                             "${profile!!.aetherProfile.scanMode} scan · ${profile!!.aetherProfile.noize} noize · " +
                             "${if (profile!!.aetherProfile.http2) "HTTP/2" else "native transport"} · " +
+                            "${if (profile!!.aetherProfile.ech) "ECH auto" else "ECH off"} · " +
+                            "${if (profile!!.aetherProfile.fragment) "fragmented ClientHello" else "normal ClientHello"} · " +
                             "${if (profile!!.aetherProfile.smartFailover) "Smart failover" else "single route"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
