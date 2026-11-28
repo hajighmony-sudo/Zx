@@ -196,7 +196,7 @@ data class VpnProfile(
     val isCrossChain: Boolean get() = source is ProfileSource.CrossChain
 
     val canCarryChain: Boolean
-        get() = !isAether && !isAetherSmart2 && when (source)
+        get() = !isAether && !isAetherSmart2 && when (source) {
             is ProfileSource.Link, is ProfileSource.RawJson, is ProfileSource.Sealed,
             is ProfileSource.ProxyChain, is ProfileSource.SingBox,
             is ProfileSource.Psiphon, is ProfileSource.Tor -> true
@@ -204,7 +204,7 @@ data class VpnProfile(
         }
 
     val canDialThroughProxy: Boolean
-        get() = !isAether && !isAetherSmart2 && when (source)
+        get() = !isAether && !isAetherSmart2 && when (source) {
             is ProfileSource.Tor, is ProfileSource.Psiphon -> true
             is ProfileSource.Link, is ProfileSource.RawJson, is ProfileSource.Sealed,
             is ProfileSource.ProxyChain, is ProfileSource.SingBox -> true
@@ -212,7 +212,7 @@ data class VpnProfile(
         }
 
     val carrierRelaysUdp: Boolean
-        get() = !isAether && !isAetherSmart2 && when (source)
+        get() = !isAether && !isAetherSmart2 && when (source) {
             is ProfileSource.Link, is ProfileSource.RawJson, is ProfileSource.Sealed,
             is ProfileSource.ProxyChain, is ProfileSource.SingBox, is ProfileSource.Psiphon -> true
             else -> false
