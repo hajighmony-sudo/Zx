@@ -97,6 +97,7 @@ class ZedVpnService : VpnService() {
     private var attemptJob: Job? = null
     @Volatile private var attemptStartedAt = 0L
     private var retryDelayMs = RETRY_FIRST_MS
+    private val AETHER_SMART2_STARTUP_BUDGET_MS = 180_000L
 
     @Volatile private var flashSignalsEnabled = true
     @Volatile private var flashTrafficConfirmed = false
