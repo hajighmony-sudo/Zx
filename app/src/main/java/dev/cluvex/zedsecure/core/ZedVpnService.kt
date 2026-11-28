@@ -435,7 +435,7 @@ class ZedVpnService : VpnService() {
                     stopEverything(); return@launch
                 }
 
-                if (!bridge(descriptor, port, tunMtu, pipeline = true)) return@launch
+                if (!bridge(descriptor, port, tunMtu, pipeline = true, verifyTraffic = verifyTraffic)) return@launch
 
                 if (!TunnelReadiness.verify(port, timeoutMs = 7_000, attempts = 4)) {
                     val reason = if ((sniSpoof?.ackTimeouts ?: 0) > 0) {
@@ -926,7 +926,7 @@ class ZedVpnService : VpnService() {
                             if (lastDetail.isNotBlank()) " ($lastDetail)" else "",
                     )
                 }
-                bridgeEngine(descriptor, readyPort, tunMtu)
+                bridgeEngine(descriptor, readyPort, tunMtu, verifyTraffic = true)
                 LogBus.append("I/Aether: native engine ready on 127.0.0.1:$readyPort")
             } catch (e: Exception) {
                 if (userStop) return@launch
@@ -1119,7 +1119,7 @@ class ZedVpnService : VpnService() {
                     "Aether Smart 2 could not establish a native Aether route" +
                         lastDetail.takeIf { it.isNotBlank() }?.let { ": $it" }.orEmpty()
                 }
-                if (!bridge(descriptor, socksPort, tunMtu, pipeline = true)) return@launch
+                if (!bridge(descriptor, socksPort, tunMtu, pipeline = true, verifyTraffic = true)) return@launch
                 VpnManager.activeSocksPort = socksPort
                 LogBus.append("I/Aether Smart 2: native Aether primary engine and Xray DNS/routing front are ready")
                 finishConnected()
@@ -1249,6 +1249,7 @@ class ZedVpnService : VpnService() {
         tunMtu: Int,
         onion: Boolean = false,
         unreachable: Int? = null,
+        verifyTraffic: Boolean = false,
     ) {
         if (enginePort <= 0) {
             VpnManager.onError(getString(R.string.crosschain_inner_failed))
@@ -1280,6 +1281,7 @@ class ZedVpnService : VpnService() {
         socksPort: Int,
         tunMtu: Int,
         pipeline: Boolean = false,
+        verifyTraffic: Boolean = false,
     ): Boolean {
         advance(VpnNotifications.Stage.Engine)
 
@@ -1339,6 +1341,16 @@ class ZedVpnService : VpnService() {
                     }
                 }
             }
+        }
+
+        if (ok && verifyTraffic && !TunnelReadiness.verifyThroughTun(timeoutMs = 4_000, attempts = 2)) {
+            LogBus.append("E/TUN: proxy core started, but real app traffic did not pass through the VPN interface")
+            VpnManager.onError(getString(R.string.engine_failed_tunnel))
+            stopEverything()
+            return false
+        }
+        if (ok && verifyTraffic) {
+            LogBus.append("I/TUN: real app traffic passed through the VPN interface and proxy pipeline")
         }
 
         if (!ok) {
