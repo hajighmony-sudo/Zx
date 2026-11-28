@@ -207,16 +207,8 @@ internal object AetherIdentityManager {
                 val engine = AetherEngineProcess(nativeLibraryDir, staging, sealIdentitiesOnStop = false)
                 try {
                     engine.start(registrationArguments(staging, apiAddress, registerKind))
-                    val deadline = System.currentTimeMillis() + timeoutMs
-                    while (System.currentTimeMillis() < deadline) {
-                        if (engine.registrationReady) break
-                        if (!engine.isAlive()) {
-                            Thread.sleep(150)
-                            break
-                        }
-                        Thread.sleep(POLL_MS)
-                    }
-                    engine.registrationReady && files.all { isValidIdentityFile(File(staging, it)) }
+                    engine.awaitRegistration(timeoutMs) &&
+                        files.all { isValidIdentityFile(File(staging, it)) }
                 } catch (failure: Exception) {
                     LogBus.append("W/Aether: native identity renewal failed (" + failure.javaClass.simpleName + ")")
                     false
