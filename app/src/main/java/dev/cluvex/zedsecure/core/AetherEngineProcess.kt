@@ -119,6 +119,6 @@ internal class AetherEngineProcess(
         private const val TAG = "ZX-Aether"
         private const val MAX_LOG_LINE = 2048
         private const val STOP_TIMEOUT_MS = 1500L
-        private val REGISTRATION_READY = Regex("""identities ready:\\s*\\S""", RegexOption.IGNORE_CASE)
+        private val REGISTRATION_READY = Regex("""identities ready:\s*\S""", RegexOption.IGNORE_CASE)
     }
 }
