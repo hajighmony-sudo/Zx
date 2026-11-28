@@ -159,6 +159,15 @@ jobs:
           (cd dist && sha256sum *.apk > SHA256SUMS.txt)
           ls -lh dist
 
+      - name: Upload verified Android debug APKs
+        id: upload_apks
+        uses: actions/upload-artifact@v7
+        with:
+          name: ZX-GP-CI-Android-Debug
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Add CI summary
         if: always()
         shell: bash
@@ -198,12 +207,3 @@ jobs:
             fi
           done
           exit "$failed"
-
-      - name: Upload verified Android debug APKs
-        id: upload_apks
-        uses: actions/upload-artifact@v7
-        with:
-          name: ZX-GP-CI-Android-Debug
-          path: dist/*
-          if-no-files-found: error
-          retention-days: 14
