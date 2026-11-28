@@ -338,7 +338,7 @@ class ZedVpnService : VpnService() {
                     // CleanBrowsing Adult Filter blocks adult domains and enforces SafeSearch.
                     runCatching { addDnsServer("185.228.168.10") }
                     runCatching { addDnsServer("185.228.169.11") }
-                } else if (kind == VpnManager.KIND_XRAY) {
+                } else if (kind == VpnManager.KIND_XRAY || kind == VpnManager.KIND_AETHER2) {
                     val vpnDns = if (settings.localDnsEnabled) emptyList()
                     else vpnDnsServers(settings.vpnDns, settings.enableIpv6)
                     if (vpnDns.isNotEmpty()) vpnDns.forEach { runCatching { addDnsServer(it) } }
@@ -372,6 +372,7 @@ class ZedVpnService : VpnService() {
         VpnManager.setActiveKind(kind)
 
         if (kind == VpnManager.KIND_AETHER) { startAether(configJson, descriptor, tunMtu); return }
+        if (kind == VpnManager.KIND_AETHER2) { startAether2(configJson, socksPort, descriptor, tunMtu); return }
 
         when (kind) {
             VpnManager.KIND_PSIPHON -> startPsiphon(configJson, descriptor, tunMtu)
@@ -1289,6 +1290,7 @@ class ZedVpnService : VpnService() {
             VpnManager.KIND_SSH -> "SSH"
             VpnManager.KIND_OPENCONNECT -> "OpenConnect"
             VpnManager.KIND_SINGBOX -> "sing-box"
+            VpnManager.KIND_AETHER2 -> "Aether 2 · Psiphon CDN"
             VpnManager.KIND_AETHER -> when (aetherRouteLabel) {
                 "psiphon" -> "Aether · Psiphon"
                 "tor" -> "Aether · Tor"
@@ -1312,6 +1314,7 @@ class ZedVpnService : VpnService() {
         VpnManager.KIND_TOR -> "Tor"
         VpnManager.KIND_SSH -> "SSH"
         VpnManager.KIND_AETHER -> "Aether"
+        VpnManager.KIND_AETHER2 -> "Aether 2"
         else -> "Xray"
     }
 
@@ -1551,6 +1554,7 @@ class ZedVpnService : VpnService() {
                 delay(waited)
                 val running = when (kind) {
                     VpnManager.KIND_AETHER -> aetherEngine?.isAlive() == true && FrontCore.isRunning
+                    VpnManager.KIND_AETHER2 -> aetherEngine?.isAlive() == true && XrayController.isRunning
                     VpnManager.KIND_PSIPHON -> psiphon?.isRunning == true
                     VpnManager.KIND_DNS_TUNNEL -> dnsTunnel?.isRunning == true
                     VpnManager.KIND_MASTERDNS -> masterDns?.isRunning == true
@@ -1577,7 +1581,7 @@ class ZedVpnService : VpnService() {
                 }
 
                 val (down, up) = if (FrontCore.isRunning) FrontCore.readTrafficDelta() else when (kind) {
-                    VpnManager.KIND_XRAY, VpnManager.KIND_SNISPOOF -> XrayController.readTrafficDelta()
+                    VpnManager.KIND_XRAY, VpnManager.KIND_SNISPOOF, VpnManager.KIND_AETHER2 -> XrayController.readTrafficDelta()
 
                     VpnManager.KIND_PSIPHON -> uidTrafficDelta()
                     VpnManager.KIND_OPENCONNECT -> { openConnect?.pokeStats(); openConnect?.trafficDelta() ?: (0L to 0L) }
@@ -1712,7 +1716,7 @@ class ZedVpnService : VpnService() {
             VpnBypassLan.Bypass -> true
             VpnBypassLan.NotBypass -> false
             VpnBypassLan.FollowConfig ->
-                if (kind == VpnManager.KIND_XRAY || kind == VpnManager.KIND_SNISPOOF) {
+                if (kind == VpnManager.KIND_XRAY || kind == VpnManager.KIND_SNISPOOF || kind == VpnManager.KIND_AETHER2) {
                     configRoutesPrivateDirect(configJson)
                 } else {
                     RoutingMigration.effectiveRulesets(settings).any { rule ->
@@ -1723,8 +1727,9 @@ class ZedVpnService : VpnService() {
         }
 
     private fun configRoutesPrivateDirect(configJson: String): Boolean = runCatching {
-        val root = JSONObject(configJson)
-
+        val smart2 = dev.cluvex.zedsecure.domain.config.AetherSmart2Profile.decode(configJson)
+        val source = smart2?.xrayConfig(LocalPorts.AETHER2_SOCKS, LocalPorts.AETHER2_UPSTREAM) ?: configJson
+        val root = JSONObject(source)
         val xray = root.optJSONObject("xray") ?: root
         val rules = xray.optJSONObject("routing")?.optJSONArray("rules") ?: return false
         for (i in 0 until rules.length()) {
@@ -1747,7 +1752,11 @@ class ZedVpnService : VpnService() {
     private fun VpnService.Builder.addDnsServersFrom(configJson: String) {
         var added = false
         runCatching {
-            val dns = JSONObject(configJson).optJSONObject("dns") ?: return@runCatching
+            val smart2 = dev.cluvex.zedsecure.domain.config.AetherSmart2Profile.decode(configJson)
+            val source = smart2?.xrayConfig(LocalPorts.AETHER2_SOCKS, LocalPorts.AETHER2_UPSTREAM) ?: configJson
+            val root = JSONObject(source)
+            val xray = root.optJSONObject("xray") ?: root
+            val dns = xray.optJSONObject("dns") ?: return@runCatching
             val servers = dns.optJSONArray("servers") ?: return@runCatching
             for (i in 0 until servers.length()) {
                 val entry = servers.opt(i)
@@ -1756,7 +1765,7 @@ class ZedVpnService : VpnService() {
                     is JSONObject -> entry.optString("address").ifBlank { null }
                     else -> null
                 }
-                if (addr != null && !addr.startsWith("http")) {
+                if (addr != null && !addr.startsWith("http") && addr != "fakedns" && addr != "localhost") {
                     runCatching { addDnsServer(addr); added = true }
                 }
             }
