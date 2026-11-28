@@ -68,6 +68,7 @@ internal object AetherIdentityVault {
             val target = File(dir, source.name + SEALED_SUFFIX)
             val temp = File(dir, source.name + SEALED_SUFFIX + ".tmp")
             val backup = File(dir, source.name + SEALED_SUFFIX + ".bak")
+            val hadExistingTarget = target.exists()
             var movedOldTarget = false
             val saved = runCatching {
                 writeSynced(temp, encrypted)
@@ -96,7 +97,7 @@ internal object AetherIdentityVault {
                 if (movedOldTarget && backup.exists()) {
                     if (target.exists()) runCatching { target.delete() }
                     runCatching { backup.renameTo(target) }
-                } else if (!movedOldTarget && !backup.exists()) {
+                } else if (!hadExistingTarget) {
                     // A partial new file is safe to discard only when no old target was moved.
                     // The plaintext source remains intact and can be sealed again later.
                     runCatching { target.delete() }
