@@ -103,6 +103,33 @@ class AetherIdentityManagerTest {
     }
 
     @Test
+    fun mapsWireGuardOverMasqueToItsDedicatedInnerIdentity() {
+        assertEquals(
+            listOf("aether-masque.toml", "aether-masque-gool.toml"),
+            AetherIdentityManager.filesOf("wg-over-masque"),
+        )
+        assertEquals(
+            listOf("aether-masque.toml", "aether-masque-gool.toml"),
+            AetherIdentityManager.filesOf("wireguard_over_masque"),
+        )
+    }
+
+    @Test
+    fun parsesIdentityFieldsOutsideTripleQuotedPrivateKey() {
+        val source = listOf(
+            "device_id = \"device-123\"",
+            "private_key = \"\"\"",
+            "ipv4 = \"192.0.2.10\"",
+            "ipv6 = \"2001:db8::10\"",
+            "\"\"\"",
+        ).joinToString("\n")
+        val parsed = AetherIdentityManager.parseIdentity(source)
+        assertEquals("device-123", parsed?.deviceId)
+        assertEquals("", parsed?.ipv4)
+        assertEquals("", parsed?.ipv6)
+    }
+
+    @Test
     fun statusNeverReturnsPrivateKeyContents() {
         val directory = Files.createTempDirectory("zx-aether-status").toFile()
         try {
