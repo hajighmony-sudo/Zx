@@ -61,7 +61,11 @@ internal object AetherIdentityManager {
         if (!workingDirectory.exists() && !workingDirectory.mkdirs()) return@withContext false
 
         AetherIdentityVault.unsealInto(workingDirectory)
-        if (missingFiles(workingDirectory).isEmpty()) return@withContext true
+        if (missingFiles(workingDirectory).isEmpty()) {
+            // Keep credentials encrypted at rest between the preflight and the tunnel process start.
+            AetherIdentityVault.sealAndShred(workingDirectory)
+            return@withContext true
+        }
 
         val engine = AetherEngineProcess(nativeLibraryDir, workingDirectory)
         try {
