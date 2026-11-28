@@ -42,7 +42,8 @@ class AetherSmart2ProfileTest {
         assertTrue(json.contains("\"tag\": \"dns-module\""))
         // Match the current Xray template without changing its production behavior.
         assertTrue(json.contains("\"address\":\"fakedns\""))
-        assertTrue(json.contains("\"queryStrategy\": \"UseIPv4\""))
+        // hasIpv6=true selects UseIP in the production template.
+        assertTrue(json.contains("\"queryStrategy\": \"UseIP\""))
         assertTrue(json.contains("\"disableFallbackIfMatch\": true"))
         assertTrue(json.contains("\"domain:ir\""))
         assertTrue(json.contains("\"tag\": \"proxy\""))
