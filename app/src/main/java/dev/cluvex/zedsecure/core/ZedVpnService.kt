@@ -435,7 +435,7 @@ class ZedVpnService : VpnService() {
                     stopEverything(); return@launch
                 }
 
-                if (!bridge(descriptor, port, tunMtu, pipeline = true, verifyTraffic = verifyTraffic)) return@launch
+                if (!bridge(descriptor, port, tunMtu, pipeline = true)) return@launch
 
                 if (!TunnelReadiness.verify(port, timeoutMs = 7_000, attempts = 4)) {
                     val reason = if ((sniSpoof?.ackTimeouts ?: 0) > 0) {
