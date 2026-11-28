@@ -2974,13 +2974,14 @@ private fun AetherSmartDialog(
     var probed by remember { mutableStateOf(false) }
     var goal by remember { mutableStateOf(dev.cluvex.zedsecure.domain.config.AetherSmartGoal.Auto) }
     var edgeJitter by remember { mutableStateOf<Int?>(null) }
+    var apiJitter by remember { mutableStateOf<Int?>(null) }
     var edgeLossPercent by remember { mutableStateOf<Int?>(null) }
     var apiLossPercent by remember { mutableStateOf<Int?>(null) }
     var scanNonce by remember { mutableStateOf(0) }
     var lastInput by remember { mutableStateOf<dev.cluvex.zedsecure.domain.config.AetherSmartInput?>(null) }
     LaunchedEffect(scanNonce) {
         profile = null; probed = false; ipv6 = null; edgeMs = null; apiMs = null
-        edgeJitter = null; edgeLossPercent = null; apiLossPercent = null
+        edgeJitter = null; apiJitter = null; edgeLossPercent = null; apiLossPercent = null
         udpReachable = null; tlsSniReachable = null
         tcp443Reachable = null; dnsSystemMatchesDoh = null
         publicIp = null; isp = null; asn = null
@@ -2996,6 +2997,7 @@ private fun AetherSmartDialog(
         edgeMs = probe.edgeMs
         apiMs = probe.apiMs
         edgeJitter = probe.edgeJitterMs
+        apiJitter = probe.apiJitterMs
         edgeLossPercent = probe.edgeLossPercent
         apiLossPercent = probe.apiLossPercent
         udpReachable = probe.udpReachable
@@ -3020,6 +3022,7 @@ private fun AetherSmartDialog(
             apiReachable = probe.apiMs != null,
             apiMs = probe.apiMs,
             edgeJitterMs = probe.edgeJitterMs,
+            apiJitterMs = probe.apiJitterMs,
             link = dev.cluvex.zedsecure.platform.detectLinkQuality(),
             edgeLossPercent = probe.edgeLossPercent,
             apiLossPercent = probe.apiLossPercent,
@@ -3068,6 +3071,8 @@ private fun AetherSmartDialog(
                     stringResource(Res.string.aether_smart_step_api), probed, apiMs != null,
                     if (apiMs != null) "$apiMs ms" else blockedText,
                 )
+                SmartStepRow("API jitter", probed, apiJitter == null || apiJitter!! < 240,
+                    apiJitter?.let { "$it ms" } ?: naText)
                 SmartStepRow("API loss", probed, apiLossPercent != null && apiLossPercent!! < 34,
                     apiLossPercent?.let { "$it%" } ?: naText)
                 SmartStepRow("UDP / DNS", probed, udpReachable == true,
@@ -3090,6 +3095,7 @@ private fun AetherSmartDialog(
                 val filteringSignals = buildList {
                     if (dnsSystemMatchesDoh == false) add("Potential DNS manipulation")
                     if ((apiMs ?: 0) >= 900) add("WARP API latency elevated: ${apiMs} ms")
+                    if ((apiJitter ?: 0) >= 240) add("WARP API latency is unstable: ${apiJitter} ms jitter")
                     if ((edgeJitter ?: 0) >= 180) add("Edge latency is unstable: ${edgeJitter} ms jitter")
                     if (tcp443Reachable == false) add("TCP/443 unreachable")
                     if (tcp443Reachable == true && tlsSniReachable == false) add("Possible TLS/SNI interference")
