@@ -70,6 +70,14 @@ fun AppDesignPicker(selected: AppDesign, onSelect: (AppDesign) -> Unit) {
                 Modifier.fillMaxWidth().selectableGroup().padding(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                if (!LocalPlatform.current.isComputer) {
+                    DesignCard(
+                        name = stringResource(Res.string.home_design_zx),
+                        selected = selected == AppDesign.Zx,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onSelect(AppDesign.Zx) },
+) { dev.cluvex.zedsecure.ui.zx.ZxDesignPreview() }
+                }
                 DesignCard(
                     name = stringResource(Res.string.home_design_bento),
                     selected = selected == AppDesign.Bento,
