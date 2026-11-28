@@ -1896,7 +1896,7 @@
     <string name="about_limits_body">Actual performance depends on internet quality, server, carrier, operating system, permissions and selected configuration. Not every feature is available on every device or connection engine. A VPN alone cannot guarantee complete security, fixed speed or absolute anonymity.</string>
     <string name="aether_smart_title">Smart config (Aether)</string>
     <string name="aether_smart2_title">Smart config (Aether) 2</string>
-    <string name="aether_smart2_body">Builds a dedicated Xray routing and DNS profile with local SOCKS, HTTP and mixed inbounds plus an Aether-managed Psiphon CDN upstream. Network, IPv6, latency, DNS and transport reachability are checked before the profile is created.</string>
+    <string name="aether_smart2_body">Uses the native Aether engine as the primary transport (MASQUE/WireGuard, adaptive scanning and obfuscation). Xray remains the supporting DNS/routing layer; network measurements choose the initial Aether profile and Smart failover can use the bundled Psiphon/Tor routes.</string>
     <string name="aether_smart2_create">Create and activate</string>
     <string name="aether_smart2_done">Aether Smart 2 config created and activated</string>
     <string name="aether_smart_body">The app checks your network and internet, fills in every Aether field (protocol, scan mode, IP version, anti-DPI, HTTP/2) automatically and builds a dedicated, ready-to-connect config.</string>
