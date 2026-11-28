@@ -130,6 +130,7 @@ internal object AetherIdentityManager {
             "Only known Aether identity files can be renewed"
         }
         val prepared = withContext(Dispatchers.IO) {
+            AetherIdentityVault.unsealInto(workingDirectory)
             settleRenewal(workingDirectory, renewalDirectory) &&
                 renewalDirectory.deleteRecursively() &&
                 renewalDirectory.mkdirs()
@@ -151,8 +152,12 @@ internal object AetherIdentityManager {
             }
         } finally {
             withContext(NonCancellable + Dispatchers.IO) {
-                if (ready.get()) settleRenewal(workingDirectory, renewalDirectory)
-                else renewalDirectory.deleteRecursively()
+                if (ready.get()) {
+                    settleRenewal(workingDirectory, renewalDirectory)
+                } else {
+                    renewalDirectory.deleteRecursively()
+                }
+                AetherIdentityVault.sealAndShred(workingDirectory)
             }
         }
         ready.get()
@@ -200,6 +205,11 @@ internal object AetherIdentityManager {
         if (!workingDirectory.exists() && !workingDirectory.mkdirs()) return@withContext false
 
         AetherIdentityVault.unsealInto(workingDirectory)
+        val renewalDirectory = File(workingDirectory.parentFile ?: workingDirectory, "aether-renewal")
+        if (!settleRenewal(workingDirectory, renewalDirectory)) {
+            AetherIdentityVault.sealAndShred(workingDirectory)
+            return@withContext false
+        }
         if (missingFiles(workingDirectory).isEmpty()) {
             // Keep credentials encrypted at rest between the preflight and the tunnel process start.
             AetherIdentityVault.sealAndShred(workingDirectory)
