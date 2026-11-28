@@ -33,6 +33,21 @@ class AetherIdentityManagerTest {
     }
 
     @Test
+    fun rejectsNonEmptyFilesThatDoNotContainAnIdentityDeviceId() {
+        val directory = Files.createTempDirectory("zx-aether-identities").toFile()
+        try {
+            AetherIdentityManager.requiredFiles.forEach { name ->
+                java.io.File(directory, name).writeText("device_id = \"test\"\n")
+            }
+            val corrupt = java.io.File(directory, AetherIdentityManager.requiredFiles.first())
+            corrupt.writeText("not a valid identity")
+            assertTrue(AetherIdentityManager.missingFiles(directory).contains(corrupt.name))
+        } finally {
+            directory.deleteRecursively()
+        }
+    }
+
+    @Test
     fun recognizesOnlyNativeRegistrationCompletionLine() {
         assertTrue(AetherIdentityManager.isReadyLine("identities ready: all"))
         assertTrue(AetherIdentityManager.isReadyLine("[+] identities ready: masque"))
