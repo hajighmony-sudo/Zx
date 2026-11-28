@@ -384,4 +384,31 @@ class AetherProfileTest {
         assertFalse(profile.fragment)
         assertEquals("", profile.apiAddress)
     }
+    @Test
+    fun smartUsesApiJitterAsAStabilitySignalWithoutAssumingDpiInterference() {
+        val profile = AetherSmartConfig.build(
+            AetherSmartInput(
+                network = dev.cluvex.zedsecure.platform.NetworkKind.Wifi,
+                edgeReachable = true,
+                edgeMs = 80,
+                apiReachable = true,
+                apiMs = 120,
+                edgeJitterMs = 12,
+                apiJitterMs = 300,
+                edgeLossPercent = 0,
+                apiLossPercent = 0,
+                udpReachable = true,
+                tcp443Reachable = true,
+                tlsSniReachable = true,
+                dnsSystemMatchesDoh = true,
+            ),
+        )
+
+        assertEquals("thorough", profile.scanMode)
+        assertEquals("firewall", profile.noize)
+        assertTrue(profile.http2)
+        assertFalse(profile.fragment)
+        assertEquals("", profile.apiAddress)
+    }
+
 }
