@@ -14,11 +14,8 @@ import java.util.TimeZone
 
 /**
  * Live Ghost Status Dashboard manager.
- * - DPI presence / severity / techniques
- * - Adaptive ladder tick every 30–60 s
- * - Optional country bandwidth / latency scans via GhostCountryNetProbe
- *
- * Complements GhostEngine without modifying its public API or other features.
+ * DPI ladder, country net probe, DNS health, exit advice, stealth hints.
+ * Complements GhostEngine — does not modify other features.
  */
 object GhostStatusManager {
 
@@ -31,10 +28,14 @@ object GhostStatusManager {
     @Volatile private var consecutiveFailures: Int = 0
     @Volatile private var currentLayer: GhostLayer = GhostLayer.SOFT
     @Volatile private var lastCountryReport: GhostCountryNetProbe.CountryReport? = null
+    @Volatile private var lastDnsReport: GhostDnsHealth.Report? = null
+    @Volatile private var lastExitAdvice: GhostExitAdvisor.Advice? = null
 
     fun current(): GhostStatusAdvanced = status
     fun isRunning(): Boolean = status.enabled
     fun lastCountryReport(): GhostCountryNetProbe.CountryReport? = lastCountryReport
+    fun lastDnsReport(): GhostDnsHealth.Report? = lastDnsReport
+    fun lastExitAdvice(): GhostExitAdvisor.Advice? = lastExitAdvice
 
     suspend fun onEnabled(profileId: String = "auto") {
         currentProfileId = profileId
@@ -54,10 +55,7 @@ object GhostStatusManager {
     fun onDisabled() {
         loopJob?.cancel()
         loopJob = null
-        status = GhostStatusAdvanced(
-            enabled = false,
-            message = "Ghost Mode خاموش"
-        )
+        status = GhostStatusAdvanced(enabled = false, message = "Ghost Mode خاموش")
         consecutiveFailures = 0
         currentLayer = GhostLayer.SOFT
     }
@@ -69,16 +67,13 @@ object GhostStatusManager {
         loopJob = scope.launch {
             while (isActive && status.enabled) {
                 delay(intervalMs)
-                if (status.enabled) {
-                    runCatching { tick() }
-                }
+                if (status.enabled) runCatching { tick() }
             }
         }
     }
 
     suspend fun tick(): GhostStatusAdvanced {
         if (!status.enabled) return status
-
         val detection = detector.detect()
         val now = System.currentTimeMillis()
         val iranTime = formatIranTime(now)
@@ -146,12 +141,10 @@ object GhostStatusManager {
         return status
     }
 
-    /**
-     * Cool Ghost-only feature: scan latency & rough bandwidth toward selected countries.
-     */
     suspend fun probeCountries(countryCodes: List<String> = emptyList()): GhostCountryNetProbe.CountryReport {
         val report = GhostCountryNetProbe.probe(countryCodes)
         lastCountryReport = report
+        lastExitAdvice = GhostExitAdvisor.advise(report)
         if (status.enabled) {
             status = status.copy(
                 message = "اسکن کشور: ${report.summaryFa}",
@@ -160,6 +153,22 @@ object GhostStatusManager {
             )
         }
         return report
+    }
+
+    suspend fun checkDns(): GhostDnsHealth.Report {
+        val report = GhostDnsHealth.check()
+        lastDnsReport = report
+        if (status.enabled) {
+            status = status.copy(message = report.summaryFa)
+        }
+        return report
+    }
+
+    fun stealthPlan(): GhostStealthKit.DecoyPlan {
+        val underPressure = status.visibility == VisibilityState.UNDER_PRESSURE ||
+            status.visibility == VisibilityState.ADAPTING ||
+            status.dpiLevel >= DpiLevel.MEDIUM
+        return GhostStealthKit.planForLayer(currentLayer, underPressure)
     }
 
     fun buildEngineHints(): Map<String, Any> {
@@ -192,6 +201,10 @@ object GhostStatusManager {
             hints["traffic_shaping"] = profile.trafficShaping
         }
         lastCountryReport?.bestCountryCode?.let { hints["best_exit_country"] = it }
+        lastExitAdvice?.preferredCountryCodes?.let { hints["preferred_exits"] = it }
+        val stealth = stealthPlan()
+        hints["decoy_hosts"] = stealth.hosts
+        hints["decoy_parallel"] = stealth.parallel
         return hints
     }
 

@@ -1,41 +1,31 @@
 # Ghost Mode Advanced — ZX VPN (شاخه GP)
 
-**نسخه فوق‌العاده قوی ضد DPI (۲۰۲۶)**
+**فقط GHOST MOD** — بقیه قابلیت‌ها دست نخورده.
 
-این سند مشخصات کامل تقویت **فقط** بخش GHOST MOD است.  
-هیچ فایل یا قابلیت دیگری دست نخورده باقی می‌ماند.
+## کاهش وابستگی به Cloudflare
 
-## لایه‌های دفاعی
+- `GhostDpiDetector` و `GhostCountryNetProbe` به `cloudflare.com` / `1.1.1.1` وابسته نیستند.
+- donorها چندفروشنده: Microsoft, Apple, Hetzner, DigitalOcean, Samsung, Sony, …
+- DNS health از resolver سیستم روی نام‌های عمومی غیر-CF استفاده می‌کند.
 
-| لایه | نام | توضیح |
-|------|-----|-------|
-| 0 | Detection & Status | DPI زنده + رنگ وضعیت + وقت ایران |
-| 1 | Soft Camouflage | Reality + uTLS + XHTTP + Fragment |
-| 2 | Hard Desync | fake / multi-split / wrong-seq / TTL |
-| 3 | Statistical Shaping | noise + padding |
-| 4 | Adaptive Ladder | Auto-Tune هر ۳۰–۶۰ ثانیه |
-| 5 | Fallback | Hysteria2 / AmneziaWG / DNS / Psiphon / Tor |
+## ماژول‌های Ghost
 
-## Auto-Tune
+| ماژول | نقش |
+|--------|-----|
+| GhostDpiDetector | probe موازی HTTPS چندفروشنده |
+| GhostStatusManager | ladder + auto-tune ۳۰–۶۰ث + APIها |
+| GhostCountryNetProbe | latency/پهنای باند کشورها |
+| GhostExitAdvisor | پیشنهاد بهترین کشور خروج |
+| GhostDnsHealth | سلامت DNS بدون DoH اجباری CF |
+| GhostStealthKit | decoy چندفروشنده + fragment hint |
+| GhostLayerProfiles | iran_mobile / home / russia / china / auto |
 
-با `onEnabled()` حلقه شروع می‌شود؛ فاصله از پروفایل (۳۰–۶۰ث). هر tick دتکتور DPI را صدا می‌زند و در صورت فشار لایه را بالا می‌برد. `onDisabled()` حلقه را لغو می‌کند.
-
-## قابلیت خفن: اسکن اینترنت / پهنای باند کشورها
-
-`GhostCountryNetProbe` + `GhostStatusManager.probeCountries(codes)`
-
-- endpointهای عمومی در DE, NL, US, TR, AE, SG, JP, KR, …
-- خروجی: reachable، latencyMs، downloadKbps تقریبی، بهترین کشور، خلاصه به وقت ایران
-- الهام از اندازه‌گیری سبک Cloudflare-style بدون وابستگی اضافه
+## APIهای مفید
 
 ```kotlin
-val report = GhostStatusManager.probeCountries(listOf("DE", "NL", "US", "TR"))
-println(report.summaryFa)
-println(report.bestCountryCode)
+GhostStatusManager.probeCountries(listOf("DE","NL","TR"))
+GhostStatusManager.checkDns()
+GhostStatusManager.stealthPlan()
+GhostStatusManager.lastExitAdvice()
+GhostStatusManager.buildEngineHints()
 ```
-
-## فایل‌ها
-
-`GhostStatusAdvanced`, `GhostDpiDetector`, `GhostLayerProfiles`, `GhostStatusManager`, `GhostCountryNetProbe` + هسته قبلی GhostEngine.
-
-Anti-Porn و بقیه قابلیت‌ها بدون تغییر.
