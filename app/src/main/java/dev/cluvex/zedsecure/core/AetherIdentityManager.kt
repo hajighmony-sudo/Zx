@@ -30,6 +30,18 @@ internal object AetherIdentityManager {
     internal fun isReadyLine(line: String): Boolean =
         READY_LINE.containsMatchIn(line)
 
+    internal fun registrationArguments(workingDirectory: File, apiAddress: String = ""): List<String> =
+        buildList {
+            addAll(listOf("--register", "all"))
+            addAll(listOf("--config", File(workingDirectory, "aether.toml").absolutePath))
+            addAll(listOf("--wg-config", File(workingDirectory, "aether-wg.toml").absolutePath))
+            addAll(listOf("--masque-config", File(workingDirectory, "aether-masque.toml").absolutePath))
+            if (apiAddress.isNotBlank() && apiAddress.all { it.isLetterOrDigit() || it in ".:-[]" }) {
+                addAll(listOf("--api-address", apiAddress))
+            }
+            addAll(listOf("--log-level", "info"))
+        }
+
     internal fun isValidIdentityFile(file: File): Boolean =
         file.isFile && file.length() > 0L &&
             runCatching { DEVICE_ID_LINE.containsMatchIn(file.readText()) }.getOrDefault(false)
@@ -53,17 +65,7 @@ internal object AetherIdentityManager {
 
         val engine = AetherEngineProcess(nativeLibraryDir, workingDirectory)
         try {
-            engine.start(
-                listOf(
-                    "--register", "all",
-                    "--config", File(workingDirectory, "aether.toml").absolutePath,
-                    "--wg-config", File(workingDirectory, "aether-wg.toml").absolutePath,
-                    "--masque-config", File(workingDirectory, "aether-masque.toml").absolutePath,
-                    *apiAddress.takeIf { it.isNotBlank() && it.all { c -> c.isLetterOrDigit() || c in ".:-[]" } }
-                        ?.let { listOf("--api-address", it) }.orEmpty().toTypedArray(),
-                    "--log-level", "info",
-                ),
-            )
+            engine.start(registrationArguments(workingDirectory, apiAddress))
             val deadline = System.currentTimeMillis() + timeoutMs
             while (System.currentTimeMillis() < deadline) {
                 if (engine.registrationReady) break
