@@ -116,6 +116,47 @@ class AetherProfileTest {
     }
 
     @Test
+    fun echAndFragmentOptionsArePassedToNativeEngine() {
+        val profile = AetherProfile(
+            http2 = true,
+            fragment = true,
+            fragmentSize = "16-8",
+            fragmentDelay = "10-2",
+            ech = true,
+            echDns = "https://cloudflare-dns.com/dns-query@address=1.1.1.1@sni=cloudflare-dns.com",
+        )
+        val args = profile.toArgs(10991, "/tmp/aether")
+        assertTrue(args.containsAll(listOf("--ech", "auto")))
+        assertTrue(args.containsAll(listOf("--ech-dns", profile.echDns)))
+        assertTrue(args.containsAll(listOf("--ech-domain", "cloudflare-ech.com")))
+        assertTrue(args.containsAll(listOf("--fragment-size", "8-16")))
+        assertTrue(args.containsAll(listOf("--fragment-delay", "2-10")))
+    }
+
+    @Test
+    fun smartEnablesEchOnlyWhenTlsSniProbeFails() {
+        val profile = AetherSmartConfig.build(
+            AetherSmartInput(
+                network = dev.cluvex.zedsecure.platform.NetworkKind.Wifi,
+                tcp443Reachable = true,
+                tlsSniReachable = false,
+                edgeReachable = true,
+                apiReachable = true,
+            ),
+        )
+        assertTrue(profile.ech)
+        assertTrue(profile.commandPreview().contains("--ech auto"))
+    }
+
+    @Test
+    fun invalidFragmentRangesAndEchResolversAreRejected() {
+        assertTrue(runCatching { AetherProfile(fragment = true, fragmentSize = "0-5000").toArgs(10991, "/tmp/aether") }.isFailure)
+        assertTrue(runCatching { AetherProfile(fragment = true, fragmentDelay = "1001").toArgs(10991, "/tmp/aether") }.isFailure)
+        assertTrue(runCatching { AetherProfile(ech = true, echDns = "file:///etc/passwd").toArgs(10991, "/tmp/aether") }.isFailure)
+        assertTrue(runCatching { AetherProfile(ech = true, echDomain = "-invalid.example").toArgs(10991, "/tmp/aether") }.isFailure)
+    }
+
+    @Test
     fun startupBudgetAllowsNativeScanToFinish() {
         assertEquals(60_000L, AetherProfile(scanMode = "turbo").startupBudgetMs())
         assertEquals(120_000L, AetherProfile(scanMode = "balanced").startupBudgetMs())
