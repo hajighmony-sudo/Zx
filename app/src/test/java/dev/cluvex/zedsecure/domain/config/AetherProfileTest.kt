@@ -58,6 +58,8 @@ class AetherProfileTest {
         assertTrue(args.containsAll(listOf("--stats", "--stats-secs", "15")))
         assertTrue(args.contains("--quick-reconnect"))
         assertTrue(args.containsAll(listOf("--config", "/data/user/0/app/files/aether/aether.toml")))
+        assertTrue(args.containsAll(listOf("--wg-config", "/data/user/0/app/files/aether/aether-wg.toml")))
+        assertTrue(args.containsAll(listOf("--masque-config", "/data/user/0/app/files/aether/aether-masque.toml")))
         assertFalse(args.contains("--fragment"))
     }
 
@@ -90,6 +92,8 @@ class AetherProfileTest {
         assertTrue(command.contains("--api-address 162.159.137.105"))
         assertTrue(command.contains("127.0.0.1:<SOCKS_PORT>"))
         assertTrue(command.contains("<AETHER_HOME>/aether.toml"))
+        assertTrue(command.contains("--wg-config <AETHER_HOME>/aether-wg.toml"))
+        assertTrue(command.contains("--masque-config <AETHER_HOME>/aether-masque.toml"))
         assertTrue(profile.smartFailover)
     }
 
