@@ -75,7 +75,7 @@ internal object AetherIdentityManager {
         }
     }
 
-    private val READY_LINE = Regex("""identities ready:\\s*\\S""", RegexOption.IGNORE_CASE)
+    private val READY_LINE = Regex("""identities ready:\s*\S""", RegexOption.IGNORE_CASE)
     private const val POLL_MS = 200L
     private const val REGISTRATION_TIMEOUT_MS = 4 * 60_000L
 }
