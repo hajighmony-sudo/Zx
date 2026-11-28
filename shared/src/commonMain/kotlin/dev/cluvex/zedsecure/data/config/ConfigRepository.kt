@@ -113,6 +113,11 @@ class ConfigRepository(private val store: KeyValueStore) {
         val trimmed = text.trim()
         require(trimmed.isNotEmpty()) { "empty" }
 
+        dev.cluvex.zedsecure.domain.config.AetherSmart2Profile.decode(trimmed)?.let { aether2 ->
+            addAetherSmart2(aether2, aether2.profileName)
+            return@runCatching 1
+        }
+
         dev.cluvex.zedsecure.domain.config.AetherProfile.decode(trimmed)?.let { aether ->
             addAether(aether, aether.profileName)
             return@runCatching 1
@@ -943,6 +948,28 @@ class ConfigRepository(private val store: KeyValueStore) {
     ): VpnProfile {
         val existing = id?.let { profile(it) }
         val updated = VpnProfile.fromAether(
+            settings = settings,
+            id = existing?.id ?: newId(),
+            addedAt = existing?.addedAt ?: currentTimeMillis(),
+            name = name,
+        ).let { carryOver(existing, it) }
+        _profiles.value = if (existing != null) {
+            _profiles.value.map { if (it.id == updated.id) updated else it }
+        } else {
+            listOf(updated) + _profiles.value
+        }
+        persistProfiles()
+        if (_activeId.value == null) setActive(updated.id)
+        return updated
+    }
+
+    fun addAetherSmart2(
+        settings: dev.cluvex.zedsecure.domain.config.AetherSmart2Profile,
+        name: String = settings.profileName,
+        id: String? = null,
+    ): VpnProfile {
+        val existing = id?.let { profile(it) }
+        val updated = VpnProfile.fromAetherSmart2(
             settings = settings,
             id = existing?.id ?: newId(),
             addedAt = existing?.addedAt ?: currentTimeMillis(),
