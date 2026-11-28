@@ -15,7 +15,7 @@ data class AetherProfile(
     val ipVersion: String = "v4",
     val noize: String = "firewall",
     val http2: Boolean = false,
-    /** Sends the TLS ClientHello in pieces (anti-DPI); only meaningful with HTTP/2 transport. */
+    /** Sends the TLS ClientHello in pieces; native Aether also applies this to WARP API setup calls. */
     val fragment: Boolean = false,
     /** Optional TLS ClientHello chunk size/range in bytes (native Aether accepts 1..4096). */
     val fragmentSize: String = "",
@@ -38,8 +38,10 @@ data class AetherProfile(
         require(!http2 || protocol != "wg") { "HTTP/2 transport is not available for WireGuard mode" }
         require(validRange(fragmentSize, 1..4096)) { "Invalid Aether fragment size" }
         require(validRange(fragmentDelay, 0..1000)) { "Invalid Aether fragment delay" }
-        require(validDomain(echDomain)) { "Invalid Aether ECH domain" }
-        require(validEchDns(echDns)) { "Invalid Aether ECH DNS URL" }
+        if (ech) {
+            require(validDomain(echDomain)) { "Invalid Aether ECH domain" }
+            require(validEchDns(echDns)) { "Invalid Aether ECH DNS URL" }
+        }
         return buildList {
             add("--bind"); add("127.0.0.1:$bindPort")
             add("--protocol"); add(protocol)
@@ -49,8 +51,8 @@ data class AetherProfile(
             if (http2) add("--h2")
             if (fragment) {
                 add("--fragment")
-                fragmentSize.trim().takeIf(String::isNotEmpty)?.let { addAll(listOf("--fragment-size", normalizeRange(it, 1..4096))) }
-                fragmentDelay.trim().takeIf(String::isNotEmpty)?.let { addAll(listOf("--fragment-delay", normalizeRange(it, 0..1000))) }
+                fragmentSize.trim().takeIf { it.isNotEmpty() }?.let { addAll(listOf("--fragment-size", normalizeRange(it, 1..4096))) }
+                fragmentDelay.trim().takeIf { it.isNotEmpty() }?.let { addAll(listOf("--fragment-delay", normalizeRange(it, 0..1000))) }
             }
             if (ech) {
                 addAll(listOf("--ech", "auto"))
@@ -98,7 +100,7 @@ data class AetherProfile(
     private fun normalizeRange(raw: String, bounds: IntRange): String {
         val parts = raw.trim().split('-')
         require(parts.size in 1..2)
-        val values = parts.map { it.toIntOrNull()?.takeIf(bounds::contains) ?: error("out of range") }
+        val values = parts.map { it.toIntOrNull()?.takeIf { value -> value in bounds } ?: error("out of range") }
         return if (values.size == 1) "${values[0]}" else "${minOf(values[0], values[1])}-${maxOf(values[0], values[1])}"
     }
 
@@ -109,7 +111,7 @@ data class AetherProfile(
         }
 
     private fun validEchDns(raw: String): Boolean =
-        raw.length in 1..512 && raw.none(Char::isWhitespace) &&
+        raw.length in 1..512 && raw.none { it.isWhitespace() } &&
             (raw.startsWith("udp://") || raw.startsWith("tcp://") || raw.startsWith("https://"))
 
     fun startupBudgetMs(): Long = when (scanMode) {
