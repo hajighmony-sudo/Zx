@@ -49,6 +49,42 @@ object TunnelReadiness {
         Log.w(TAG, "readiness probe failed for all ${hosts.size} endpoints on SOCKS port $socksPort")
         return false
     }
+    /**
+     * Verify a real app socket after the TUN bridge is active. Unlike verifyAny(),
+     * this request is not sent to the local SOCKS port directly: Android must route
+     * the socket through the established VPN interface and its proxy pipeline.
+     */
+    fun verifyThroughTun(
+        timeoutMs: Int = 4_000,
+        attempts: Int = 2,
+        hosts: List<String> = listOf(PROBE_HOST, "www.cloudflare.com", "example.com"),
+    ): Boolean {
+        repeat(attempts.coerceAtLeast(1)) { attemptIndex ->
+            for (host in hosts.distinct().filter(String::isNotBlank)) {
+                val passed = runCatching {
+                    Socket().use { socket ->
+                        socket.tcpNoDelay = true
+                        socket.connect(InetSocketAddress(host, PROBE_PORT), 2_500)
+                        socket.soTimeout = timeoutMs.coerceAtLeast(1_000)
+                        val request = "HEAD / HTTP/1.1\\r\\nHost: $host\\r\\nUser-Agent: ZedSecure-TUN-Probe\\r\\nConnection: close\\r\\n\\r\\n"
+                        socket.getOutputStream().write(request.toByteArray())
+                        socket.getOutputStream().flush()
+                        socket.getInputStream().read() >= 0
+                    }
+                }.getOrElse {
+                    Log.w(TAG, "TUN traffic probe via $host failed: ${it.message}")
+                    false
+                }
+                if (passed) {
+                    Log.i(TAG, "real TUN traffic verified via $host")
+                    return true
+                }
+            }
+            if (attemptIndex < attempts - 1) Thread.sleep(700)
+        }
+        Log.w(TAG, "no real traffic passed through the established TUN interface")
+        return false
+    }
     private fun attempt(
         socksPort: Int,
         timeoutMs: Int,
