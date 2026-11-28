@@ -128,12 +128,14 @@ data class AetherSmart2Profile(
                       {
                         "address": "https://dns.alidns.com/dns-query",
                         "domains": ["domain:ir", "geosite:category-ir"],
+                        "finalQuery": true,
                         "skipFallback": true,
                         "tag": "domestic-dns_2_0"
                       },
                       {
                         "address": "localhost",
                         "domains": ["geosite:private"],
+                        "finalQuery": true,
                         "skipFallback": true,
                         "tag": "domestic-dns_1_0"
                       }
@@ -206,6 +208,7 @@ data class AetherSmart2Profile(
                     "rules": [
                       { "inboundTag": ["secondary-socks"], "outboundTag": "exit-node", "type": "field" },
                       { "inboundTag": ["socks"], "port": "53", "outboundTag": "dns-out", "type": "field" },
+                      { "inboundTag": ["domestic-dns_1_0", "domestic-dns_2_0"], "outboundTag": "direct", "type": "field" },
                       { "inboundTag": ["dns-module"], "outboundTag": "proxy", "type": "field" },
                       { "protocol": ["bittorrent"], "outboundTag": "direct", "type": "field" },
                       { "network": "udp", "port": "443", "outboundTag": "block", "type": "field" },
