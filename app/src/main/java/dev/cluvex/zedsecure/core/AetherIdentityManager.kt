@@ -55,9 +55,14 @@ internal object AetherIdentityManager {
     internal fun isReadyLine(line: String): Boolean =
         READY_LINE.containsMatchIn(line)
 
-    internal fun registrationArguments(workingDirectory: File, apiAddress: String = ""): List<String> =
-        buildList {
-            addAll(listOf("--register", "all"))
+    internal fun registrationArguments(
+        workingDirectory: File,
+        apiAddress: String = "",
+        registerKind: String = "all",
+    ): List<String> {
+        require(registerKind in setOf("all", "wg", "masque", "gool-classic", "mim", "gool"))
+        return buildList {
+            addAll(listOf("--register", registerKind))
             addAll(listOf("--config", File(workingDirectory, "aether.toml").absolutePath))
             addAll(listOf("--wg-config", File(workingDirectory, "aether-wg.toml").absolutePath))
             addAll(listOf("--masque-config", File(workingDirectory, "aether-masque.toml").absolutePath))
@@ -66,6 +71,7 @@ internal object AetherIdentityManager {
             }
             addAll(listOf("--log-level", "info"))
         }
+    }
 
     internal fun parseIdentity(text: String): AetherIdentityInfo? {
         val fields = mutableMapOf<String, String>()
@@ -161,6 +167,59 @@ internal object AetherIdentityManager {
             }
         }
         ready.get()
+    }
+
+    /**
+     * Renew the selected protocol's WARP identity with the native Aether engine.
+     * The active identity files are not touched until the native engine confirms registration
+     * and every requested staged file passes validation.
+     */
+    suspend fun renewUsingNative(
+        nativeLibraryDir: File,
+        workingDirectory: File,
+        protocol: String,
+        apiAddress: String = "",
+        timeoutMs: Long = REGISTRATION_TIMEOUT_MS,
+    ): Boolean {
+        require(timeoutMs > 0)
+        val files = filesOf(protocol)
+        if (files.isEmpty()) return false
+        val registerKind = when (protocol.lowercase().replace('-', '_')) {
+            "masque" -> "masque"
+            "wg", "wireguard" -> "wg"
+            "gool" -> "gool-classic"
+            "mim" -> "mim"
+            "wg_over_masque", "wireguard_over_masque", "wgmasque" -> "gool"
+            else -> return false
+        }
+        val renewalDirectory = File(workingDirectory.parentFile ?: workingDirectory, "aether-renewal")
+        return renewAtomically(workingDirectory, renewalDirectory, files) { staging ->
+            withContext(Dispatchers.IO) {
+                val baseConfig = File(workingDirectory, "aether.toml")
+                if (!baseConfig.isFile) return@withContext false
+                if (!staging.exists() && !staging.mkdirs()) return@withContext false
+                baseConfig.copyTo(File(staging, "aether.toml"), overwrite = true)
+                val engine = AetherEngineProcess(nativeLibraryDir, staging, sealIdentitiesOnStop = false)
+                try {
+                    engine.start(registrationArguments(staging, apiAddress, registerKind))
+                    val deadline = System.currentTimeMillis() + timeoutMs
+                    while (System.currentTimeMillis() < deadline) {
+                        if (engine.registrationReady) break
+                        if (!engine.isAlive()) {
+                            Thread.sleep(150)
+                            break
+                        }
+                        Thread.sleep(POLL_MS)
+                    }
+                    engine.registrationReady && files.all { isValidIdentityFile(File(staging, it)) }
+                } catch (failure: Exception) {
+                    LogBus.append("W/Aether: native identity renewal failed (" + failure.javaClass.simpleName + ")")
+                    false
+                } finally {
+                    engine.stop()
+                }
+            }
+        }
     }
 
     /**
