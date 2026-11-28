@@ -75,7 +75,16 @@ jobs:
           cat > "$RUNNER_TEMP/zx-maven-central-mirror.init.gradle" <<'EOF'
           import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 
+          def replaceRetiredComposeRepo = { repository ->
+              if (repository instanceof MavenArtifactRepository &&
+                  repository.url.toString().contains("maven.pkg.jetbrains.space/public/p/compose/dev")) {
+                  repository.setUrl(uri("https://packages.jetbrains.team/maven/p/cmp/dev"))
+              }
+          }
+
           def installCentralMirror = { repositories ->
+              repositories.all { repository -> replaceRetiredComposeRepo(repository) }
+
               def centralRepositories = repositories.findAll { repository ->
                   repository instanceof MavenArtifactRepository &&
                       (repository.url.toString().contains("repo.maven.apache.org/maven2") ||
@@ -95,12 +104,20 @@ jobs:
               installCentralMirror(settings.dependencyResolutionManagement.repositories)
               installCentralMirror(settings.pluginManagement.repositories)
           }
+
+          // Also rewrite repositories registered at project scope, where this build
+          // currently requests the retired Compose Maven hostname.
+          gradle.beforeProject { project ->
+              project.repositories.all { repository -> replaceRetiredComposeRepo(repository) }
+              project.repositories.whenObjectAdded { repository -> replaceRetiredComposeRepo(repository) }
+          }
           EOF
 
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
           go-version: stable
+          cache: false
 
       - name: Install Rust Android targets and cargo-ndk
         shell: bash
