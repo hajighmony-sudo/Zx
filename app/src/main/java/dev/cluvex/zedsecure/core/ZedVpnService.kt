@@ -936,6 +936,116 @@ class ZedVpnService : VpnService() {
         }
     }
 
+    /**
+     * Runs Xray as the DNS/routing front and Aether in Psiphon CDN-only mode.
+     * Aether uses Xray's secondary mixed inbound as its upstream; that inbound
+     * is routed directly, so the proxy chain cannot loop back into Aether.
+     */
+    private fun startAether2(
+        configJson: String,
+        socksPort: Int,
+        descriptor: ParcelFileDescriptor,
+        tunMtu: Int,
+    ) {
+        val profile = dev.cluvex.zedsecure.domain.config.AetherSmart2Profile.decode(configJson)
+        if (profile == null) {
+            VpnManager.onError(getString(R.string.config_invalid))
+            stopEverything()
+            return
+        }
+        VpnManager.setActiveKind(kind)
+        advance(VpnNotifications.Stage.Engine)
+        scope.launch(Dispatchers.IO) {
+            var routeReady = false
+            try {
+                val aetherPort = LocalPortPicker.pick(LocalPorts.AETHER2_SOCKS)
+                val upstreamPort = LocalPortPicker.pick(LocalPorts.AETHER2_UPSTREAM)
+                val template = profile.xrayConfig(aetherPort, upstreamPort)
+                val geoReady = runCatching {
+                    dev.cluvex.zedsecure.data.assets.GeoAssetsRepository(this@ZedVpnService).allPresent()
+                }.getOrDefault(false)
+                val normalized = XrayJsonBuilder.normalizeRawJson(
+                    template,
+                    socksPort = LocalPorts.XRAY_SOCKS,
+                    geoAssetsAvailable = geoReady,
+                )
+                if (!XrayController.start(ported(normalized, socksPort))) {
+                    throw IllegalStateException(coreStartError())
+                }
+                onXrayStarted()
+
+                val psiphonBinary = java.io.File(
+                    applicationInfo.nativeLibraryDir,
+                    "libpsiphon-tunnel-core.so",
+                )
+                check(psiphonBinary.isFile &&
+                    (psiphonBinary.canExecute() || psiphonBinary.setExecutable(true, false)) &&
+                    psiphonBinary.canExecute()
+                ) { "Aether Smart 2 Psiphon runtime is not packaged for this device ABI" }
+
+                val workDir = java.io.File(filesDir, "aether-smart2").apply { mkdirs() }
+                val engine = AetherEngineProcess(java.io.File(applicationInfo.nativeLibraryDir), workDir)
+                aetherEngine = engine
+                val psiphonDir = java.io.File(filesDir, "aether-smart2-psiphon").apply { mkdirs() }
+                val environment = mapOf(
+                    "AETHER_PSIPHON" to "only",
+                    "AETHER_TOR" to "off",
+                    "AETHER_PSIPHON_BIN" to psiphonBinary.absolutePath,
+                    "AETHER_PSIPHON_DIR" to psiphonDir.absolutePath,
+                    "AETHER_PSIPHON_READY_SECS" to "180",
+                )
+                LogBus.append(
+                    "I/Aether Smart 2: starting Xray DNS/routing front on SOCKS $socksPort, " +
+                        "Aether SOCKS $aetherPort, secondary upstream $upstreamPort",
+                )
+                engine.start(profile.commandArgs(aetherPort, upstreamPort), environment)
+
+                aetherWatch?.cancel()
+                aetherWatch = scope.launch(Dispatchers.IO) {
+                    val exitCode = runCatching { engine.awaitExit() }.getOrNull()
+                    if (!userStop && engine === aetherEngine && routeReady &&
+                        (connected || VpnManager.status.value.state.isTransitioning)
+                    ) {
+                        val code = exitCode?.toString() ?: "unknown"
+                        onTunnelFailed("Aether Smart 2 stopped unexpectedly (exit $code)")
+                    }
+                }
+
+                val deadline = System.currentTimeMillis() + AETHER_SMART2_STARTUP_BUDGET_MS
+                while (System.currentTimeMillis() < deadline) {
+                    if (userStop) return@launch
+                    if (!engine.isAlive()) break
+                    val ready = runCatching {
+                        TunnelReadiness.verifyAny(
+                            socksPort,
+                            timeoutMs = 3_000,
+                            hosts = listOf("cp.cloudflare.com", "www.cloudflare.com", "example.com"),
+                            connectTimeoutMs = 1_500,
+                        )
+                    }.getOrDefault(false)
+                    if (ready) {
+                        routeReady = true
+                        break
+                    }
+                    kotlinx.coroutines.delay(750)
+                }
+                check(routeReady) {
+                    "Aether Smart 2 could not verify the Xray → Aether → Psiphon route" +
+                        engine.lastLines().takeIf { it.isNotBlank() }?.let { ": $it" }.orEmpty()
+                }
+                if (!bridge(descriptor, socksPort, tunMtu, pipeline = true)) return@launch
+                VpnManager.activeSocksPort = socksPort
+                LogBus.append("I/Aether Smart 2: Xray + Psiphon CDN passed end-to-end verification")
+                finishConnected()
+            } catch (e: Exception) {
+                if (userStop) return@launch
+                Log.e(TAG, "Aether Smart 2 startup failed", e)
+                VpnManager.onError(e.message ?: getString(R.string.engine_failed_tunnel))
+                stopEverything()
+            }
+        }
+    }
+
     private fun startXray(configJson: String, preferredPort: Int, descriptor: ParcelFileDescriptor, tunMtu: Int) {
         val socksPort = freePairFor(preferredPort)
         if (!XrayController.start(ported(configJson, socksPort))) {
