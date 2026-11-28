@@ -982,6 +982,17 @@ class ZedVpnService : VpnService() {
 
                 val workDir = java.io.File(filesDir, "aether-smart2").apply { mkdirs() }
                 val psiphonBinary = java.io.File(applicationInfo.nativeLibraryDir, "libpsiphon-tunnel-core.so")
+                if (profile.aetherProfile.smartFailover) {
+                    val identitiesReady = AetherIdentityManager.ensureAll(
+                        java.io.File(applicationInfo.nativeLibraryDir),
+                        workDir,
+                    )
+                    if (identitiesReady) {
+                        LogBus.append("I/Aether Smart 2: native WARP identities are ready")
+                    } else {
+                        LogBus.append("W/Aether Smart 2: identity preflight did not complete; continuing with native connection attempts")
+                    }
+                }
                 val routes = if (profile.aetherProfile.smartFailover) listOf("warp", "psiphon", "tor") else listOf("warp")
                 var ready = false
                 for (route in routes) {
