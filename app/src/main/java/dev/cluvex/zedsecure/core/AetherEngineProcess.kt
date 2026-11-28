@@ -72,7 +72,7 @@ internal class AetherEngineProcess(
                             candidateSeen = true
                         }
                         if (it.contains("candidate ok")) candidateSeen = true
-                        if (REGISTRATION_READY.containsMatchIn(it)) registrationReady = true
+                        if (AetherIdentityManager.isReadyLine(it)) registrationReady = true
                         synchronized(recent) {
                             recent.addLast(it.take(160))
                             while (recent.size > 4) recent.removeFirst()
@@ -119,6 +119,5 @@ internal class AetherEngineProcess(
         private const val TAG = "ZX-Aether"
         private const val MAX_LOG_LINE = 2048
         private const val STOP_TIMEOUT_MS = 1500L
-        private val REGISTRATION_READY = Regex("""identities ready:\s*\S""", RegexOption.IGNORE_CASE)
     }
 }
