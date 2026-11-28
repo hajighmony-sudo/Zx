@@ -19,6 +19,13 @@ internal object AetherIdentityVault {
 
     fun unsealInto(dir: File) {
         if (!dir.exists()) return
+        // Recover the previous sealed copy if the app was interrupted after preserving
+        // it but before the replacement ciphertext was committed.
+        dir.listFiles { file -> file.isFile && file.name.endsWith(SEALED_SUFFIX + ".bak") }
+            ?.forEach { backup ->
+                val sealed = File(dir, backup.name.removeSuffix(".bak"))
+                if (!sealed.exists()) runCatching { backup.renameTo(sealed) }
+            }
         val blobs = dir.listFiles { file ->
             file.isFile && file.name.endsWith(SEALED_SUFFIX) &&
                 identityName.matches(file.name.removeSuffix(SEALED_SUFFIX))
@@ -89,6 +96,10 @@ internal object AetherIdentityVault {
                 if (movedOldTarget && backup.exists()) {
                     if (target.exists()) runCatching { target.delete() }
                     runCatching { backup.renameTo(target) }
+                } else if (!movedOldTarget && !backup.exists()) {
+                    // A partial new file is safe to discard only when no old target was moved.
+                    // The plaintext source remains intact and can be sealed again later.
+                    runCatching { target.delete() }
                 }
                 false
             }
