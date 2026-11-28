@@ -77,6 +77,7 @@ object VpnManager {
 
     const val KIND_SINGBOX = "sing_box"
     const val KIND_AETHER = "aether"
+    const val KIND_AETHER2 = "aether_smart_2"
 
     fun onStarting(remark: String) {
         activeSocksPort = null
