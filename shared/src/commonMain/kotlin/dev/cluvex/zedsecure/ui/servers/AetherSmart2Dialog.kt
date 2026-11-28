@@ -3,9 +3,14 @@ package dev.cluvex.zedsecure.ui.servers
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -16,7 +21,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import dev.cluvex.zedsecure.domain.config.AetherSmart2Profile
 import dev.cluvex.zedsecure.domain.config.AetherSmartProbe
 import dev.cluvex.zedsecure.platform.NetworkKind
@@ -26,6 +33,14 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.compose.resources.stringResource
 
+/**
+ * Smart 2 dialog – fully network-driven.
+ *
+ * Only manual control exposed to the user: Protocol selection
+ * (AUTOMATIC / MASQUE_H3 / MASQUE_H2 / WireGuard / Gool / MASQUE×2 / Hybrid).
+ * All other fields (DNS, SNI, Noize, Fragment, ECH, Anti-DPI stack) are
+ * derived from live probes of the user's current internet.
+ */
 @Composable
 internal fun AetherSmart2Dialog(
     onDismiss: () -> Unit,
@@ -35,8 +50,11 @@ internal fun AetherSmart2Dialog(
     var summary by remember { mutableStateOf("") }
     var scanning by remember { mutableStateOf(true) }
     var scanNonce by remember { mutableStateOf(0) }
+    var protocolChoice by remember {
+        mutableStateOf(AetherSmart2Profile.ProtocolChoice.AUTOMATIC)
+    }
 
-    LaunchedEffect(scanNonce) {
+    LaunchedEffect(scanNonce, protocolChoice) {
         profile = null
         summary = ""
         scanning = true
@@ -53,7 +71,12 @@ internal fun AetherSmart2Dialog(
         }
         val info = infoJob.await()
         val ipv6 = !info?.ipv6.isNullOrBlank()
-        val generated = AetherSmart2Profile.build(network, ipv6, probe)
+        val generated = AetherSmart2Profile.build(
+            network = network,
+            hasIpv6 = ipv6,
+            probe = probe,
+            protocolChoice = protocolChoice,
+        )
         profile = generated
         val networkLabel = when (network) {
             NetworkKind.Cellular -> "Mobile"
@@ -63,31 +86,62 @@ internal fun AetherSmart2Dialog(
         }
         summary = buildString {
             append(networkLabel)
-            append(" · ")
-            append(if (ipv6) "IPv4 + IPv6" else "IPv4")
-            append(" · ")
-            append(probe?.edgeMs?.let { "RTT $it ms" } ?: "RTT unavailable")
-            append(" · DNS ")
-            append(generated.dnsPreference)
-            append(" · ")
-            append(if (probe?.dnsSystemMatchesDoh == false) "resolver mismatch detected" else "resolver comparison inconclusive or consistent")
+            if (ipv6) append(" · IPv6")
+            probe?.countryCode?.let { append(" · $it") }
+            probe?.edgeMs?.let { append(" · edge ${it}ms") }
+            append("\n")
+            append(generated.antiDpi.summary)
+            if (generated.preferredDns.isNotEmpty()) {
+                append("\nDNS: ")
+                append(generated.preferredDns.take(3).joinToString())
+            }
+            if (generated.preferredSnis.isNotEmpty()) {
+                append("\nSNI: ")
+                append(generated.preferredSnis.take(2).joinToString())
+            }
         }
         scanning = false
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.aether_smart2_title)) },
+        title = { Text("Aether · Smart 2") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(stringResource(Res.string.aether_smart2_body), style = MaterialTheme.typography.bodySmall)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                // ---------- Only manual control ----------
+                Text(
+                    "پروتکل (تنها انتخاب دستی)",
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                ProtocolChipRow(
+                    selected = protocolChoice,
+                    onSelect = { protocolChoice = it },
+                )
+
+                Spacer(Modifier.height(4.dp))
+
                 if (scanning) {
-                    CircularProgressIndicator()
-                    Text("Detecting network, IPv6, DNS and endpoint health…", style = MaterialTheme.typography.bodySmall)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CircularProgressIndicator()
+                        Text(
+                            "در حال تشخیص شبکه، IPv6، DNS، SNI و سطح DPI…",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                 }
+
                 if (profile != null) {
                     Text(profile!!.profileName, style = MaterialTheme.typography.titleSmall)
                     Text(summary, style = MaterialTheme.typography.bodySmall)
+
                     Text(
                         "Native Aether · ${profile!!.aetherProfile.protocol.uppercase()} · " +
                             "${profile!!.aetherProfile.scanMode} scan · ${profile!!.aetherProfile.noize} noize · " +
@@ -98,10 +152,20 @@ internal fun AetherSmart2Dialog(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                     )
+
+                    if (profile!!.antiDpi.mode == "dual") {
+                        Text(
+                            "⚔ Dual-Attack فعال: گلوله (Reality Punch) + خمپاره (جدیدترین + قدیمی‌ترین روش‌ها)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.tertiary,
+                        )
+                    }
+
                     Text(
-                        "Xray DNS/routing support · DoH · FakeDNS · SOCKS / HTTP / Mixed · IPv4/IPv6",
+                        "Xray DNS/Routing · Iranian DNS priority · FakeDNS · SOCKS / HTTP / Mixed · IPv4/IPv6",
                         style = MaterialTheme.typography.bodySmall,
                     )
+
                     OutlinedTextField(
                         value = profile!!.commandPreview(),
                         onValueChange = {},
@@ -116,15 +180,54 @@ internal fun AetherSmart2Dialog(
             }
         },
         confirmButton = {
-            TextButton(enabled = profile != null && !scanning, onClick = { profile?.let(onCreate) }) {
+            TextButton(
+                enabled = profile != null && !scanning,
+                onClick = { profile?.let(onCreate) },
+            ) {
                 Text(stringResource(Res.string.aether_smart2_create))
             }
         },
         dismissButton = {
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(onClick = { scanNonce++ }) { Text(stringResource(Res.string.aether_smart_rescan)) }
-                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.action_cancel)) }
+                TextButton(onClick = { scanNonce++ }) {
+                    Text(stringResource(Res.string.aether_smart_rescan))
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(Res.string.action_cancel))
+                }
             }
         },
     )
+}
+
+@Composable
+private fun ProtocolChipRow(
+    selected: AetherSmart2Profile.ProtocolChoice,
+    onSelect: (AetherSmart2Profile.ProtocolChoice) -> Unit,
+) {
+    val options = listOf(
+        AetherSmart2Profile.ProtocolChoice.AUTOMATIC to "خودکار",
+        AetherSmart2Profile.ProtocolChoice.MASQUE_H3 to "MASQUE H3",
+        AetherSmart2Profile.ProtocolChoice.MASQUE_H2 to "MASQUE H2",
+        AetherSmart2Profile.ProtocolChoice.WIREGUARD to "WireGuard",
+        AetherSmart2Profile.ProtocolChoice.GOOL to "Gool",
+        AetherSmart2Profile.ProtocolChoice.MASQUE_X2 to "MASQUE×2",
+        AetherSmart2Profile.ProtocolChoice.HYBRID_SMART to "Hybrid",
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        options.chunked(3).forEach { row ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                row.forEach { (value, label) ->
+                    FilterChip(
+                        selected = selected == value,
+                        onClick = { onSelect(value) },
+                        label = { Text(label, style = MaterialTheme.typography.labelSmall) },
+                    )
+                }
+            }
+        }
+    }
 }
