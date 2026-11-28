@@ -20,12 +20,18 @@ internal class AetherEngineProcess(
     @Volatile var candidateSeen: Boolean = false
         private set
 
+    /** Last endpoint selected by Aether's native scan, when the core reports one. */
+    @Volatile var scanResult: AetherSmart2ScanParser.Result? = null
+        private set
+
     /** Last few engine output lines, for a readable error when the engine dies or never connects. */
     fun lastLines(): String = synchronized(recent) { recent.joinToString(" | ") }
 
     @Synchronized
     fun start(arguments: List<String>, environment: Map<String, String> = emptyMap()) {
         check(process?.let(::isProcessAlive) != true) { "Aether is already running" }
+        candidateSeen = false
+        scanResult = null
         AetherIdentityVault.sealAndShred(workingDirectory)
         AetherIdentityVault.unsealInto(workingDirectory)
         val executable = File(nativeLibraryDir, "libaether.so")
@@ -56,6 +62,10 @@ internal class AetherEngineProcess(
                 child.inputStream.bufferedReader().useLines { lines ->
                     lines.forEach {
                         LogBus.append("I/Aether: " + it.take(MAX_LOG_LINE))
+                        AetherSmart2ScanParser.parse(it)?.let { selected ->
+                            scanResult = selected
+                            candidateSeen = true
+                        }
                         if (it.contains("candidate ok")) candidateSeen = true
                         synchronized(recent) {
                             recent.addLast(it.take(160))
