@@ -68,7 +68,9 @@ object AetherSmartConfig {
             (input.edgeJitterMs ?: 0) >= UNSTABLE_JITTER_MS
         val apiSlow = (input.apiMs ?: 0) >= SLOW_API_MS
         val apiUnstable = (input.apiJitterMs ?: 0) >= UNSTABLE_API_JITTER_MS
-        val apiDegraded = apiLoss >= DEGRADED_API_LOSS_PERCENT || apiSlow || apiUnstable
+        val apiEndpointDegraded = apiLoss >= DEGRADED_API_LOSS_PERCENT || apiSlow
+        // Jitter signals instability, but does not by itself mean the API endpoint is blocked.
+        val apiDegraded = apiEndpointDegraded || apiUnstable
 
         val weak = link != null && (
             link.generation == "2G" || link.generation == "3G" ||
@@ -152,7 +154,7 @@ object AetherSmartConfig {
 
         // API address fallback when Cloudflare API is blocked or degraded
         val apiAddress = when {
-            apiBlocked || apiDegraded -> CLOUDFLARE_API_FALLBACK
+            apiBlocked || apiEndpointDegraded -> CLOUDFLARE_API_FALLBACK
             else -> ""
         }
 
