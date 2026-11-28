@@ -1060,7 +1060,19 @@ class ZedVpnService : VpnService() {
                                     connectTimeoutMs = 1_200,
                                 )
                             }.getOrDefault(false)
-                            if (attemptReady) break
+                            if (attemptReady) {
+                                engine.scanResult?.let { selected ->
+                                    val inner = selected.innerEndpoint?.let { " · inner $it" }.orEmpty()
+                                    LogBus.append("I/Aether Smart 2: native scan selected ${selected.protocol} endpoint ${selected.endpoint}$inner")
+                                }
+                                val measuredRtt = runCatching {
+                                    AetherSmart2DelayTester.measure(socksPort, timeoutMs = 6_000L)
+                                }.getOrNull()
+                                if (measuredRtt != null) {
+                                    LogBus.append("I/Aether Smart 2: end-to-end tunnel RTT ${measuredRtt} ms")
+                                }
+                                break
+                            }
                             kotlinx.coroutines.delay(500)
                         }
                         if (attemptReady) {
