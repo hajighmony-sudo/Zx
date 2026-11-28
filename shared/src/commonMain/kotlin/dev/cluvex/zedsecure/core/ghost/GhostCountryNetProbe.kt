@@ -13,11 +13,9 @@ import java.util.Locale
 import java.util.TimeZone
 
 /**
- * Ghost Mode exclusive feature: probe internet reachability, latency and
- * rough bandwidth toward representative endpoints in selected countries.
- *
- * Inspired by Cloudflare speed-test style measurements (latency + small
- * download sample). Dependency-free; Ghost Mode only.
+ * Country reachability + rough bandwidth sampler for Ghost Mode.
+ * Catalog uses multi-vendor public origins (no single-CDN dependency).
+ * Ghost Mode only.
  */
 object GhostCountryNetProbe {
 
@@ -58,7 +56,8 @@ object GhostCountryNetProbe {
         CountryEndpoint("NL", "هلند", "Netherlands", "www.digitalocean.com", "/", "EU hub"),
         CountryEndpoint("GB", "بریتانیا", "United Kingdom", "www.bbc.co.uk", "/", "EU/UK"),
         CountryEndpoint("FR", "فرانسه", "France", "www.ovh.com", "/", "EU"),
-        CountryEndpoint("US", "آمریکا", "United States", "www.cloudflare.com", "/", "Global edge"),
+        CountryEndpoint("FI", "فنلاند", "Finland", "www.nokia.com", "/", "Nordic"),
+        CountryEndpoint("US", "آمریکا", "United States", "www.microsoft.com", "/", "NA east"),
         CountryEndpoint("US", "آمریکا (غربی)", "United States West", "www.apple.com", "/", "West coast"),
         CountryEndpoint("CA", "کانادا", "Canada", "www.shopify.com", "/", "NA"),
         CountryEndpoint("TR", "ترکیه", "Turkey", "www.trendyol.com", "/", "Near region"),
@@ -69,7 +68,8 @@ object GhostCountryNetProbe {
         CountryEndpoint("IN", "هند", "India", "www.flipkart.com", "/", "South Asia"),
         CountryEndpoint("RU", "روسیه", "Russia", "www.yandex.ru", "/", "CIS"),
         CountryEndpoint("CN", "چین", "China", "www.baidu.com", "/", "CN"),
-        CountryEndpoint("IR", "ایران", "Iran", "www.digikala.com", "/", "Local baseline"),
+        CountryEndpoint("BR", "برزیل", "Brazil", "www.uol.com.br", "/", "LATAM"),
+        CountryEndpoint("IR", "ایران", "Iran", "www.digikala.com", "/", "Local baseline")
     )
 
     fun countries(): List<Pair<String, String>> =
@@ -84,16 +84,12 @@ object GhostCountryNetProbe {
         else catalog.filter { it.countryCode in countryCodes.map { c -> c.uppercase() } }
 
         val samples = coroutineScope {
-            targets.map { ep ->
-                async { sampleOne(ep, timeoutMs, sampleBytes) }
-            }.awaitAll()
+            targets.map { ep -> async { sampleOne(ep, timeoutMs, sampleBytes) } }.awaitAll()
         }
 
         val reachable = samples.filter { it.reachable }
         val best = reachable.minByOrNull { it.latencyMs }
-        val avg = if (reachable.isEmpty()) 0L
-        else reachable.map { it.latencyMs }.average().toLong()
-
+        val avg = if (reachable.isEmpty()) 0L else reachable.map { it.latencyMs }.average().toLong()
         val now = System.currentTimeMillis()
         val iran = formatIranTime(now)
         val summary = buildString {
@@ -140,12 +136,11 @@ object GhostCountryNetProbe {
                 connectTimeout = timeoutMs
                 readTimeout = timeoutMs
                 instanceFollowRedirects = true
-                setRequestProperty("User-Agent", "ZX-GhostCountryProbe/1.0")
+                setRequestProperty("User-Agent", "ZX-GhostCountryProbe/1.1")
                 setRequestProperty("Accept", "*/*")
             }
             val code = conn.responseCode
             val latency = ((System.nanoTime() - t0) / 1_000_000L).coerceAtLeast(1L)
-
             var kbps = 0.0
             if (code in 200..399) {
                 try {
@@ -165,7 +160,6 @@ object GhostCountryNetProbe {
                 }
             }
             conn.disconnect()
-
             CountrySample(
                 countryCode = ep.countryCode,
                 countryFa = ep.countryFa,
