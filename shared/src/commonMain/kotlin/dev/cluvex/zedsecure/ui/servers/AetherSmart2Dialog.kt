@@ -89,15 +89,22 @@ internal fun AetherSmart2Dialog(
                     Text(profile!!.profileName, style = MaterialTheme.typography.titleSmall)
                     Text(summary, style = MaterialTheme.typography.bodySmall)
                     Text(
-                        "Xray routing · DoH · FakeDNS · SOCKS / HTTP / Mixed · Psiphon CDN",
+                        "Native Aether · ${profile!!.aetherProfile.protocol.uppercase()} · " +
+                            "${profile!!.aetherProfile.scanMode} scan · ${profile!!.aetherProfile.noize} noize · " +
+                            "${if (profile!!.aetherProfile.http2) "HTTP/2" else "native transport"} · " +
+                            "${if (profile!!.aetherProfile.smartFailover) "Smart failover" else "single route"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        "Xray DNS/routing support · DoH · FakeDNS · SOCKS / HTTP / Mixed · IPv4/IPv6",
+                        style = MaterialTheme.typography.bodySmall,
                     )
                     OutlinedTextField(
                         value = profile!!.commandPreview(),
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Aether command · generated automatically") },
+                        label = { Text("Native Aether command · generated automatically") },
                         minLines = 2,
                         maxLines = 4,
                         modifier = Modifier.fillMaxWidth(),
