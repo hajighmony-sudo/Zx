@@ -7,9 +7,14 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 /**
- * A separate Xray + Aether/Psiphon profile. Xray owns DNS/routing; Aether
- * supplies the Psiphon CDN route and uses Xray's secondary mixed inbound as
- * its upstream so the two engines do not create a proxy loop.
+ * Aether Smart 2 – fully network-driven profile.
+ *
+ * Only manual control: protocol selection (including AUTOMATIC).
+ * Everything else (DNS, SNI, Noize, Fragment, ECH, Scan, Anti-DPI stack,
+ * Xray front) is derived from live probes of the user's current internet.
+ *
+ * Backward compatible with previous ZX_AETHER_SMART_2 marker readers.
+ * Does not modify any non-Smart-2 code paths.
  */
 @Serializable
 data class AetherSmart2Profile(
@@ -24,6 +29,13 @@ data class AetherSmart2Profile(
         profileName = "Aether · Smart 2",
         smartFailover = true,
     ),
+    // ---------- New Smart-2 fields (optional for older decoders) ----------
+    /** Only user-facing choice. AUTOMATIC lets the engine pick from live evidence. */
+    val protocolChoice: String = ProtocolChoice.AUTOMATIC.name,
+    val antiDpi: AntiDpiStack = AntiDpiStack(),
+    val preferredDns: List<String> = emptyList(),
+    val preferredSnis: List<String> = emptyList(),
+    val networkFingerprintSummary: String = "",
 ) {
     fun xrayConfig(aetherPort: Int, upstreamPort: Int): String {
         require(aetherPort in 1024..65535 && upstreamPort in 1024..65535)
@@ -39,16 +51,32 @@ data class AetherSmart2Profile(
 
     fun commandPreview(): String = aetherProfile.commandPreview()
 
+    enum class ProtocolChoice {
+        AUTOMATIC,
+        MASQUE_H3,
+        MASQUE_H2,
+        WIREGUARD,
+        GOOL,
+        MASQUE_X2,
+        HYBRID_SMART,
+    }
+
     companion object {
         const val MARKER = "ZX_AETHER_SMART_2"
         private const val AETHER_PORT_TOKEN = "__ZX_AETHER2_SOCKS_PORT__"
         private const val UPSTREAM_PORT_TOKEN = "__ZX_AETHER2_UPSTREAM_PORT__"
         private val codec = Json { ignoreUnknownKeys = true; isLenient = true }
 
+        /**
+         * Full Smart-2 builder.
+         *
+         * @param protocolChoice only manual input; AUTOMATIC = evidence-based selection
+         */
         fun build(
             network: NetworkKind,
             hasIpv6: Boolean,
             probe: AetherSmartProbe.Result?,
+            protocolChoice: ProtocolChoice = ProtocolChoice.AUTOMATIC,
         ): AetherSmart2Profile {
             val networkName = when (network) {
                 NetworkKind.Cellular -> "Mobile"
@@ -56,9 +84,21 @@ data class AetherSmart2Profile(
                 NetworkKind.Ethernet -> "LAN"
                 NetworkKind.Unknown -> "Unknown"
             }
-            // Prefer independent DoH when the system resolver disagrees with it.
-            val preferCloudflare = probe?.dnsSystemMatchesDoh == false ||
-                probe?.tcp443Reachable == false
+            val country = probe?.countryCode
+            val preferIran = country.equals("IR", ignoreCase = true) ||
+                (probe?.ooniAnomalyPercent ?: 0) >= 40
+
+            // ---------- Anti-DPI stack (11 methods + dual attack) ----------
+            val antiDpi = AntiDpiStack.buildFromProbe(probe, country, preferIran)
+
+            // ---------- Protocol decision (only manual or AUTOMATIC) ----------
+            val resolvedProtocol = resolveProtocol(protocolChoice, probe, antiDpi)
+            val useHttp2 = resolvedProtocol == "masque" && (
+                protocolChoice == ProtocolChoice.MASQUE_H2 ||
+                    (protocolChoice == ProtocolChoice.AUTOMATIC && probe?.udpReachable == false)
+                )
+
+            // ---------- Aether core from evidence ----------
             val smartAether = AetherSmartConfig.build(
                 AetherSmartInput(
                     network = network,
@@ -74,18 +114,98 @@ data class AetherSmart2Profile(
                     tcp443Reachable = probe?.tcp443Reachable,
                     tlsSniReachable = probe?.tlsSniReachable,
                     dnsSystemMatchesDoh = probe?.dnsSystemMatchesDoh,
-                    countryCode = probe?.countryCode,
+                    countryCode = country,
                     ooniAnomalyPercent = probe?.ooniAnomalyPercent,
                 ),
-            ).copy(profileName = "Aether · Smart 2 · $networkName", smartFailover = true)
+            ).copy(
+                profileName = "Aether · Smart 2 · $networkName",
+                smartFailover = true,
+                protocol = resolvedProtocol,
+                http2 = useHttp2,
+                noize = antiDpi.noizeLevel,
+                fragment = antiDpi.fragmentEnabled,
+                fragmentSize = antiDpi.fragmentSize,
+                fragmentDelay = antiDpi.fragmentDelay,
+                ech = antiDpi.echEnabled,
+                // Keep ECH resolver pinned; Iranian DNS is applied on Xray front
+                echDns = "https://cloudflare-dns.com/dns-query@address=1.1.1.1@sni=cloudflare-dns.com",
+            )
+
+            // ---------- DNS preference ----------
+            val preferCloudflare = probe?.dnsSystemMatchesDoh == false ||
+                probe?.tcp443Reachable == false
+            val dnsPref = when {
+                preferIran -> "iran-first"
+                preferCloudflare -> "cloudflare"
+                else -> "smartguard"
+            }
+
+            val orderedDns = IranianAssets.orderedDns(preferIran)
+            val dnsIps = orderedDns.flatMap { it.ips }.distinct().take(8)
+            val snis = IranianAssets.orderedSnis(preferIran)
+
+            val fingerprint = buildString {
+                append(networkName)
+                if (hasIpv6) append(" · IPv6")
+                probe?.countryCode?.let { append(" · $it") }
+                probe?.isp?.let { append(" · $it") }
+                append(" · loss=${probe?.edgeLossPercent ?: "?"}%)")
+                if (antiDpi.mode == "dual") append(" · Dual-Attack")
+            }
+
             return AetherSmart2Profile(
                 profileName = smartAether.profileName,
                 networkName = networkName,
                 hasIpv6 = hasIpv6,
-                dnsPreference = if (preferCloudflare) "cloudflare" else "smartguard",
-                xrayConfigTemplate = buildXrayConfig(preferCloudflare, hasIpv6),
+                dnsPreference = dnsPref,
+                xrayConfigTemplate = buildXrayConfig(
+                    preferCloudflare = preferCloudflare,
+                    hasIpv6 = hasIpv6,
+                    preferIran = preferIran,
+                    antiDpi = antiDpi,
+                    dnsIps = dnsIps,
+                ),
                 aetherProfile = smartAether,
+                protocolChoice = protocolChoice.name,
+                antiDpi = antiDpi,
+                preferredDns = dnsIps,
+                preferredSnis = snis.take(8),
+                networkFingerprintSummary = fingerprint,
             )
+        }
+
+        /**
+         * Maps ProtocolChoice (+ live evidence) → native Aether protocol string.
+         */
+        private fun resolveProtocol(
+            choice: ProtocolChoice,
+            probe: AetherSmartProbe.Result?,
+            antiDpi: AntiDpiStack,
+        ): String {
+            if (choice != ProtocolChoice.AUTOMATIC) {
+                return when (choice) {
+                    ProtocolChoice.MASQUE_H3, ProtocolChoice.MASQUE_H2 -> "masque"
+                    ProtocolChoice.WIREGUARD -> "wg"
+                    ProtocolChoice.GOOL -> "gool"
+                    ProtocolChoice.MASQUE_X2 -> "mim"
+                    ProtocolChoice.HYBRID_SMART -> "masque"
+                    ProtocolChoice.AUTOMATIC -> "masque"
+                }
+            }
+
+            // AUTOMATIC evidence ladder
+            val udpOk = probe?.udpReachable != false
+            val sniOk = probe?.tlsSniReachable != false
+            val tcpOk = probe?.tcp443Reachable != false
+            val hostile = antiDpi.mode == "dual" && antiDpi.mortarEnabled
+
+            return when {
+                hostile && !udpOk -> "gool"          // climb over the wall
+                hostile -> "masque"                  // still try direct punch first
+                !udpOk && tcpOk -> "masque"          // HTTP/2 path will be forced by http2 flag
+                !sniOk -> "masque"
+                else -> "masque"
+            }
         }
 
         fun decode(raw: String): AetherSmart2Profile? = runCatching {
@@ -97,18 +217,46 @@ data class AetherSmart2Profile(
         fun encode(profile: AetherSmart2Profile): String =
             Json { encodeDefaults = true }.encodeToString(profile.copy(marker = MARKER))
 
-        private fun buildXrayConfig(preferCloudflare: Boolean, hasIpv6: Boolean): String {
-            val firstDoh = if (preferCloudflare) {
-                "\"https://cloudflare-dns.com/dns-query\""
-            } else {
-                "\"https://dns.smartguard.io/dns-query\""
-            }
-            val secondDoh = if (preferCloudflare) {
-                "\"https://dns.smartguard.io/dns-query\""
-            } else {
-                "\"https://cloudflare-dns.com/dns-query\""
-            }
+        private fun buildXrayConfig(
+            preferCloudflare: Boolean,
+            hasIpv6: Boolean,
+            preferIran: Boolean,
+            antiDpi: AntiDpiStack,
+            dnsIps: List<String>,
+        ): String {
             val queryStrategy = if (hasIpv6) "UseIP" else "UseIPv4"
+
+            // Build DNS servers block: Iranian first when preferred, then global DoH
+            val dnsServers = buildString {
+                // FakeDNS first for local speed
+                append("""{"address":"fakedns","domains":["geosite:cn","geosite:geolocation-cn","domain:ir","geosite:category-ir"]},""")
+                // Iranian / preferred IPs as direct UDP/TCP
+                dnsIps.take(4).forEach { ip ->
+                    append("""{"address":"$ip","domains":["domain:ir","geosite:category-ir","geosite:private"],"expectIPs":["geoip:ir","geoip:private"]},""")
+                }
+                // DoH chain
+                if (preferIran) {
+                    append("""{"address":"https://free.shecan.ir/dns-query","domains":["geosite:geolocation-!cn"]},""")
+                }
+                if (preferCloudflare || !preferIran) {
+                    append("""{"address":"https://cloudflare-dns.com/dns-query"},""")
+                    append("""{"address":"https://dns.google/dns-query"},""")
+                } else {
+                    append("""{"address":"https://dns.smartguard.io/dns-query"},""")
+                    append("""{"address":"https://cloudflare-dns.com/dns-query"},""")
+                }
+                // Final fallbacks
+                append("""{"address":"1.1.1.1"},{"address":"8.8.8.8"}""")
+            }
+
+            // Hosts map includes Iranian DNS names
+            val hostsExtra = if (preferIran) {
+                """
+                      "free.shecan.ir": ["178.22.122.100","185.51.200.2"],
+                      "dns.shecan.ir": ["178.22.122.100","185.51.200.2"],
+                """.trimIndent()
+            } else ""
+
             return """
                 {
                   "log": { "loglevel": "warning" },
@@ -117,72 +265,34 @@ data class AetherSmart2Profile(
                       "geosite:category-ads-all": "127.0.0.1",
                       "domain:googleapis.cn": "googleapis.com",
                       "dns.alidns.com": ["223.5.5.5", "223.6.6.6", "2400:3200::1", "2400:3200:baba::1"],
-                      "dns.sse.cisco.com": ["208.67.220.220", "208.67.222.222", "2620:119:35::35", "2620:119:53::53"],
-                      "dns.umbrella.com": ["208.67.220.220", "208.67.222.222", "2620:119:35::35", "2620:119:53::53"],
                       "one.one.one.one": ["1.1.1.1", "1.0.0.1", "2606:4700:4700::1111", "2606:4700:4700::1001"],
                       "1dot1dot1dot1.cloudflare-dns.com": ["1.1.1.1", "1.0.0.1", "2606:4700:4700::1111", "2606:4700:4700::1001"],
-                      "dns.cloudflare.com": ["162.159.61.8", "172.64.41.8", "2a06:98c1:52::8", "2803:f800:53::8"],
-                      "cloudflare-dns.com": ["104.16.248.249", "104.16.249.249", "2606:4700::6810:f8f9", "2606:4700::6810:f9f9"],
+                      "dns.cloudflare.com": ["162.159.61.8", "172.64.41.8"],
+                      "cloudflare-dns.com": ["104.16.248.249", "104.16.249.249"],
                       "engage.cloudflareclient.com": ["162.159.192.1", "2606:4700:d0::a29f:c001"],
-                      "doh.pub": ["1.12.12.12", "120.53.53.53"],
-                      "dot.pub": ["1.12.12.12", "120.53.53.53"],
                       "dns.google": ["8.8.8.8", "8.8.4.4", "2001:4860:4860::8888", "2001:4860:4860::8844"],
-                      "dns.quad9.net": ["9.9.9.9", "149.112.112.112", "2620:fe::fe", "2620:fe::9"],
-                      "dns.sb": ["45.11.45.11", "185.222.222.222", "2a09::", "2a11::"],
-                      "common.dot.dns.yandex.net": ["77.88.8.8", "77.88.8.1", "2a02:6b8::feed:0ff", "2a02:6b8:0:1::feed:0ff"]
+                      "dns.quad9.net": ["9.9.9.9", "149.112.112.112"],
+                      $hostsExtra
+                      "dns.sb": ["45.11.45.11", "185.222.222.222"]
                     },
-                    "servers": [
-                      {
-                        "address": "fakedns",
-                        "domains": ["geosite:cn", "geosite:private", "domain:ir", "geosite:category-ir"]
-                      },
-                      $firstDoh,
-                      $secondDoh,
-                      {
-                        "address": "https://dns.alidns.com/dns-query",
-                        "domains": ["domain:ir", "geosite:category-ir"],
-                        "finalQuery": true,
-                        "skipFallback": true,
-                        "tag": "domestic-dns_2_0"
-                      },
-                      {
-                        "address": "localhost",
-                        "domains": ["geosite:private"],
-                        "finalQuery": true,
-                        "skipFallback": true,
-                        "tag": "domestic-dns_1_0"
-                      }
-                    ],
-                    "tag": "dns-module",
-                    "queryStrategy": "$queryStrategy"
+                    "servers": [ $dnsServers ],
+                    "queryStrategy": "$queryStrategy",
+                    "disableCache": false,
+                    "disableFallback": false,
+                    "disableFallbackIfMatch": true
                   },
-                  "fakedns": [
-                    { "ipPool": "198.18.0.0/15", "poolSize": 65535 }
-                  ],
                   "inbounds": [
                     {
                       "listen": "127.0.0.1",
                       "port": 10808,
-                      "protocol": "socks",
-                      "settings": { "auth": "noauth", "udp": true },
+                      "protocol": "mixed",
+                      "settings": { "udp": true },
                       "sniffing": {
-                        "destOverride": ["http", "tls", "quic", "fakedns"],
                         "enabled": true,
+                        "destOverride": ["http", "tls", "quic", "fakedns"],
                         "routeOnly": false
                       },
                       "tag": "socks"
-                    },
-                    {
-                      "listen": "127.0.0.1",
-                      "port": 10809,
-                      "protocol": "http",
-                      "settings": {},
-                      "sniffing": {
-                        "destOverride": ["http", "tls", "quic", "fakedns"],
-                        "enabled": true,
-                        "routeOnly": false
-                      },
-                      "tag": "http"
                     },
                     {
                       "listen": "127.0.0.1",
@@ -190,6 +300,17 @@ data class AetherSmart2Profile(
                       "protocol": "mixed",
                       "settings": { "udp": true },
                       "tag": "secondary-socks"
+                    },
+                    {
+                      "listen": "127.0.0.1",
+                      "port": 10853,
+                      "protocol": "dokodemo-door",
+                      "settings": {
+                        "address": "1.1.1.1",
+                        "network": "tcp,udp",
+                        "port": 53
+                      },
+                      "tag": "dns-module"
                     }
                   ],
                   "outbounds": [
@@ -215,13 +336,12 @@ data class AetherSmart2Profile(
                       "12": { "connIdle": 12, "downlinkOnly": 0, "uplinkOnly": 0 }
                     }
                   },
-                  "remarks": "AI_CON",
+                  "remarks": "Aether-Smart-2-${antiDpi.mode}",
                   "routing": {
                     "domainStrategy": "AsIs",
                     "rules": [
                       { "inboundTag": ["secondary-socks"], "outboundTag": "exit-node", "type": "field" },
                       { "inboundTag": ["socks"], "port": "53", "outboundTag": "dns-out", "type": "field" },
-                      { "inboundTag": ["domestic-dns_1_0", "domestic-dns_2_0"], "outboundTag": "direct", "type": "field" },
                       { "inboundTag": ["dns-module"], "outboundTag": "proxy", "type": "field" },
                       { "protocol": ["bittorrent"], "outboundTag": "direct", "type": "field" },
                       { "network": "udp", "port": "443", "outboundTag": "block", "type": "field" },
