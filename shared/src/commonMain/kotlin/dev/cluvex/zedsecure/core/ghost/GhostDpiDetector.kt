@@ -1,14 +1,19 @@
 package dev.cluvex.zedsecure.core.ghost
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
+import java.net.HttpURLConnection
+import java.net.URL
+
 /**
  * DPI presence & type detector for Ghost Mode status dashboard.
- * Parallel probes + reset / SNI / fingerprint behaviour.
- * Complements existing GhostEngine pressure detection.
- * Only Ghost Mode related — does not touch other features.
+ * Parallel HTTPS probes to Reality-style donors; maps timeouts / failures
+ * into DpiLevel + DpiType for the adaptive ladder.
  *
- * Runtime note: when wired to a live engine, replace the placeholder probes
- * with real HTTP/TLS checks against the targets below and map RST / timeout /
- * wrong cert responses into the ProbeResult flags.
+ * Only Ghost Mode related — does not touch other features.
  */
 class GhostDpiDetector {
 
@@ -28,7 +33,6 @@ class GhostDpiDetector {
         val timestampMs: Long
     )
 
-    // Targets chosen as common Reality donors / popular HTTPS endpoints
     private val probeTargets = listOf(
         "www.microsoft.com",
         "www.apple.com",
@@ -37,22 +41,11 @@ class GhostDpiDetector {
         "www.samsung.com"
     )
 
-    /**
-     * Fast DPI detection pass.
-     * Placeholder probes keep the status API stable offline;
-     * production builds should replace the body with real concurrent probes.
-     */
-    suspend fun detect(): DetectionResult {
-        val probes = probeTargets.map { target ->
-            // Offline-safe defaults: assume healthy network until real probes exist
-            ProbeResult(
-                target = target,
-                success = true,
-                latencyMs = 80L + (target.hashCode().toLong() and 0x3F),
-                resetDetected = false,
-                sniBlocked = false,
-                fingerprintRejected = false
-            )
+    suspend fun detect(): DetectionResult = withContext(Dispatchers.IO) {
+        val probes = coroutineScope {
+            probeTargets.map { target ->
+                async { probeOne(target) }
+            }.awaitAll()
         }
 
         val failed = probes.count { !it.success || it.resetDetected || it.sniBlocked || it.fingerprintRejected }
@@ -68,12 +61,47 @@ class GhostDpiDetector {
         if (probes.any { it.sniBlocked }) types += DpiType.SNI_BLOCKING
         if (probes.any { it.fingerprintRejected }) types += DpiType.TLS_FINGERPRINT
         if (probes.any { it.resetDetected }) types += DpiType.ACTIVE_PROBING
+        if (probes.count { !it.success } >= 3) types += DpiType.PROTOCOL_SIGNATURE
 
-        return DetectionResult(
+        DetectionResult(
             level = level,
-            types = types,
+            types = types.ifEmpty { if (failed > 0) listOf(DpiType.UNKNOWN) else emptyList() },
             probes = probes,
             timestampMs = System.currentTimeMillis()
         )
+    }
+
+    private fun probeOne(host: String): ProbeResult {
+        return try {
+            val t0 = System.nanoTime()
+            val conn = (URL("https://$host/").openConnection() as HttpURLConnection).apply {
+                requestMethod = "HEAD"
+                connectTimeout = 3500
+                readTimeout = 3500
+                instanceFollowRedirects = true
+                setRequestProperty("User-Agent", "ZX-GhostDpiDetector/1.0")
+            }
+            val code = conn.responseCode
+            val latency = ((System.nanoTime() - t0) / 1_000_000L).coerceAtLeast(1L)
+            conn.disconnect()
+            val ok = code in 200..399 || code == 405
+            ProbeResult(
+                target = host,
+                success = ok,
+                latencyMs = latency,
+                resetDetected = !ok && latency < 200,
+                sniBlocked = !ok && latency in 200..1500,
+                fingerprintRejected = false
+            )
+        } catch (_: Throwable) {
+            ProbeResult(
+                target = host,
+                success = false,
+                latencyMs = 3500,
+                resetDetected = true,
+                sniBlocked = false,
+                fingerprintRejected = false
+            )
+        }
     }
 }

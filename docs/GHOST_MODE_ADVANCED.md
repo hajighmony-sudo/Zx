@@ -5,48 +5,37 @@
 این سند مشخصات کامل تقویت **فقط** بخش GHOST MOD است.  
 هیچ فایل یا قابلیت دیگری دست نخورده باقی می‌ماند.
 
-## لایه‌های دفاعی (از سبک به سنگین)
+## لایه‌های دفاعی
 
-| لایه | نام | توضیح کوتاه |
-|------|-----|-------------|
-| 0 | Detection & Status | تشخیص وجود و شدت DPI + نمایش وضعیت زنده (سبز/زرد/قرمز) + زمان به وقت ایران |
-| 1 | Soft Camouflage | Reality + uTLS + XHTTP + Vision + Fragment ClientHello |
-| 2 | Hard Desync | packet-level desync (fake / multi-split / wrong-seq / TTL) الهام از zapret2 / sonicdpi |
-| 3 | Statistical Shaping | noise + padding + ترافیک شبیه HTTPS واقعی |
-| 4 | Adaptive Ladder | نردبان هوشمند — Auto-Tuner هر ۳۰–۶۰ ثانیه بر اساس موفقیت واقعی ترافیک |
-| 5 | Fallback & Multi-Path | Hysteria2 / AmneziaWG / DNS tunnels / Psiphon / Tor |
+| لایه | نام | توضیح |
+|------|-----|-------|
+| 0 | Detection & Status | DPI زنده + رنگ وضعیت + وقت ایران |
+| 1 | Soft Camouflage | Reality + uTLS + XHTTP + Fragment |
+| 2 | Hard Desync | fake / multi-split / wrong-seq / TTL |
+| 3 | Statistical Shaping | noise + padding |
+| 4 | Adaptive Ladder | Auto-Tune هر ۳۰–۶۰ ثانیه |
+| 5 | Fallback | Hysteria2 / AmneziaWG / DNS / Psiphon / Tor |
 
-## وضعیت‌ها (Status Dashboard)
+## Auto-Tune
 
-- `NONE` / `LOW` / `MEDIUM` / `HIGH` / `EXTREME` — شدت DPI
-- نوع تشخیص‌شده: SNI_BLOCKING, TLS_FINGERPRINT, ACTIVE_PROBING, STATISTICAL_ML, UDP_THROTTLING, …
-- Visibility: INVISIBLE (سبز) / UNDER_PRESSURE (زرد) / ADAPTING (قرمز)
-- آخرین تست با زمان ایران
+با `onEnabled()` حلقه شروع می‌شود؛ فاصله از پروفایل (۳۰–۶۰ث). هر tick دتکتور DPI را صدا می‌زند و در صورت فشار لایه را بالا می‌برد. `onDisabled()` حلقه را لغو می‌کند.
 
-## پروفایل‌های از پیش تعریف‌شده
+## قابلیت خفن: اسکن اینترنت / پهنای باند کشورها
 
-- `iran_mobile` — ایران دیتای موبایل (قوی‌ترین تنظیمات موبایل)
-- `iran_home` — ایران خانگی / ADSL
-- `russia` — روسیه / TSPU
-- `china` — چین / GFW
-- `auto` — انتخاب خودکار
-- `custom` — تنظیم دستی
+`GhostCountryNetProbe` + `GhostStatusManager.probeCountries(codes)`
 
-## فایل‌های اضافه شده (فقط Ghost)
+- endpointهای عمومی در DE, NL, US, TR, AE, SG, JP, KR, …
+- خروجی: reachable، latencyMs، downloadKbps تقریبی، بهترین کشور، خلاصه به وقت ایران
+- الهام از اندازه‌گیری سبک Cloudflare-style بدون وابستگی اضافه
 
-```
-shared/src/commonMain/kotlin/dev/cluvex/zedsecure/core/ghost/
-├── GhostStatusAdvanced.kt   # مدل وضعیت + DpiLevel + Visibility + GhostLayer
-├── GhostDpiDetector.kt      # تشخیص DPI موازی
-├── GhostLayerProfiles.kt    # پروفایل‌های قوی ۲۰۲۶
-└── GhostStatusManager.kt    # داشبورد وضعیت زنده + Auto-Tune + Engine Hints
+```kotlin
+val report = GhostStatusManager.probeCountries(listOf("DE", "NL", "US", "TR"))
+println(report.summaryFa)
+println(report.bestCountryCode)
 ```
 
-موجود قبلی (GhostEngine / GhostAutoTuner / GhostStrategy / …) بدون تغییر باقی مانده و این لایه روی آن سوار می‌شود.
+## فایل‌ها
 
-## نکات
+`GhostStatusAdvanced`, `GhostDpiDetector`, `GhostLayerProfiles`, `GhostStatusManager`, `GhostCountryNetProbe` + هسته قبلی GhostEngine.
 
-- از هسته‌های موجود Xray / sing-box / Aether استفاده می‌شود.
-- Auto-Tuner بر اساس موفقیت واقعی ترافیک (نه فقط handshake) سطح را بالا می‌برد.
-- Anti-Porn همچنان بخشی از Ghost Mode است و تغییری نکرده.
-- زمان‌ها به وقت ایران نمایش داده می‌شوند.
+Anti-Porn و بقیه قابلیت‌ها بدون تغییر.

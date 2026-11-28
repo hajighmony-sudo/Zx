@@ -1,5 +1,12 @@
 package dev.cluvex.zedsecure.core.ghost
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -7,26 +14,28 @@ import java.util.TimeZone
 
 /**
  * Live Ghost Status Dashboard manager.
- * Provides DPI presence, severity, detected techniques, Iran-time last check,
- * and visibility state (green / yellow / red) while Ghost Mode is active.
+ * - DPI presence / severity / techniques
+ * - Adaptive ladder tick every 30–60 s
+ * - Optional country bandwidth / latency scans via GhostCountryNetProbe
  *
  * Complements GhostEngine without modifying its public API or other features.
  */
 object GhostStatusManager {
 
     private val detector = GhostDpiDetector()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var loopJob: Job? = null
+
     @Volatile private var status: GhostStatusAdvanced = GhostStatusAdvanced()
     @Volatile private var currentProfileId: String = "auto"
     @Volatile private var consecutiveFailures: Int = 0
     @Volatile private var currentLayer: GhostLayer = GhostLayer.SOFT
+    @Volatile private var lastCountryReport: GhostCountryNetProbe.CountryReport? = null
 
     fun current(): GhostStatusAdvanced = status
-
     fun isRunning(): Boolean = status.enabled
+    fun lastCountryReport(): GhostCountryNetProbe.CountryReport? = lastCountryReport
 
-    /**
-     * Called when user enables Ghost / tunnel starts.
-     */
     suspend fun onEnabled(profileId: String = "auto") {
         currentProfileId = profileId
         consecutiveFailures = 0
@@ -39,12 +48,12 @@ object GhostStatusManager {
             message = "Ghost Mode در حال راه‌اندازی…"
         )
         tick()
+        startAutoTuneLoop()
     }
 
-    /**
-     * Called when Ghost / tunnel stops.
-     */
     fun onDisabled() {
+        loopJob?.cancel()
+        loopJob = null
         status = GhostStatusAdvanced(
             enabled = false,
             message = "Ghost Mode خاموش"
@@ -53,9 +62,20 @@ object GhostStatusManager {
         currentLayer = GhostLayer.SOFT
     }
 
-    /**
-     * Periodic auto-tune tick (30–60 s). Escalates layer on real failure.
-     */
+    private fun startAutoTuneLoop() {
+        loopJob?.cancel()
+        val profile = GhostLayerProfiles.get(currentProfileId)
+        val intervalMs = (profile.autoTuneIntervalSec.coerceIn(30, 60) * 1000L)
+        loopJob = scope.launch {
+            while (isActive && status.enabled) {
+                delay(intervalMs)
+                if (status.enabled) {
+                    runCatching { tick() }
+                }
+            }
+        }
+    }
+
     suspend fun tick(): GhostStatusAdvanced {
         if (!status.enabled) return status
 
@@ -85,7 +105,7 @@ object GhostStatusManager {
         }
 
         val successRate = if (detection.probes.isEmpty()) 0
-            else (detection.probes.count { it.success && !it.resetDetected } * 100 / detection.probes.size)
+        else (detection.probes.count { it.success && !it.resetDetected } * 100 / detection.probes.size)
 
         status = GhostStatusAdvanced(
             enabled = true,
@@ -104,9 +124,6 @@ object GhostStatusManager {
         return status
     }
 
-    /**
-     * Manual "Test DPI now" button.
-     */
     suspend fun forceDetect(): GhostStatusAdvanced {
         val detection = detector.detect()
         val now = System.currentTimeMillis()
@@ -123,16 +140,28 @@ object GhostStatusManager {
             lastCheckIranTime = iranTime,
             visibility = visibility,
             successRatePercent = if (detection.probes.isEmpty()) 0
-                else (detection.probes.count { it.success } * 100 / detection.probes.size),
+            else (detection.probes.count { it.success } * 100 / detection.probes.size),
             message = "تست دستی انجام شد • سطح DPI: ${detection.level.name}"
         )
         return status
     }
 
     /**
-     * Engine hints for the current layer (Reality / fragment / desync / noise).
-     * Applied by the existing GhostEngine / core path — this only returns the map.
+     * Cool Ghost-only feature: scan latency & rough bandwidth toward selected countries.
      */
+    suspend fun probeCountries(countryCodes: List<String> = emptyList()): GhostCountryNetProbe.CountryReport {
+        val report = GhostCountryNetProbe.probe(countryCodes)
+        lastCountryReport = report
+        if (status.enabled) {
+            status = status.copy(
+                message = "اسکن کشور: ${report.summaryFa}",
+                lastCheckEpochMs = report.timestampMs,
+                lastCheckIranTime = report.iranTime
+            )
+        }
+        return report
+    }
+
     fun buildEngineHints(): Map<String, Any> {
         val profile = GhostLayerProfiles.get(currentProfileId)
         val hints = mutableMapOf<String, Any>()
@@ -162,6 +191,7 @@ object GhostStatusManager {
             hints["padding"] = profile.paddingEnabled
             hints["traffic_shaping"] = profile.trafficShaping
         }
+        lastCountryReport?.bestCountryCode?.let { hints["best_exit_country"] = it }
         return hints
     }
 
