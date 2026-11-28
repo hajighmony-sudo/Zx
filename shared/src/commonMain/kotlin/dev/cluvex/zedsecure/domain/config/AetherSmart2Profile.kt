@@ -19,6 +19,11 @@ data class AetherSmart2Profile(
     val hasIpv6: Boolean = false,
     val dnsPreference: String = "smartguard",
     val xrayConfigTemplate: String = "",
+    /** Native Aether WARP/MASQUE/WireGuard profile; Xray remains the DNS/routing front. */
+    val aetherProfile: AetherProfile = AetherProfile(
+        profileName = "Aether · Smart 2",
+        smartFailover = true,
+    ),
 ) {
     fun xrayConfig(aetherPort: Int, upstreamPort: Int): String {
         require(aetherPort in 1024..65535 && upstreamPort in 1024..65535)
@@ -29,22 +34,10 @@ data class AetherSmart2Profile(
             .replace(UPSTREAM_PORT_TOKEN, upstreamPort.toString())
     }
 
-    fun commandArgs(bindPort: Int, upstreamPort: Int): List<String> {
-        require(bindPort in 1024..65535 && upstreamPort in 1024..65535)
-        require(bindPort != upstreamPort)
-        return listOf(
-            "--bind", "127.0.0.1:$bindPort",
-            "--psiphon-only",
-            "--psiphon-mode", "cdn",
-            "--psiphon-server-entries", "shipped-list",
-            "--upstream", "socks5://127.0.0.1:$upstreamPort",
-        )
-    }
+    fun commandArgs(bindPort: Int, workingDirectory: String): List<String> =
+        aetherProfile.toArgs(bindPort, workingDirectory)
 
-    fun commandPreview(): String =
-        "aether --bind 127.0.0.1:<AETHER_PORT> --psiphon-only " +
-            "--psiphon-mode cdn --psiphon-server-entries shipped-list " +
-            "--upstream socks5://127.0.0.1:<MIXED_PORT>"
+    fun commandPreview(): String = aetherProfile.commandPreview()
 
     companion object {
         const val MARKER = "ZX_AETHER_SMART_2"
@@ -66,12 +59,32 @@ data class AetherSmart2Profile(
             // Prefer independent DoH when the system resolver disagrees with it.
             val preferCloudflare = probe?.dnsSystemMatchesDoh == false ||
                 probe?.tcp443Reachable == false
+            val smartAether = AetherSmartConfig.build(
+                AetherSmartInput(
+                    network = network,
+                    hasIpv6 = hasIpv6,
+                    pingMs = probe?.edgeMs,
+                    edgeReachable = probe?.edgeLossPercent?.let { it < 100 },
+                    edgeMs = probe?.edgeMs,
+                    apiReachable = probe?.apiLossPercent?.let { it < 100 },
+                    apiMs = probe?.apiMs,
+                    edgeJitterMs = probe?.edgeJitterMs,
+                    apiJitterMs = probe?.apiJitterMs,
+                    udpReachable = probe?.udpReachable,
+                    tcp443Reachable = probe?.tcp443Reachable,
+                    tlsSniReachable = probe?.tlsSniReachable,
+                    dnsSystemMatchesDoh = probe?.dnsSystemMatchesDoh,
+                    countryCode = probe?.countryCode,
+                    ooniAnomalyPercent = probe?.ooniAnomalyPercent,
+                ),
+            ).copy(profileName = "Aether · Smart 2 · $networkName", smartFailover = true)
             return AetherSmart2Profile(
-                profileName = "Aether · Smart 2 · $networkName",
+                profileName = smartAether.profileName,
                 networkName = networkName,
                 hasIpv6 = hasIpv6,
                 dnsPreference = if (preferCloudflare) "cloudflare" else "smartguard",
                 xrayConfigTemplate = buildXrayConfig(preferCloudflare, hasIpv6),
+                aetherProfile = smartAether,
             )
         }
 
