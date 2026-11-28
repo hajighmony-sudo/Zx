@@ -20,6 +20,10 @@ internal class AetherEngineProcess(
     @Volatile var candidateSeen: Boolean = false
         private set
 
+    /** True only after native Aether confirms that the requested identity set was saved. */
+    @Volatile var registrationReady: Boolean = false
+        private set
+
     /** Last endpoint selected by Aether's native scan, when the core reports one. */
     @Volatile var scanResult: AetherSmart2ScanParser.Result? = null
         private set
@@ -31,6 +35,7 @@ internal class AetherEngineProcess(
     fun start(arguments: List<String>, environment: Map<String, String> = emptyMap()) {
         check(process?.let(::isProcessAlive) != true) { "Aether is already running" }
         candidateSeen = false
+        registrationReady = false
         scanResult = null
         AetherIdentityVault.sealAndShred(workingDirectory)
         AetherIdentityVault.unsealInto(workingDirectory)
@@ -67,6 +72,7 @@ internal class AetherEngineProcess(
                             candidateSeen = true
                         }
                         if (it.contains("candidate ok")) candidateSeen = true
+                        if (REGISTRATION_READY.containsMatchIn(it)) registrationReady = true
                         synchronized(recent) {
                             recent.addLast(it.take(160))
                             while (recent.size > 4) recent.removeFirst()
@@ -113,5 +119,6 @@ internal class AetherEngineProcess(
         private const val TAG = "ZX-Aether"
         private const val MAX_LOG_LINE = 2048
         private const val STOP_TIMEOUT_MS = 1500L
+        private val REGISTRATION_READY = Regex("""identities ready:\\s*\\S""", RegexOption.IGNORE_CASE)
     }
 }
