@@ -995,18 +995,6 @@ class ZedVpnService : VpnService() {
                     }
                 }
                 val routes = if (profile.aetherProfile.smartFailover) listOf("warp", "psiphon", "tor") else listOf("warp")
-                val networkKey = AetherSmart2Memory.networkKey(profile)
-                var knowledge = AetherSmart2Brain.initial(
-                    profile.udpReachable,
-                    profile.tlsSniReachable,
-                    profile.tcp443Reachable,
-                    profile.edgeLossPercent,
-                )
-                LogBus.append(
-                    "I/Aether Smart 2: network evidence udp=${profile.udpReachable ?: "unknown"}, " +
-                        "tls-sni=${profile.tlsSniReachable ?: "unknown"}, tcp443=${profile.tcp443Reachable ?: "unknown"}, " +
-                        "edge-loss=${profile.edgeLossPercent?.let { "$it%" } ?: "unknown"}",
-                )
                 var ready = false
                 for (route in routes) {
                     if (userStop) return@launch
@@ -1019,13 +1007,7 @@ class ZedVpnService : VpnService() {
                         continue
                     }
                     val variants = if (route == "warp") profile.aetherProfile.attempts() else listOf(profile.aetherProfile)
-                    val pendingVariants = if (route == "warp") {
-                        AetherSmart2Memory.order(this@ZedVpnService, networkKey, variants).toMutableList()
-                    } else variants.toMutableList()
-                    var index = 0
-                    while (pendingVariants.isNotEmpty()) {
-                        val variant = pendingVariants.removeAt(0)
-                        index++
+                    for ((index, variant) in variants.withIndex()) {
                         if (userStop) return@launch
                         val engine = AetherEngineProcess(java.io.File(applicationInfo.nativeLibraryDir), workDir)
                         aetherEngine = engine
@@ -1050,7 +1032,7 @@ class ZedVpnService : VpnService() {
                             else -> "Aether ${variant.protocol.uppercase()}"
                         }
                         LogBus.append(
-                            "I/Aether Smart 2: $routeLabel attempt $index; " +
+                            "I/Aether Smart 2: $routeLabel attempt ${index + 1}/${variants.size}; " +
                                 "scan=${variant.scanMode}, noize=${variant.noize}, h2=${variant.http2}",
                         )
                         engine.start(variant.toArgs(aetherPort, workDir.absolutePath), environment)
@@ -1075,15 +1057,9 @@ class ZedVpnService : VpnService() {
                         while (System.currentTimeMillis() < deadline) {
                             if (userStop) return@launch
                             if (!engine.isAlive()) break
-                            val elapsed = System.currentTimeMillis() - began
-                            if (route == "warp" &&
-                                AetherSmart2Brain.shouldAbandonUdp(variant, knowledge, elapsed, engine.candidateSeen)
-                            ) {
-                                LogBus.append("W/Aether Smart 2: UDP evidence is already negative and no gateway appeared after ${elapsed}ms; abandoning this UDP attempt early")
-                                break
-                            }
                             if (route == "warp" && !engine.candidateSeen &&
-                                elapsed > NO_CANDIDATE_GRACE_MS && pendingVariants.isNotEmpty()
+                                System.currentTimeMillis() - began > NO_CANDIDATE_GRACE_MS &&
+                                index < variants.lastIndex
                             ) {
                                 LogBus.append("W/Aether Smart 2: no candidate seen; moving to the next native Aether profile")
                                 break
@@ -1115,34 +1091,10 @@ class ZedVpnService : VpnService() {
                             routeReady = true
                             ready = true
                             aetherRouteLabel = route
-                            if (route == "warp") {
-                                AetherSmart2Memory.remember(this@ZedVpnService, networkKey, variant)
-                                LogBus.append("I/Aether Smart 2: successful native tactic remembered privately for this network")
-                            }
                             LogBus.append("I/Aether Smart 2: $routeLabel passed end-to-end Xray → Aether verification")
                             break
                         }
                         lastDetail = engine.lastLines()
-                        val died = !engine.isAlive()
-                        val verdict = AetherSmart2Brain.diagnose(
-                            signals = engine.smartSignals,
-                            died = died,
-                            aliveMs = System.currentTimeMillis() - began,
-                            ridesUdp = AetherSmart2Brain.ridesUdp(variant),
-                            fatal = lastDetail,
-                        )
-                        if (route == "warp") {
-                            knowledge = knowledge.learn(verdict)
-                            AetherSmart2Memory.noteFailure(this@ZedVpnService, networkKey, variant)
-                            val reordered = AetherSmart2Brain.adapt(pendingVariants, knowledge)
-                            pendingVariants.clear()
-                            pendingVariants.addAll(reordered)
-                            LogBus.append(
-                                "I/Aether Smart 2 brain: $verdict; udpBlocked=${knowledge.udpBlocked}, " +
-                                    "tlsInterference=${knowledge.tlsInterference}, gatewaysFiltered=${knowledge.gatewaysFiltered}; " +
-                                    "remaining tactics re-planned=${pendingVariants.size}",
-                            )
-                        }
                         LogBus.append("W/Aether Smart 2: $routeLabel attempt failed; $lastDetail")
                         aetherWatch?.cancel()
                         engine.stop()
