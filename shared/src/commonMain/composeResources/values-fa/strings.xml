@@ -1888,6 +1888,10 @@
     <string name="about_limits_title">نکات مهم درباره عملکرد</string>
     <string name="about_limits_body">عملکرد نهایی به کیفیت اینترنت، سرور، اپراتور، سیستم‌عامل، مجوزها و پیکربندی انتخاب‌شده بستگی دارد. همه قابلیت‌ها در تمام دستگاه‌ها یا همه موتورهای اتصال فعال نیستند. VPN به‌تنهایی امنیت کامل، سرعت ثابت یا ناشناس‌بودن مطلق را تضمین نمی‌کند.</string>
     <string name="aether_smart_title">کانفیگ هوشمند (Aether)</string>
+    <string name="aether_smart2_title">کانفیگ هوشمند (Aether)2</string>
+    <string name="aether_smart2_body">یک پروفایل مستقل Xray برای مسیریابی و DNS می‌سازد که ورودی‌های محلی SOCKS، HTTP و Mixed را همراه با مسیر Psiphon CDN تحت مدیریت Aether دارد. نوع شبکه، IPv6، تأخیر، DNS و دسترس‌پذیری مسیرهای ارتباطی پیش از ساخت پروفایل بررسی می‌شوند.</string>
+    <string name="aether_smart2_create">ساخت و فعال‌سازی</string>
+    <string name="aether_smart2_done">کانفیگ هوشمند Aether 2 ساخته و فعال شد</string>
     <string name="aether_smart_body">برنامه اینترنت و شبکه‌ی خودتان را بررسی می‌کند و همه‌ی فیلدهای Aether (پروتکل، حالت اسکن، نسخه IP، ضد DPI، HTTP/2) را خودکار پر می‌کند و یک کانفیگ اختصاصی و آماده‌ی اتصال می‌سازد.</string>
     <string name="aether_smart_detecting">در حال تشخیص شبکه…</string>
     <string name="aether_smart_detected">شبکه‌ی تشخیص‌داده‌شده: %1$s</string>
