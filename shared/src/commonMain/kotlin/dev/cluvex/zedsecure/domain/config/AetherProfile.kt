@@ -17,6 +17,14 @@ data class AetherProfile(
     val http2: Boolean = false,
     /** Sends the TLS ClientHello in pieces (anti-DPI); only meaningful with HTTP/2 transport. */
     val fragment: Boolean = false,
+    /** Optional TLS ClientHello chunk size/range in bytes (native Aether accepts 1..4096). */
+    val fragmentSize: String = "",
+    /** Optional delay/range between ClientHello fragments in milliseconds (0..1000). */
+    val fragmentDelay: String = "",
+    /** Use native Aether Encrypted ClientHello only when the live TLS probe indicates SNI trouble. */
+    val ech: Boolean = false,
+    val echDns: String = "udp://1.1.1.1",
+    val echDomain: String = "cloudflare-ech.com",
     /** Optional IP for the WARP registration API, for networks that block its default addresses. */
     val apiAddress: String = "",
     /** Enables the ordered WARP -> built-in Psiphon -> built-in Tor fallback used only by Smart profiles. */
@@ -28,6 +36,10 @@ data class AetherProfile(
         require(ipVersion in IP_VERSIONS) { "Unsupported Aether IP version" }
         require(noize in NOIZE_PROFILES) { "Unsupported Aether obfuscation profile" }
         require(!http2 || protocol != "wg") { "HTTP/2 transport is not available for WireGuard mode" }
+        require(validRange(fragmentSize, 1..4096)) { "Invalid Aether fragment size" }
+        require(validRange(fragmentDelay, 0..1000)) { "Invalid Aether fragment delay" }
+        require(validDomain(echDomain)) { "Invalid Aether ECH domain" }
+        require(validEchDns(echDns)) { "Invalid Aether ECH DNS URL" }
         return buildList {
             add("--bind"); add("127.0.0.1:$bindPort")
             add("--protocol"); add(protocol)
@@ -35,7 +47,16 @@ data class AetherProfile(
             add("--ip"); add(ipVersion)
             add("--noize"); add(noize)
             if (http2) add("--h2")
-            if (fragment && http2) add("--fragment")
+            if (fragment) {
+                add("--fragment")
+                fragmentSize.trim().takeIf(String::isNotEmpty)?.let { addAll(listOf("--fragment-size", normalizeRange(it, 1..4096))) }
+                fragmentDelay.trim().takeIf(String::isNotEmpty)?.let { addAll(listOf("--fragment-delay", normalizeRange(it, 0..1000))) }
+            }
+            if (ech) {
+                addAll(listOf("--ech", "auto"))
+                addAll(listOf("--ech-dns", echDns.trim()))
+                addAll(listOf("--ech-domain", echDomain.trim()))
+            }
             if (apiAddress.isNotBlank() && apiAddress.all { it.isLetterOrDigit() || it in ".:-[]" }) {
                 add("--api-address"); add(apiAddress.trim())
             }
@@ -70,6 +91,26 @@ data class AetherProfile(
             }
         return (listOf("libaether.so") + args).joinToString(" ")
     }
+
+    private fun validRange(raw: String, bounds: IntRange): Boolean =
+        raw.isBlank() || runCatching { normalizeRange(raw, bounds) }.isSuccess
+
+    private fun normalizeRange(raw: String, bounds: IntRange): String {
+        val parts = raw.trim().split('-')
+        require(parts.size in 1..2)
+        val values = parts.map { it.toIntOrNull()?.takeIf(bounds::contains) ?: error("out of range") }
+        return if (values.size == 1) "${values[0]}" else "${minOf(values[0], values[1])}-${maxOf(values[0], values[1])}"
+    }
+
+    private fun validDomain(raw: String): Boolean =
+        raw.length in 1..253 && raw.split('.').all { label ->
+            label.length in 1..63 && label.first().isLetterOrDigit() &&
+                label.last().isLetterOrDigit() && label.all { it.isLetterOrDigit() || it == '-' }
+        }
+
+    private fun validEchDns(raw: String): Boolean =
+        raw.length in 1..512 && raw.none(Char::isWhitespace) &&
+            (raw.startsWith("udp://") || raw.startsWith("tcp://") || raw.startsWith("https://"))
 
     fun startupBudgetMs(): Long = when (scanMode) {
         "turbo" -> 60_000L
