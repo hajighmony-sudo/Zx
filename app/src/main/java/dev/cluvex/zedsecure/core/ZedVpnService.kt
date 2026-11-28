@@ -968,10 +968,17 @@ class ZedVpnService : VpnService() {
                 // listener around it. The two listeners must never share a port: if the
                 // preferred Aether port happened to be 10822, xrayConfig() rejected the
                 // profile (and a busy upstream port could make Xray fail to start).
-                val upstreamPort = LocalPortPicker.pick(LocalPorts.AETHER2_UPSTREAM)
+                // Keep all three loopback listeners disjoint:
+                // Xray's app-facing SOCKS pair, Aether's SOCKS listener, and
+                // Xray's secondary inbound used by the Aether Smart 2 pipeline.
+                val xrayPorts = setOf(socksPort, socksPort + 1)
+                val upstreamPort = LocalPortPicker.pick(
+                    LocalPorts.AETHER2_UPSTREAM,
+                    taken = xrayPorts,
+                )
                 val aetherPort = LocalPortPicker.pick(
                     LocalPorts.AETHER2_SOCKS,
-                    taken = setOf(upstreamPort),
+                    taken = xrayPorts + upstreamPort,
                 )
                 val template = profile.xrayConfig(aetherPort, upstreamPort)
                 val geoReady = runCatching {
