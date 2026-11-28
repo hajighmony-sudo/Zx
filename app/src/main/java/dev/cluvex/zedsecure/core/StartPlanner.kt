@@ -121,6 +121,7 @@ class StartPlanner(context: Context) {
 
     fun engineKindOf(profile: VpnProfile): String = when {
         profile.isCrossChain -> VpnManager.KIND_CROSS_CHAIN
+        profile.isAetherSmart2 -> VpnManager.KIND_AETHER2
         profile.isAether -> VpnManager.KIND_AETHER
         profile.psiphonSettings() != null -> VpnManager.KIND_PSIPHON
         profile.dnsTunnelSettings() != null -> VpnManager.KIND_DNS_TUNNEL
@@ -140,6 +141,7 @@ class StartPlanner(context: Context) {
         carrier: Boolean = false,
         resolveServers: Boolean = false,
     ): String {
+        profile.aetherSmart2Settings()?.let { return dev.cluvex.zedsecure.domain.config.AetherSmart2Profile.encode(it) }
         profile.aetherSettings()?.let { return dev.cluvex.zedsecure.domain.config.AetherProfile.encode(it) }
         profile.sniSpoofSettings()?.let { sniSpoof ->
             val geoReady = GeoAssetsRepository(appContext).allPresent()
