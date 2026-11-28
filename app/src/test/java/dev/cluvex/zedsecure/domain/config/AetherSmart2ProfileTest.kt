@@ -38,5 +38,9 @@ class AetherSmart2ProfileTest {
         assertTrue(json.contains("\"address\": \"fakedns\""))
         assertTrue(json.contains("dns.smartguard.io"))
         assertTrue(json.contains("\"geoip:ir\""))
+        assertTrue(json.contains("\"finalQuery\": true"))
+        assertTrue(json.contains("\"domestic-dns_1_0\""))
+        assertTrue(json.contains("\"domestic-dns_2_0\""))
+        assertTrue(json.contains("\"inboundTag\": [\"domestic-dns_1_0\", \"domestic-dns_2_0\"]"))
     }
 }
