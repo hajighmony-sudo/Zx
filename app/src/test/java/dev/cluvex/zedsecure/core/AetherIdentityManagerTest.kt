@@ -1,6 +1,7 @@
 package dev.cluvex.zedsecure.core
 
 import java.nio.file.Files
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -141,6 +142,103 @@ class AetherIdentityManagerTest {
             assertFalse(status.toString().contains("secret"))
         } finally {
             directory.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun failedRenewalLeavesActiveIdentityUntouched() = runBlocking {
+        val root = Files.createTempDirectory("zx-aether-renew").toFile()
+        val active = java.io.File(root, "active")
+        val staged = java.io.File(root, "staged")
+        active.mkdirs()
+        val activeKey = java.io.File(active, "aether-masque.toml")
+        activeKey.writeText("device_id = \"old-device\"\n")
+        try {
+            val renewed = AetherIdentityManager.renewAtomically(
+                active,
+                staged,
+                listOf("aether-masque.toml"),
+            ) { directory ->
+                java.io.File(directory, "aether-masque.toml").writeText("device_id = \"new-device\"\n")
+                false
+            }
+            assertFalse(renewed)
+            assertEquals("old-device", AetherIdentityManager.parseIdentity(activeKey.readText())?.deviceId)
+            assertFalse(staged.exists())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun successfulRenewalPromotesOnlyAfterAllRequestedKeysAreValid() = runBlocking {
+        val root = Files.createTempDirectory("zx-aether-renew").toFile()
+        val active = java.io.File(root, "active")
+        val staged = java.io.File(root, "staged")
+        active.mkdirs()
+        val activeKey = java.io.File(active, "aether-masque.toml")
+        val unrelatedKey = java.io.File(active, "aether-wg.toml")
+        activeKey.writeText("device_id = \"old-masque\"\n")
+        unrelatedKey.writeText("device_id = \"keep-wg\"\n")
+        try {
+            val renewed = AetherIdentityManager.renewAtomically(
+                active,
+                staged,
+                listOf("aether-masque.toml"),
+            ) { directory ->
+                java.io.File(directory, "aether-masque.toml").writeText("device_id = \"new-masque\"\n")
+                true
+            }
+            assertTrue(renewed)
+            assertEquals("new-masque", AetherIdentityManager.parseIdentity(activeKey.readText())?.deviceId)
+            assertEquals("keep-wg", AetherIdentityManager.parseIdentity(unrelatedKey.readText())?.deviceId)
+            assertFalse(staged.exists())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun interruptedCommittedRenewalCanBeSettledOnNextUse() {
+        val root = Files.createTempDirectory("zx-aether-recover").toFile()
+        val active = java.io.File(root, "active")
+        val staged = java.io.File(root, "staged")
+        active.mkdirs()
+        val activeKey = java.io.File(active, "aether-masque.toml")
+        activeKey.writeText("device_id = \"old-device\"\n")
+        try {
+            java.io.File(staged, "aether-masque.toml").parentFile?.mkdirs()
+            java.io.File(staged, "aether-masque.toml").writeText("device_id = \"committed-device\"\n")
+            java.io.File(staged, ".aether-renewal-ready").createNewFile()
+            assertTrue(AetherIdentityManager.settleRenewal(active, staged))
+            assertEquals("committed-device", AetherIdentityManager.parseIdentity(activeKey.readText())?.deviceId)
+            assertFalse(staged.exists())
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun incompleteRenewalNeverReplacesActiveIdentity() = runBlocking {
+        val root = Files.createTempDirectory("zx-aether-incomplete").toFile()
+        val active = java.io.File(root, "active")
+        val staged = java.io.File(root, "staged")
+        active.mkdirs()
+        val activeKey = java.io.File(active, "aether-masque.toml")
+        activeKey.writeText("device_id = \"old-device\"\n")
+        try {
+            val renewed = AetherIdentityManager.renewAtomically(
+                active,
+                staged,
+                listOf("aether-masque.toml", "aether-masque-secondary.toml"),
+            ) { directory ->
+                java.io.File(directory, "aether-masque.toml").writeText("device_id = \"new-device\"\n")
+                true
+            }
+            assertFalse(renewed)
+            assertEquals("old-device", AetherIdentityManager.parseIdentity(activeKey.readText())?.deviceId)
+        } finally {
+            root.deleteRecursively()
         }
     }
 
