@@ -9,11 +9,10 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * DPI presence & type detector for Ghost Mode status dashboard.
- * Parallel HTTPS probes to Reality-style donors; maps timeouts / failures
- * into DpiLevel + DpiType for the adaptive ladder.
- *
- * Only Ghost Mode related — does not touch other features.
+ * DPI presence & type detector for Ghost Mode.
+ * Parallel HTTPS probes to diverse non-Cloudflare donors so Ghost does not
+ * depend on a single CDN fingerprint.
+ * Ghost Mode only — does not touch other features.
  */
 class GhostDpiDetector {
 
@@ -36,24 +35,24 @@ class GhostDpiDetector {
     private val probeTargets = listOf(
         "www.microsoft.com",
         "www.apple.com",
-        "cloudflare.com",
         "www.nvidia.com",
-        "www.samsung.com"
+        "www.samsung.com",
+        "www.sony.com",
+        "www.hetzner.com",
+        "www.digitalocean.com"
     )
 
     suspend fun detect(): DetectionResult = withContext(Dispatchers.IO) {
         val probes = coroutineScope {
-            probeTargets.map { target ->
-                async { probeOne(target) }
-            }.awaitAll()
+            probeTargets.map { target -> async { probeOne(target) } }.awaitAll()
         }
 
         val failed = probes.count { !it.success || it.resetDetected || it.sniBlocked || it.fingerprintRejected }
         val level = when {
             failed == 0 -> DpiLevel.NONE
-            failed == 1 -> DpiLevel.LOW
-            failed == 2 -> DpiLevel.MEDIUM
-            failed == 3 -> DpiLevel.HIGH
+            failed <= 2 -> DpiLevel.LOW
+            failed <= 3 -> DpiLevel.MEDIUM
+            failed <= 5 -> DpiLevel.HIGH
             else -> DpiLevel.EXTREME
         }
 
@@ -61,7 +60,7 @@ class GhostDpiDetector {
         if (probes.any { it.sniBlocked }) types += DpiType.SNI_BLOCKING
         if (probes.any { it.fingerprintRejected }) types += DpiType.TLS_FINGERPRINT
         if (probes.any { it.resetDetected }) types += DpiType.ACTIVE_PROBING
-        if (probes.count { !it.success } >= 3) types += DpiType.PROTOCOL_SIGNATURE
+        if (probes.count { !it.success } >= 4) types += DpiType.PROTOCOL_SIGNATURE
 
         DetectionResult(
             level = level,
@@ -79,7 +78,7 @@ class GhostDpiDetector {
                 connectTimeout = 3500
                 readTimeout = 3500
                 instanceFollowRedirects = true
-                setRequestProperty("User-Agent", "ZX-GhostDpiDetector/1.0")
+                setRequestProperty("User-Agent", "ZX-GhostDpiDetector/1.1")
             }
             val code = conn.responseCode
             val latency = ((System.nanoTime() - t0) / 1_000_000L).coerceAtLeast(1L)
