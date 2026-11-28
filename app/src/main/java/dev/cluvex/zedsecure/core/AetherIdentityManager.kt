@@ -1,7 +1,14 @@
 package dev.cluvex.zedsecure.core
 
 import java.io.File
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -29,6 +36,8 @@ internal data class AetherIdentityStatus(
 )
 
 internal object AetherIdentityManager {
+    private const val RENEWAL_READY_MARK = ".aether-renewal-ready"
+    private val renewalMutex = Mutex()
     internal val requiredFiles = listOf(
         "aether-wg.toml",
         "aether-wg-secondary.toml",
@@ -103,6 +112,78 @@ internal object AetherIdentityManager {
 
     internal fun status(directory: File, protocol: String): AetherIdentityStatus =
         AetherIdentityStatus(protocol, keys(directory, filesOf(protocol)))
+
+    /**
+     * Replace only the requested identity files after every replacement has been registered
+     * and validated in a separate directory. Existing active keys remain untouched on failure.
+     *
+     * The callback must run native Aether with its config/output paths directed at [renewalDirectory].
+     * It must return true only after the engine reports that registration completed.
+     */
+    internal suspend fun renewAtomically(
+        workingDirectory: File,
+        renewalDirectory: File,
+        files: List<String>,
+        register: suspend (File) -> Boolean,
+    ): Boolean = renewalMutex.withLock {
+        require(files.isNotEmpty() && files.all { it in requiredFiles }) {
+            "Only known Aether identity files can be renewed"
+        }
+        val prepared = withContext(Dispatchers.IO) {
+            settleRenewal(workingDirectory, renewalDirectory) &&
+                renewalDirectory.deleteRecursively() &&
+                renewalDirectory.mkdirs()
+        }
+        if (!prepared) return@withLock false
+
+        val ready = AtomicBoolean(false)
+        try {
+            if (register(renewalDirectory)) {
+                withContext(Dispatchers.IO) {
+                    // Ignore unrelated files the native registration may have emitted.
+                    (requiredFiles - files.toSet()).forEach { File(renewalDirectory, it).delete() }
+                    ready.set(
+                        files.all { isValidIdentityFile(File(renewalDirectory, it)) } &&
+                            runCatching { File(renewalDirectory, RENEWAL_READY_MARK).createNewFile() }
+                                .getOrDefault(false),
+                    )
+                }
+            }
+        } finally {
+            withContext(NonCancellable + Dispatchers.IO) {
+                if (ready.get()) settleRenewal(workingDirectory, renewalDirectory)
+                else renewalDirectory.deleteRecursively()
+            }
+        }
+        ready.get()
+    }
+
+    /**
+     * Finish a previously committed renewal after interruption. Without the ready marker,
+     * the staged files are never promoted and the active identity set remains unchanged.
+     */
+    internal fun settleRenewal(workingDirectory: File, renewalDirectory: File): Boolean {
+        if (!File(renewalDirectory, RENEWAL_READY_MARK).isFile) return true
+        if (!workingDirectory.exists() && !workingDirectory.mkdirs()) return false
+        for (name in requiredFiles) {
+            val staged = File(renewalDirectory, name)
+            if (staged.isFile && !moveIdentityOver(staged, File(workingDirectory, name))) return false
+        }
+        return renewalDirectory.deleteRecursively()
+    }
+
+    private fun moveIdentityOver(source: File, target: File): Boolean = try {
+        Files.move(
+            source.toPath(),
+            target.toPath(),
+            StandardCopyOption.REPLACE_EXISTING,
+            StandardCopyOption.ATOMIC_MOVE,
+        )
+        true
+    } catch (_: IOException) {
+        // Another recovery pass may already have moved this file.
+        !source.isFile
+    }
 
     /**
      * Returns true when every native identity already exists or Aether registered
