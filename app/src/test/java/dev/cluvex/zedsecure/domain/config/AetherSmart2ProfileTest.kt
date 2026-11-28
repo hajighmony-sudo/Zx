@@ -12,6 +12,9 @@ class AetherSmart2ProfileTest {
         val decoded = AetherSmart2Profile.decode(AetherSmart2Profile.encode(profile))
         assertEquals(profile, decoded)
         assertTrue(profile.profileName.contains("Smart 2"))
+        assertEquals(true, profile.aetherProfile.smartFailover)
+        assertTrue(profile.aetherProfile.protocol in setOf("masque", "wg", "gool", "mim"))
+        assertTrue(profile.aetherProfile.attempts().isNotEmpty())
     }
 
     @Test
