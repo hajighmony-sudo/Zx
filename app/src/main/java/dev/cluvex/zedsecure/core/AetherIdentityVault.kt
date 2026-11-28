@@ -3,6 +3,7 @@ package dev.cluvex.zedsecure.core
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import java.io.File
+import java.io.FileOutputStream
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -30,10 +31,17 @@ internal object AetherIdentityVault {
                 LogBus.append("W/Aether: sealed identity could not be opened on this device")
                 return@forEach
             }
+            val temp = File(dir, target.name + ".restore.tmp")
             runCatching {
-                target.writeBytes(plain)
-                restrict(target)
+                writeSynced(temp, plain)
+                restrict(temp)
+                // Never overwrite a plaintext identity created by another process.
+                if (!target.exists() && !temp.renameTo(target)) {
+                    error("could not atomically restore identity")
+                }
+                if (target.exists()) temp.delete()
             }.onFailure {
+                runCatching { temp.delete() }
                 LogBus.append("W/Aether: could not restore sealed identity (" + it.javaClass.simpleName + ")")
             }
         }
@@ -43,29 +51,65 @@ internal object AetherIdentityVault {
         if (!dir.exists()) return
         val files = dir.listFiles { file -> file.isFile && identityName.matches(file.name) } ?: return
         files.forEach { source ->
-            val encrypted = runCatching { encrypt(source.readBytes(), source.name) }.getOrNull()
+            val plain = runCatching { source.readBytes() }.getOrNull() ?: return@forEach
+            val encrypted = runCatching { encrypt(plain, source.name) }.getOrNull()
             if (encrypted == null) {
                 LogBus.append("W/Aether: identity remains in app-private storage because Keystore sealing failed")
                 return@forEach
             }
+
             val target = File(dir, source.name + SEALED_SUFFIX)
             val temp = File(dir, source.name + SEALED_SUFFIX + ".tmp")
+            val backup = File(dir, source.name + SEALED_SUFFIX + ".bak")
+            var movedOldTarget = false
             val saved = runCatching {
-                temp.writeBytes(encrypted)
+                writeSynced(temp, encrypted)
                 restrict(temp)
-                if (target.exists() && !target.delete()) error("cannot replace sealed identity")
+                // Verify both the ciphertext and its filename-bound authentication tag
+                // before touching the previously sealed identity.
+                check(decrypt(temp.readBytes(), source.name).contentEquals(plain)) {
+                    "sealed identity verification failed"
+                }
+
+                if (target.exists()) {
+                    check(!backup.exists()) { "previous identity backup needs recovery" }
+                    check(target.renameTo(backup)) { "could not preserve previous sealed identity" }
+                    movedOldTarget = true
+                }
+
                 if (!temp.renameTo(target)) {
                     target.writeBytes(encrypted)
-                    temp.delete()
+                    restrict(target)
                 }
-                target.isFile
-            }.getOrDefault(false)
-            if (saved) {
-                runCatching { source.delete() }
-            } else {
-                runCatching { temp.delete() }
-                LogBus.append("W/Aether: could not seal an identity file; plaintext was retained")
+                check(target.isFile && decrypt(target.readBytes(), source.name).contentEquals(plain)) {
+                    "stored identity verification failed"
+                }
+                true
+            }.getOrElse {
+                if (movedOldTarget && backup.exists()) {
+                    if (target.exists()) runCatching { target.delete() }
+                    runCatching { backup.renameTo(target) }
+                }
+                false
             }
+
+            if (saved) {
+                if (!source.delete()) {
+                    LogBus.append("W/Aether: sealed identity saved, but plaintext cleanup was not confirmed")
+                }
+                if (backup.exists()) runCatching { backup.delete() }
+            } else {
+                LogBus.append("W/Aether: could not safely seal an identity; previous data was preserved")
+            }
+            runCatching { temp.delete() }
+        }
+    }
+
+    private fun writeSynced(file: File, bytes: ByteArray) {
+        FileOutputStream(file).use { output ->
+            output.write(bytes)
+            output.flush()
+            output.fd.sync()
         }
     }
 
