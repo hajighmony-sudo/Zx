@@ -68,7 +68,7 @@ internal object AetherIdentityManager {
                     fields.putIfAbsent(key, value)
                 }
             }
-            if (MULTILINE_DELIMITER.findAll(line).count() % 2 == 1) {
+    private val MULTILINE_DELIMITER = Regex("""(?:"{3}|'{3})""")
                 insideMultiline = !insideMultiline
             }
         }
@@ -91,11 +91,13 @@ internal object AetherIdentityManager {
         }
 
     /** Identity files required by each native transport family. */
-    internal fun filesOf(protocol: String): List<String> = when (protocol.lowercase()) {
+    internal fun filesOf(protocol: String): List<String> = when (protocol.lowercase().replace('-', '_')) {
         "masque" -> listOf("aether-masque.toml")
         "wg", "wireguard" -> listOf("aether-wg.toml")
         "gool" -> listOf("aether-wg.toml", "aether-wg-secondary.toml")
         "mim" -> listOf("aether-masque.toml", "aether-masque-secondary.toml")
+        "wg_over_masque", "wireguard_over_masque", "wgmasque" ->
+            listOf("aether-masque.toml", "aether-masque-gool.toml")
         else -> emptyList()
     }
 
