@@ -1,6 +1,8 @@
 package dev.cluvex.zedsecure.core
 
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * Process adapter for the separately packaged Aether executable.
@@ -16,6 +18,7 @@ internal class AetherEngineProcess(
 ) {
     @Volatile private var process: Process? = null
     private val recent = java.util.ArrayDeque<String>()
+    private val registrationReadySignal = CountDownLatch(1)
 
     /** True once the engine's scanner has reported at least one reachable gateway candidate. */
     @Volatile var candidateSeen: Boolean = false
@@ -73,7 +76,10 @@ internal class AetherEngineProcess(
                             candidateSeen = true
                         }
                         if (it.contains("candidate ok")) candidateSeen = true
-                        if (AetherIdentityManager.isReadyLine(it)) registrationReady = true
+                        if (AetherIdentityManager.isReadyLine(it)) {
+                            registrationReady = true
+                            registrationReadySignal.countDown()
+                        }
                         synchronized(recent) {
                             recent.addLast(it.take(160))
                             while (recent.size > 4) recent.removeFirst()
@@ -95,6 +101,10 @@ internal class AetherEngineProcess(
     }
 
     fun awaitExit(): Int? = process?.waitFor()
+
+    /** Wait for the native core's explicit identity-registration completion line. */
+    fun awaitRegistration(timeoutMs: Long): Boolean =
+        registrationReady || registrationReadySignal.await(timeoutMs, TimeUnit.MILLISECONDS)
 
     @Synchronized
     fun stop() {
