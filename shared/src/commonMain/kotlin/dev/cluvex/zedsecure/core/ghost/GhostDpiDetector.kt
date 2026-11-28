@@ -4,7 +4,11 @@ package dev.cluvex.zedsecure.core.ghost
  * DPI presence & type detector for Ghost Mode status dashboard.
  * Parallel probes + reset / SNI / fingerprint behaviour.
  * Complements existing GhostEngine pressure detection.
- * Only Ghost Mode related.
+ * Only Ghost Mode related — does not touch other features.
+ *
+ * Runtime note: when wired to a live engine, replace the placeholder probes
+ * with real HTTP/TLS checks against the targets below and map RST / timeout /
+ * wrong cert responses into the ProbeResult flags.
  */
 class GhostDpiDetector {
 
@@ -24,18 +28,32 @@ class GhostDpiDetector {
         val timestampMs: Long
     )
 
+    // Targets chosen as common Reality donors / popular HTTPS endpoints
+    private val probeTargets = listOf(
+        "www.microsoft.com",
+        "www.apple.com",
+        "cloudflare.com",
+        "www.nvidia.com",
+        "www.samsung.com"
+    )
+
     /**
      * Fast DPI detection pass.
-     * In real runtime this is wired to the active engine (Xray / sing-box / Aether)
-     * and performs real traffic probes. Placeholder probes keep the status API stable.
+     * Placeholder probes keep the status API stable offline;
+     * production builds should replace the body with real concurrent probes.
      */
     suspend fun detect(): DetectionResult {
-        val probes = listOf(
-            ProbeResult("www.microsoft.com", true, 120, false, false, false),
-            ProbeResult("www.apple.com", true, 95, false, false, false),
-            ProbeResult("cloudflare.com", true, 80, false, false, false),
-            ProbeResult("www.nvidia.com", true, 110, false, false, false)
-        )
+        val probes = probeTargets.map { target ->
+            // Offline-safe defaults: assume healthy network until real probes exist
+            ProbeResult(
+                target = target,
+                success = true,
+                latencyMs = 80L + (target.hashCode().toLong() and 0x3F),
+                resetDetected = false,
+                sniBlocked = false,
+                fingerprintRejected = false
+            )
+        }
 
         val failed = probes.count { !it.success || it.resetDetected || it.sniBlocked || it.fingerprintRejected }
         val level = when {
